@@ -1,0 +1,16 @@
+[package]
+name = "canton-solvency-merkle"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+description = "Merkle sum tree for exchange proof-of-solvency commitments on Canton"
+repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
+keywords = ["canton", "proof-of-solvency", "merkle", "audit"]
+categories = ["cryptography", "finance"]
+
+[dependencies]
+anyhow = "1"
+hex = "0.4"
+hmac = "0.12"
+sha2 = "0.10"

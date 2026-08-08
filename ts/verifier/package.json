@@ -1,0 +1,16 @@
+{
+  "name": "canton-solvency-verifier",
+  "version": "0.1.0",
+  "description": "Browser-side verifier for Canton proof-of-solvency commitments (Merkle sum tree)",
+  "license": "Apache-2.0",
+  "repository": "github:Rocky-exchange/canton-proof-of-solvency",
+  "type": "module",
+  "main": "src/verify.ts",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.5"
+  }
+}
