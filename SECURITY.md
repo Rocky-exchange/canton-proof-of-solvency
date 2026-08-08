@@ -13,7 +13,7 @@ Report privately via either channel:
 
 - **GitHub private vulnerability reporting** (preferred): *Security* →
   *Report a vulnerability* on this repository.
-- **Email:** security@rocky.exchange
+- **Email:** lewis.q.zhang@gmail.com
 
 Include: affected component (Rust crate / TS verifier / spec), a minimal
 reproduction or proof-of-concept, and the impact as you understand it.
