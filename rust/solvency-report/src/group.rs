@@ -160,6 +160,8 @@ pub fn verify_membership(
         GROUP_MEMBERSHIP_FORMAT_VERSION,
     )?;
 
+    crate::verify::expect_leaf_kind(&signed.report, crate::profile::LeafKind::Entity)?;
+
     let root_hash = crate::verify::hash32(&membership.entity.root_hash, "entity root hash")?;
     let leaf = entity_leaf_node(&EntityInput {
         entity_id: membership.entity.entity_id.clone(),
@@ -410,6 +412,37 @@ mod tests {
             verify_membership(&g.signed_report, &g.memberships[0], &"ab".repeat(32)),
             Err(VerificationFailure::UnknownSigner)
         );
+    }
+
+    /// The mirror of the customer-side check: a membership document is for a
+    /// tree of entities, so it must not verify against a customer-level book.
+    #[test]
+    fn a_membership_cannot_verify_against_a_customer_level_report() {
+        let g = group();
+        let customer_level = crate::produce::publish(
+            &[crate::produce::LeafInput {
+                salt: [0u8; 32],
+                user_id: "u1".to_string(),
+                balances: sums(&[("USDA", 1)]),
+            }],
+            &ReportMetadata {
+                profile: "solvency.liabilities".to_string(),
+                ..metadata()
+            },
+            &signer(),
+        )
+        .unwrap();
+
+        match verify_membership(
+            &customer_level.signed_report,
+            &g.memberships[0],
+            &signer().public_key_hex(),
+        ) {
+            Err(VerificationFailure::Profile { detail }) => {
+                assert!(detail.contains("Customer"), "got {detail}")
+            }
+            other => panic!("expected a profile failure, got {other:?}"),
+        }
     }
 
     #[test]

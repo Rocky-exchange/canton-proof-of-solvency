@@ -477,7 +477,12 @@ localnet 上端到端跑通,从预置的持仓与用户余额产出一份已验�
 
 **交付物**
 
-- **Profile 注册表**(新增 SPEC §14)—— 每个 profile 固定其叶子结构、树根断言的
+- ~~**Profile 注册表**~~ —— **已交付**,见 [SPEC.md](SPEC.md) §14,覆盖当前
+  叶子结构所能支持的两个 profile:`solvency.liabilities` 与 `solvency.group`。
+  未注册的 profile 会被拒绝;缺少该 profile 所要求的聚合量的报告会因"陈述为空"
+  被拒绝;叶子类型与 profile 不符的证明会被拒收 —— 客户证明对集团报告不再表现为
+  一个含义不明的哈希不匹配。下列四个 profile 仍需要更丰富的叶子结构。
+  *原始范围:* 每个 profile 固定其叶子结构、树根断言的
   陈述、必须公布的聚合量,以及一张默认对象权限表。profile 与核心格式一样,随附
   黄金向量。
 - **偿付之外的四个 profile** —— `collateral.repo`、`fund.nav`、

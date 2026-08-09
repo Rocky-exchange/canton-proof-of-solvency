@@ -11,6 +11,7 @@ import { combineNodes, parseAmount18dp, type SolvencyNode } from "./verify";
 import {
   lp,
   lpmap,
+  expectLeafKind,
   reportDigestHex,
   verifyEd25519,
   verifyReport,
@@ -97,6 +98,9 @@ export async function verifyMembership(
   }
 
   const { report } = groupSigned;
+  const profileFailure = expectLeafKind(report, "entity");
+  if (profileFailure) return profileFailure;
+
   let digest: string;
   let current: SolvencyNode;
   try {

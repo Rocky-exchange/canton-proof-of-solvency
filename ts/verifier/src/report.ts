@@ -26,6 +26,19 @@ const REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
 export type Disclosure = "published" | "committed" | "withheld";
 export type Manifest = { audience: string; fields: Record<string, Disclosure> };
 
+/** SPEC §14: what a leaf of the committed tree stands for. */
+export type LeafKind = "customer" | "entity";
+export type ProfileRules = { name: string; leaf: LeafKind; requiredAggregates: string[] };
+
+export const PROFILE_REGISTRY: ProfileRules[] = [
+  { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
+  { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
+];
+
+export function lookupProfile(name: string): ProfileRules | undefined {
+  return PROFILE_REGISTRY.find((p) => p.name === name);
+}
+
 const KNOWN_FIELDS = [
   "root_sums",
   "mark_prices",
@@ -80,6 +93,7 @@ export type VerificationFailure =
   | { kind: "root_sums_mismatch"; asset: string }
   | { kind: "entity_root_mismatch" }
   | { kind: "entity_sums_mismatch"; asset: string }
+  | { kind: "profile"; detail: string }
   | { kind: "manifest_presence"; detail: string }
   | { kind: "manifest_inconsistent"; path: string; detail: string }
   | { kind: "malformed"; detail: string };
@@ -267,6 +281,37 @@ export function checkReportVersionAndManifest(report: Report): VerificationResul
   return null;
 }
 
+/**
+ * Validates the declared profile and requires the tree's leaves to be what the
+ * caller is about to present a proof for. Without this a customer proof
+ * against a group report would fail later as an opaque hash mismatch.
+ */
+export function expectLeafKind(report: Report, wanted: LeafKind): VerificationResult | null {
+  const rules = lookupProfile(report.profile);
+  if (!rules) {
+    return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
+  }
+  for (const aggregate of rules.requiredAggregates) {
+    const present =
+      aggregate === "root_sums"
+        ? Object.keys(report.root_sums).length > 0
+        : Object.keys(report.mark_prices).length > 0;
+    if (!present) {
+      return fail({
+        kind: "profile",
+        detail: `profile ${rules.name}: ${aggregate} is required by this profile but the report carries none, so the statement would be vacuous`,
+      });
+    }
+  }
+  if (rules.leaf !== wanted) {
+    return fail({
+      kind: "profile",
+      detail: `profile ${rules.name} commits to ${rules.leaf} leaves; this proof is for ${wanted} leaves`,
+    });
+  }
+  return null;
+}
+
 /** Recompute the leaf, fold the path, compare hash *and* per-asset totals. */
 export async function verifyReport(
   signed: SignedReport,
@@ -276,6 +321,7 @@ export async function verifyReport(
   const { report } = signed;
   const versionFailure =
     checkReportVersionAndManifest(report) ??
+    expectLeafKind(report, "customer") ??
     checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ??
     checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
   if (versionFailure) return versionFailure;

@@ -172,3 +172,38 @@ describe("report v2 and the disclosure manifest", () => {
     if (!result.ok) expect(result.failure.kind).toBe("manifest_inconsistent");
   });
 });
+
+describe("profile registry", () => {
+  it("rejects a report whose profile is not registered", async () => {
+    const doc = signed();
+    doc.report.profile = "collateral.repo";
+    const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.kind).toBe("profile");
+      if (result.failure.kind === "profile") {
+        expect(result.failure.detail).toContain("registry");
+      }
+    }
+  });
+
+  it("refuses a customer proof against a group-profile report", async () => {
+    const doc = signed();
+    doc.report.profile = "solvency.group";
+    const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("entity leaves");
+    }
+  });
+
+  it("rejects a liabilities report carrying no totals as vacuous", async () => {
+    const doc = signed();
+    doc.report.root_sums = {};
+    const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("vacuous");
+    }
+  });
+});
