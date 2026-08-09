@@ -5,8 +5,10 @@ edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
 description = "Merkle sum tree for exchange proof-of-solvency commitments on Canton"
+documentation = "https://docs.rs/"
 repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
 keywords = ["canton", "proof-of-solvency", "merkle", "audit"]
+readme = "../../README.md"
 categories = ["cryptography", "finance"]
 
 [dependencies]

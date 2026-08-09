@@ -5,8 +5,10 @@ edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
 description = "Offline CLI for verifying Canton proof-of-solvency reports and inclusion proofs"
+documentation = "https://docs.rs/"
 repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
 keywords = ["canton", "proof-of-solvency", "audit", "cli"]
+readme = "../../README.md"
 categories = ["command-line-utilities", "cryptography"]
 
 # Deliberately few dependencies: this is a tool whose users may need to read

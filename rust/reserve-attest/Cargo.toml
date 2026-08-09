@@ -5,8 +5,10 @@ edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
 description = "Reads custody holdings from a Canton participant and commits them as a coverage report"
+documentation = "https://docs.rs/"
 repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
 keywords = ["canton", "proof-of-solvency", "custody", "ledger-api"]
+readme = "../../README.md"
 categories = ["cryptography", "finance"]
 
 # No HTTP client dependency. The socket lives behind a `Transport` the caller
