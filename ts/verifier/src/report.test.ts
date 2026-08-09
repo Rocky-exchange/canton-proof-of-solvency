@@ -104,7 +104,7 @@ describe("report verification", () => {
 
 describe("report v2 and the disclosure manifest", () => {
   const v2 = (): SignedReport => JSON.parse(fixture("report-v2.golden.json"));
-  const v2Proof = (): ProofDocument => JSON.parse(fixture("proof-v2.golden.json"));
+  const v2Proof = (): ProofDocument => JSON.parse(fixture("proof-for-report-v2.golden.json"));
 
   it("reproduces the v2 digest and signature pinned by the Rust producer", async () => {
     const doc = v2();

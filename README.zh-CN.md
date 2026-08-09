@@ -255,7 +255,7 @@ offset、发布方、签名)、锚定链,以及验证端本身。
 | 线格式规范 | [`SPEC.md`](SPEC.md) | 字节级格式 v1 + 黄金测试向量 |
 | 示例 | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → 树根、总额、已验证证明 |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | 签名报告与证明文档(Rust) |
-| 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档 + JSON Schema |
+| 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档,以及覆盖其中每一份的 JSON Schema |
 | 离线验证页 | [`offline/verifier.html`](offline/verifier.html) | 自包含页面,无构建步骤、无网络请求 |
 | `canton-disclosure-console` | *规划中 —— [M4](#milestone-4--披露控制台)* | 发布端 + 查看端 Web 控制台 |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | 审计 CLI,批量验证 |

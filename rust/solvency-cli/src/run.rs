@@ -2,7 +2,9 @@
 
 use crate::args::{Command, ProofSource};
 use anyhow::{Context, Result};
-use canton_solvency_report::document::{ProofDocument, SignedReport};
+use canton_solvency_report::document::{
+    ProofDocument, ProofDocumentV2, SignedReport, PROOF_FORMAT_VERSION_V2,
+};
 use canton_solvency_report::group::{verify_chain, verify_membership, GroupMembershipDocument};
 use canton_solvency_report::verify::verify;
 use std::path::{Path, PathBuf};
@@ -20,6 +22,9 @@ pub struct ProofOutcome {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Summary {
     pub report_digest: String,
+    /// What the report's profile asserts. "Verified" is not much use to a
+    /// reader who does not know what was verified.
+    pub statement: Option<String>,
     pub outcomes: Vec<ProofOutcome>,
 }
 
@@ -37,6 +42,46 @@ fn load<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+}
+
+/// Peeks at a document's declared version so `verify` can dispatch without
+/// the operator having to know which proof format they were handed.
+#[derive(serde::Deserialize)]
+struct VersionPeek {
+    format_version: String,
+}
+
+/// One proof of either format, already parsed.
+enum AnyProof {
+    V1(Box<ProofDocument>),
+    V2(Box<ProofDocumentV2>),
+}
+
+impl AnyProof {
+    fn subject(&self) -> String {
+        match self {
+            Self::V1(p) => p.leaf.user_id.clone(),
+            Self::V2(p) => p.leaf.subject_id.clone(),
+        }
+    }
+
+    fn verify_against(&self, signed: &SignedReport, key: &str) -> Option<String> {
+        match self {
+            Self::V1(p) => verify(signed, p, key).err().map(|f| f.to_string()),
+            Self::V2(p) => canton_solvency_report::verify::verify_v2(signed, p, key)
+                .err()
+                .map(|f| f.to_string()),
+        }
+    }
+}
+
+fn parse_proof(text: &str) -> Result<AnyProof> {
+    let peek: VersionPeek = serde_json::from_str(text)?;
+    if peek.format_version == PROOF_FORMAT_VERSION_V2 {
+        Ok(AnyProof::V2(Box::new(serde_json::from_str(text)?)))
+    } else {
+        Ok(AnyProof::V1(Box::new(serde_json::from_str(text)?)))
+    }
 }
 
 /// `*.json` in the directory, sorted so output is stable across filesystems.
@@ -61,6 +106,7 @@ pub fn run(command: &Command) -> Result<Summary> {
             let signed: SignedReport = load(report)?;
             Ok(Summary {
                 report_digest: hex_digest(&signed),
+                statement: statement_of(&signed),
                 outcomes: Vec::new(),
             })
         }
@@ -81,7 +127,7 @@ pub fn run(command: &Command) -> Result<Summary> {
             for path in paths {
                 let text = std::fs::read_to_string(&path)
                     .with_context(|| format!("reading {}", path.display()))?;
-                let proof: ProofDocument = match serde_json::from_str(&text) {
+                let proof = match parse_proof(&text) {
                     Ok(proof) => proof,
                     // Publishers put report.json next to the proofs. Skip a
                     // report while sweeping; anything else is a real error,
@@ -90,22 +136,19 @@ pub fn run(command: &Command) -> Result<Summary> {
                         if sweeping && serde_json::from_str::<SignedReport>(&text).is_ok() {
                             continue;
                         }
-                        return Err(
-                            anyhow::Error::new(e).context(format!("parsing {}", path.display()))
-                        );
+                        return Err(e.context(format!("parsing {}", path.display())));
                     }
                 };
                 outcomes.push(ProofOutcome {
-                    subject: proof.leaf.user_id.clone(),
-                    failure: verify(&signed, &proof, trusted_key)
-                        .err()
-                        .map(|f| f.to_string()),
+                    subject: proof.subject(),
+                    failure: proof.verify_against(&signed, trusted_key),
                     path,
                 });
             }
 
             Ok(Summary {
                 report_digest: hex_digest(&signed),
+                statement: statement_of(&signed),
                 outcomes,
             })
         }
@@ -149,6 +192,7 @@ pub fn run(command: &Command) -> Result<Summary> {
 
             Ok(Summary {
                 report_digest: hex_digest(&signed),
+                statement: statement_of(&signed),
                 outcomes,
             })
         }
@@ -180,6 +224,7 @@ pub fn run(command: &Command) -> Result<Summary> {
 
             Ok(Summary {
                 report_digest: hex_digest(&group_signed),
+                statement: statement_of(&group_signed),
                 outcomes: vec![ProofOutcome {
                     path: proof.clone(),
                     subject: format!(
@@ -193,6 +238,7 @@ pub fn run(command: &Command) -> Result<Summary> {
         Command::ManifestDiff { .. } => anyhow::bail!("handled by run_diff"),
         Command::Help | Command::Version => Ok(Summary {
             report_digest: String::new(),
+            statement: None,
             outcomes: Vec::new(),
         }),
     }
@@ -200,6 +246,12 @@ pub fn run(command: &Command) -> Result<Summary> {
 
 fn hex_digest(signed: &SignedReport) -> String {
     canton_solvency_report::digest::report_digest_hex(&signed.report)
+}
+
+/// None when the profile is unregistered; verification will say so.
+fn statement_of(signed: &SignedReport) -> Option<String> {
+    canton_solvency_report::profile::lookup(&signed.report.profile)
+        .map(|rules| format!("{}: {}", rules.name, rules.statement))
 }
 
 #[cfg(test)]
@@ -474,6 +526,39 @@ mod tests {
             .as_deref()
             .unwrap()
             .contains("root"));
+    }
+
+    /// A v2 proof must verify through the same verb: an operator should not
+    /// have to know which leaf format their venue used.
+    #[test]
+    fn the_verify_verb_dispatches_on_the_proof_format() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = dir.path().join("report.json");
+        let proof = dir.path().join("proof.json");
+        std::fs::write(&report, fixture("repo-report.golden.json")).unwrap();
+        std::fs::write(&proof, fixture("repo-proof.golden.json")).unwrap();
+
+        let summary = run(&verify_cmd(report, ProofSource::File(proof))).unwrap();
+        assert!(summary.all_passed(), "{:?}", summary.outcomes);
+        assert_eq!(summary.outcomes[0].subject, "repo-leg-1");
+        assert!(summary.statement.unwrap().contains("collateral.repo"));
+    }
+
+    #[test]
+    fn a_tampered_v2_leg_is_caught_by_the_same_verb() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = dir.path().join("report.json");
+        let proof = dir.path().join("proof.json");
+        std::fs::write(&report, fixture("repo-report.golden.json")).unwrap();
+        std::fs::write(
+            &proof,
+            fixture("repo-proof.golden.json")
+                .replace("110.000000000000000000", "999.000000000000000000"),
+        )
+        .unwrap();
+
+        let summary = run(&verify_cmd(report, ProofSource::File(proof))).unwrap();
+        assert!(!summary.all_passed());
     }
 
     #[test]

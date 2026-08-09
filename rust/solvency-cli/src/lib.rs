@@ -34,6 +34,7 @@ mod tests {
     fn summary(failure: Option<&str>) -> Summary {
         Summary {
             report_digest: "aa".repeat(32),
+            statement: None,
             outcomes: vec![ProofOutcome {
                 path: PathBuf::from("p.json"),
                 subject: "u".to_string(),
@@ -69,6 +70,7 @@ mod tests {
     fn a_run_with_no_proofs_exits_zero_only_because_nothing_was_asked() {
         let empty = Summary {
             report_digest: "aa".repeat(32),
+            statement: None,
             outcomes: Vec::new(),
         };
         assert_eq!(exit_code(&Ok(empty)), EXIT_OK);

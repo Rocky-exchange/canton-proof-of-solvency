@@ -55,6 +55,10 @@ fn a_valid_publication_exits_zero_and_reports_the_digest() {
     assert_eq!(out.status.code(), Some(0), "stdout: {stdout}");
     assert!(stdout.contains(GOLDEN_DIGEST), "got {stdout}");
     assert!(stdout.contains("1 of 1"), "got {stdout}");
+    assert!(
+        stdout.contains("solvency.liabilities"),
+        "a passing check should say what it verified; got {stdout}"
+    );
 }
 
 #[test]

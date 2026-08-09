@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import Ajv2020 from "ajv/dist/2020";
@@ -18,6 +18,10 @@ const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validateReport = ajv.compile(json("schemas/report-v1.schema.json") as object);
 const validateProof = ajv.compile(json("schemas/proof-v1.schema.json") as object);
 const validateReportV2 = ajv.compile(json("schemas/report-v2.schema.json") as object);
+const validateProofV2 = ajv.compile(json("schemas/proof-v2.schema.json") as object);
+const validateMembership = ajv.compile(
+  json("schemas/group-membership-v1.schema.json") as object
+);
 
 describe("report schema", () => {
   it("accepts the golden report", () => {
@@ -94,5 +98,86 @@ describe("report v2 schema", () => {
   it("rejects a v1 report, and the v1 schema rejects a v2 one", () => {
     expect(validateReportV2(json("fixtures/report.golden.json"))).toBe(false);
     expect(validateReport(json("fixtures/report-v2.golden.json"))).toBe(false);
+  });
+});
+
+describe("proof v2 schema", () => {
+  it("accepts the golden repo proof", () => {
+    expect(validateProofV2(json("fixtures/repo-proof.golden.json"))).toBe(true);
+  });
+
+  it("requires at least one named map", () => {
+    const doc = json("fixtures/repo-proof.golden.json") as Record<string, any>;
+    doc.leaf.maps = {};
+    expect(validateProofV2(doc)).toBe(false);
+  });
+
+  /// The restriction that stops a qualified key forging a node boundary.
+  it("rejects a map or asset name outside the safe character set", () => {
+    const withBadAsset = json("fixtures/repo-proof.golden.json") as Record<string, any>;
+    withBadAsset.leaf.maps.collateral = { "x|exposure/USDA": "1" };
+    expect(validateProofV2(withBadAsset)).toBe(false);
+
+    const withBadMap = json("fixtures/repo-proof.golden.json") as Record<string, any>;
+    withBadMap.leaf.maps["a/b"] = { USDA: "1" };
+    expect(validateProofV2(withBadMap)).toBe(false);
+  });
+
+  it("does not accept a v1 proof, and the v1 schema does not accept a v2 one", () => {
+    expect(validateProofV2(json("fixtures/proof.golden.json"))).toBe(false);
+    expect(validateProof(json("fixtures/repo-proof.golden.json"))).toBe(false);
+  });
+});
+
+describe("group membership schema", () => {
+  it("accepts the golden membership", () => {
+    expect(validateMembership(json("fixtures/group-membership.golden.json"))).toBe(true);
+  });
+
+  it("requires the entity identity that binds the leaf", () => {
+    const doc = json("fixtures/group-membership.golden.json") as Record<string, any>;
+    delete doc.entity.entity_id;
+    expect(validateMembership(doc)).toBe(false);
+  });
+
+  it("requires the group report binding", () => {
+    const doc = json("fixtures/group-membership.golden.json") as Record<string, any>;
+    delete doc.group_report_digest;
+    expect(validateMembership(doc)).toBe(false);
+  });
+
+  it("rejects an inclusion proof, which is a different document", () => {
+    expect(validateMembership(json("fixtures/proof.golden.json"))).toBe(false);
+  });
+});
+
+/**
+ * Every checked-in fixture should have a schema that accepts it. Without this
+ * a new document format can ship with no schema and nothing notices.
+ */
+describe("schema coverage", () => {
+  const validators: Record<string, (d: unknown) => boolean> = {
+    "report.golden.json": validateReport,
+    "report-v2.golden.json": validateReportV2,
+    "proof.golden.json": validateProof,
+    // A v1-format proof that happens to belong to a v2 report; the name
+    // says so, because "proof-v2" read as a v2 proof and was not one.
+    "proof-for-report-v2.golden.json": validateProof,
+    "repo-report.golden.json": validateReport,
+    "repo-proof.golden.json": validateProofV2,
+    "group-report.golden.json": validateReport,
+    "group-membership.golden.json": validateMembership,
+  };
+
+  it("covers every fixture in the repository", () => {
+    const dir = fileURLToPath(new URL("../../../fixtures", import.meta.url));
+    const present = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+    expect(present).toEqual(Object.keys(validators).sort());
+  });
+
+  it("validates each fixture against its schema", () => {
+    for (const [name, validate] of Object.entries(validators)) {
+      expect(validate(json(`fixtures/${name}`)), `${name} failed its schema`).toBe(true);
+    }
   });
 });

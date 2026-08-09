@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/proof-v2.schema.json",
+  "title": "Canton solvency inclusion proof v2",
+  "description": "An inclusion proof for a v2 leaf carrying named amount maps (SPEC.md \u00a79.2). The subject is not necessarily a customer.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "report_digest",
+    "leaf",
+    "steps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": "canton-solvency-proof-v2"
+    },
+    "report_digest": {
+      "$ref": "#/$defs/hash256",
+      "description": "Digest of the report this proof belongs to, so a stale proof cannot be replayed."
+    },
+    "leaf": {
+      "type": "object",
+      "required": [
+        "salt",
+        "subject_id",
+        "maps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "salt": {
+          "$ref": "#/$defs/hash256"
+        },
+        "subject_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What this leaf is about \u2014 a trade leg for collateral.repo, not necessarily a customer."
+        },
+        "maps": {
+          "type": "object",
+          "description": "Named amount maps. Names are restricted so a qualified <map>/<asset> key cannot forge a boundary in the node join.",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9._-]+$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "pattern": "^[A-Za-z0-9._-]+$"
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/amount"
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "$ref": "#/$defs/steps"
+    }
+  },
+  "$defs": {
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]{1,18})?$"
+    },
+    "amountMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/amount"
+      }
+    },
+    "hash256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Leaf level upward. Levels where the node was promoted without a sibling contribute no step.",
+      "items": {
+        "type": "object",
+        "required": [
+          "sibling_hash",
+          "sibling_sums",
+          "sibling_on_left"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sibling_hash": {
+            "$ref": "#/$defs/hash256"
+          },
+          "sibling_sums": {
+            "$ref": "#/$defs/amountMap"
+          },
+          "sibling_on_left": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

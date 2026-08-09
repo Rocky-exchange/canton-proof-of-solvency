@@ -65,6 +65,9 @@ pub fn render_diff_json(summary: &DiffSummary) -> String {
 /// ten thousand proofs needs the one that broke, not ten thousand OK lines.
 pub fn render_text(summary: &Summary) -> String {
     let mut out = format!("report digest : {}\n", summary.report_digest);
+    if let Some(statement) = &summary.statement {
+        out.push_str(&format!("asserts       : {statement}\n"));
+    }
 
     if summary.outcomes.is_empty() {
         return out;
@@ -110,6 +113,7 @@ pub fn render_json(summary: &Summary) -> String {
     serde_json::to_string_pretty(&serde_json::json!({
         "ok": summary.all_passed(),
         "report_digest": summary.report_digest,
+        "statement": summary.statement,
         "checked": summary.outcomes.len(),
         "passed": summary.passed(),
         "proofs": proofs,
@@ -126,6 +130,9 @@ mod tests {
     fn summary(outcomes: Vec<ProofOutcome>) -> Summary {
         Summary {
             report_digest: "0800c104".to_string() + &"0".repeat(56),
+            statement: Some(
+                "solvency.liabilities: every customer balance is committed".to_string(),
+            ),
             outcomes,
         }
     }
@@ -152,6 +159,25 @@ mod tests {
         assert!(text.contains("0800c104"), "digest missing from {text}");
         assert!(text.contains("2 of 2"), "counts missing from {text}");
         assert!(text.to_lowercase().contains("verified"), "got {text}");
+    }
+
+    /// "Verified" is not much use to a reader who does not know what was
+    /// verified, so the profile's statement is part of the output.
+    #[test]
+    fn text_output_says_what_the_report_asserts() {
+        let text = render_text(&summary(vec![ok_outcome("a.json")]));
+        assert!(text.contains("solvency.liabilities"), "got {text}");
+        assert!(text.contains("every customer balance"), "got {text}");
+    }
+
+    #[test]
+    fn json_output_carries_the_statement_for_pipelines() {
+        let json = render_json(&summary(vec![ok_outcome("a.json")]));
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed["statement"]
+            .as_str()
+            .unwrap()
+            .contains("solvency.liabilities"));
     }
 
     #[test]

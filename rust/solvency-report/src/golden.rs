@@ -227,7 +227,8 @@ mod tests {
     }
 
     const REPORT_V2_JSON: &str = include_str!("../../../fixtures/report-v2.golden.json");
-    const PROOF_V2_JSON: &str = include_str!("../../../fixtures/proof-v2.golden.json");
+    const PROOF_FOR_REPORT_V2_JSON: &str =
+        include_str!("../../../fixtures/proof-for-report-v2.golden.json");
 
     #[test]
     fn golden_vectors_pin_the_v2_report_format() {
@@ -264,15 +265,15 @@ mod tests {
         );
         assert_eq!(
             serde_json::to_string_pretty(&proof).unwrap(),
-            PROOF_V2_JSON.trim_end(),
-            "fixtures/proof-v2.golden.json is stale"
+            PROOF_FOR_REPORT_V2_JSON.trim_end(),
+            "fixtures/proof-for-report-v2.golden.json is stale"
         );
     }
 
     #[test]
     fn the_v2_fixture_verifies_when_read_back_from_disk() {
         let signed: SignedReport = serde_json::from_str(REPORT_V2_JSON).unwrap();
-        let proof: ProofDocument = serde_json::from_str(PROOF_V2_JSON).unwrap();
+        let proof: ProofDocument = serde_json::from_str(PROOF_FOR_REPORT_V2_JSON).unwrap();
         assert_eq!(verify(&signed, &proof, &signer().public_key_hex()), Ok(()));
     }
 

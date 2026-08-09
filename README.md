@@ -303,7 +303,7 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 | Wire format | [`SPEC.md`](SPEC.md) | Byte-level format v1 + golden vectors |
 | Example | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → root, totals, verified proof |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | Signed report + proof documents (Rust) |
-| Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema |
+| Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema for every one of them |
 | Offline verifier | [`offline/verifier.html`](offline/verifier.html) | Self-contained page, no build step, no network |
 | `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | Auditor CLI, batch verification |

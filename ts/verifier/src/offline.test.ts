@@ -142,7 +142,7 @@ describe("offline verifier", () => {
 
   describe("with a v2 disclosure manifest", () => {
     const v2Report = () => fixture("report-v2.golden.json");
-    const v2Proof = () => fixture("proof-v2.golden.json");
+    const v2Proof = () => fixture("proof-for-report-v2.golden.json");
 
     it("verifies a v2 publication", async () => {
       const vm = await verifyFromText(v2Report(), v2Proof(), KEY);
