@@ -78,4 +78,65 @@ describe("offline verifier", () => {
     expect(vm.status).toBe("failed");
     expect(vm.detail.toLowerCase()).toContain("different report");
   });
+
+  describe("with a group", () => {
+    const group = () => ({
+      reportText: fixture("group-report.golden.json"),
+      membershipText: fixture("group-membership.golden.json"),
+    });
+
+    it("verifies a customer up to the consolidated group total", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY, group());
+      expect(vm.status).toBe("verified");
+      expect(vm.headline.toLowerCase()).toContain("group");
+    });
+
+    it("shows the consolidated total as recomputed, not merely asserted", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY, group());
+      const consolidated = fact(vm.facts, "consolidated");
+      expect(consolidated?.provenance).toBe("verified");
+      expect(consolidated?.value).toContain("143.500000000000000001");
+    });
+
+    it("names the entity the customer belongs to", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY, group());
+      expect(fact(vm.facts, "entity")?.value).toContain("golden-entity-a");
+    });
+
+    /// The chain check that stops two independently valid halves being
+    /// jointly meaningless.
+    it("fails when the membership describes a different entity's book", async () => {
+      const g = group();
+      g.membershipText = g.membershipText.replace(
+        /"root_hash": "[0-9a-f]{64}"/,
+        `"root_hash": "${"ab".repeat(32)}"`
+      );
+      const vm = await verifyFromText(report(), proof(), KEY, g);
+      expect(vm.status).toBe("failed");
+    });
+
+    it("fails when the group report is signed by an untrusted key", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY, {
+        ...group(),
+        keyHex: "ab".repeat(32),
+      });
+      expect(vm.status).toBe("failed");
+      expect(vm.detail.toLowerCase()).toContain("trusted key");
+    });
+
+    it("still reports a broken customer proof rather than a group problem", async () => {
+      const tampered = proof().replace("0.250000000000000000", "9.250000000000000000");
+      const vm = await verifyFromText(report(), tampered, KEY, group());
+      expect(vm.status).toBe("failed");
+      expect(vm.detail).toContain("root");
+    });
+
+    it("treats a malformed group file as an error, not a failed verification", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY, {
+        reportText: "{ not json",
+        membershipText: fixture("group-membership.golden.json"),
+      });
+      expect(vm.status).toBe("error");
+    });
+  });
 });
