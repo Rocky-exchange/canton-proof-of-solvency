@@ -661,10 +661,28 @@ Takes the publisher out of the verification path entirely.
   publish path with a sample dataset, alongside the live Rocky deployment.
 
 **Done when:** the CLI verifies the [SPEC.md](SPEC.md) §6 golden vectors and a
-production-shaped report (100k leaves) within a published time budget; every
-example document in the repository is schema-validated in CI; and the
-remaining verbs above exist. *The offline page and schema validation are
-already done; the timing budget on a 100k-leaf report is not yet measured.*
+production-shaped report within a published time budget (**measured, below**);
+every example document in the repository is schema-validated in CI; and the
+remaining verbs above exist.
+
+**Measured scale.** Apple M4 Pro, release build, single-threaded,
+via [`examples/bench_scale.rs`](rust/solvency-report/examples/bench_scale.rs):
+
+| Leaves | Publish (tree + sign + all proofs) | Deepest path | Verify one proof | Verify all |
+|---|---|---|---|---|
+| 100,000 | 0.60 s | 17 steps | 0.044 ms | 4.4 s |
+| 1,000,000 | 7.3 s | 20 steps | 0.053 ms | 53 s |
+
+The CLI sweeps 5,000 proof files off disk, parsing and verifying each, in
+about 1.1 s wall. Verification cost per proof grows with the log of the leaf
+count, which is why a tenfold larger book costs 20% more per proof rather than
+tenfold. Reproduce with
+`cargo run --release --example bench_scale -- 1000000`.
+
+A `#[test]` asserts every sampled proof still verifies at 10,000 leaves, with
+a `--ignored` variant at 100,000. Neither asserts a wall-clock threshold: a
+timing bound in CI is a flake waiting to happen, so the numbers above are
+measured deliberately and published rather than enforced.
 
 ### Milestone 6 — Ecosystem Standardization
 

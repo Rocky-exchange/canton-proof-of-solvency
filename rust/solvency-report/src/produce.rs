@@ -194,6 +194,55 @@ mod tests {
         );
     }
 
+    /// Scale exercises the promotion path at many levels: 10_000 is not a
+    /// power of two, so odd nodes are promoted repeatedly on the way up.
+    /// No timing assertion — that belongs in `examples/bench_scale.rs`, since
+    /// a wall-clock threshold in CI is a flake waiting to happen.
+    #[test]
+    fn every_proof_verifies_at_ten_thousand_leaves() {
+        assert_scale(10_000);
+    }
+
+    #[test]
+    #[ignore = "slow in a debug build; run with --release --ignored"]
+    fn every_proof_verifies_at_one_hundred_thousand_leaves() {
+        assert_scale(100_000);
+    }
+
+    fn assert_scale(n: usize) {
+        let master = b"scale-master";
+        let leaves: Vec<LeafInput> = (0..n)
+            .map(|i| {
+                let user_id = format!("user-{i:07}");
+                LeafInput {
+                    salt: leaf_salt(master, &user_id),
+                    balances: [("USDA".to_string(), i as u128 + 1)].into_iter().collect(),
+                    user_id,
+                }
+            })
+            .collect();
+        let signer = ReportSigner::from_seed(&[7u8; 32]);
+        let published = publish(&leaves, &metadata(), &signer).unwrap();
+        let trusted = signer.public_key_hex();
+
+        assert_eq!(published.signed_report.report.leaf_count, n as u64);
+        // The totals must survive aggregation over every level.
+        let expected: u128 = (1..=n as u128).sum();
+        assert_eq!(published.signed_report.report.root_sums["USDA"], expected);
+
+        // Sample across the tree: path lengths differ, and a prefix is not
+        // representative of the promotion cases.
+        let stride = (n / 200).max(1);
+        for proof in published.proofs.iter().step_by(stride) {
+            assert_eq!(
+                crate::verify::verify(&published.signed_report, proof, &trusted),
+                Ok(()),
+                "proof for {} failed",
+                proof.leaf.user_id
+            );
+        }
+    }
+
     #[test]
     fn publishing_no_leaves_is_an_error() {
         assert!(publish(&[], &metadata(), &ReportSigner::from_seed(&[7u8; 32])).is_err());
