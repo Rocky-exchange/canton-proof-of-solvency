@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { leafNodeV2 } from "./verify";
 import {
   reportDigestHex,
+  lookupProfile,
   verifyReportV2,
   type ProofDocumentV2,
   verifyReport,
@@ -266,5 +267,36 @@ describe("leaf v2 and the collateral.repo profile", () => {
     const result = await verifyReportV2(repoReport(), proof, GOLDEN_PUBLIC_KEY);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.failure.kind).toBe("malformed");
+  });
+});
+
+describe("fund.nav profile", () => {
+  const repoReport = (): SignedReport => JSON.parse(fixture("repo-report.golden.json"));
+
+  it("is registered with shareholder leaves and both required maps", () => {
+    const rules = lookupProfile("fund.nav");
+    expect(rules?.leaf).toBe("shareholder");
+    expect(rules?.requiredAggregates).toEqual(["units/*", "entitlement/*"]);
+  });
+
+  it("requires both units and entitlement, since neither alone is a NAV", async () => {
+    for (const only of ["units/CLASS_A", "entitlement/USDA"]) {
+      const doc = repoReport();
+      doc.report.profile = "fund.nav";
+      doc.report.root_sums = { [only]: "1" };
+      const result = await verifyReportV2(doc, JSON.parse(fixture("repo-proof.golden.json")), GOLDEN_PUBLIC_KEY);
+      expect(result.ok, `${only} alone was accepted`).toBe(false);
+    }
+  });
+
+  it("still refuses a v1-leaf profile for a v2 proof", async () => {
+    const doc = repoReport();
+    doc.report.profile = "solvency.liabilities";
+    doc.report.root_sums = { USDA: "1" };
+    const result = await verifyReportV2(doc, JSON.parse(fixture("repo-proof.golden.json")), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("v2 leaf proof");
+    }
   });
 });

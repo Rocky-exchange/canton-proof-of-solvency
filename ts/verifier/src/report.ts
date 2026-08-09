@@ -29,7 +29,10 @@ export type Disclosure = "published" | "committed" | "withheld";
 export type Manifest = { audience: string; fields: Record<string, Disclosure> };
 
 /** SPEC §14: what a leaf of the committed tree stands for. */
-export type LeafKind = "customer" | "entity" | "repoleg";
+export type LeafKind = "customer" | "entity" | "repoleg" | "shareholder";
+
+/** Kinds committed with a v2 leaf (SPEC §3.1). */
+const V2_LEAF_KINDS: LeafKind[] = ["repoleg", "shareholder"];
 export type ProfileRules = {
   name: string;
   leaf: LeafKind;
@@ -45,6 +48,11 @@ export const PROFILE_REGISTRY: ProfileRules[] = [
     leaf: "repoleg",
     requiredAggregates: ["collateral/*", "exposure/*"],
     coverage: { covering: "collateral", covered: "exposure" },
+  },
+  {
+    name: "fund.nav",
+    leaf: "shareholder",
+    requiredAggregates: ["units/*", "entitlement/*"],
   },
 ];
 
@@ -348,6 +356,25 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
   return null;
 }
 
+/**
+ * A v2 proof belongs to any profile committed with v2 leaves, not to one
+ * particular profile.
+ */
+export function expectLeafV2(report: Report): VerificationResult | null {
+  const rules = lookupProfile(report.profile);
+  if (!rules) {
+    return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
+  }
+  if (!V2_LEAF_KINDS.includes(rules.leaf)) {
+    return fail({
+      kind: "profile",
+      detail: `profile ${rules.name} commits to ${rules.leaf} leaves; this is a v2 leaf proof`,
+    });
+  }
+  // Aggregate and coverage rules still apply; reuse the same checks.
+  return expectLeafKind(report, rules.leaf);
+}
+
 /** Verifies a v2 inclusion proof (SPEC §9.2). */
 export async function verifyReportV2(
   signed: SignedReport,
@@ -357,7 +384,7 @@ export async function verifyReportV2(
   const { report } = signed;
   const failure =
     checkReportVersionAndManifest(report) ??
-    expectLeafKind(report, "repoleg") ??
+    expectLeafV2(report) ??
     checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION_V2) ??
     checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
   if (failure) return failure;

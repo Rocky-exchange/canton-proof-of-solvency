@@ -502,6 +502,17 @@ mean anything.
 | `solvency.group` | one subsidiary's root (§13.1) | every entity's root is committed, and the root's totals are the consolidated liabilities | `root_sums` |
 | `collateral.repo` | one open repo leg (§3.1) | every open leg is committed, and the root totals are aggregate collateral and exposure | `collateral/*`, `exposure/*`, and coverage |
 
+| `fund.nav` | one holder of a tokenized fund (§3.1) | every holder's units and entitlement are committed, and the root totals are units outstanding and total entitlement | `units/*`, `entitlement/*` |
+
+**Why a `fund.nav` leaf is a shareholder, not a holding line item.** A
+holdings tree would prove what the fund owns, but no investor could find
+themselves in it, and being able to find yourself is the pattern this whole
+format exists for. Whether the fund actually holds enough to back those
+entitlements is an asset-side question — that is what a coverage report
+answers, not something a liabilities tree can prove about itself. `units` is
+keyed by share class and `entitlement` by currency, so NAV per share is
+derivable from the published root by anyone.
+
 `collateral.repo` carries an extra rule: for **every asset**, aggregate
 `collateral` must be at least aggregate `exposure`. A surplus in one asset
 does not excuse a shortfall in another. This is checked, not asserted — a
@@ -531,7 +542,14 @@ Verifiers **MUST**:
 
 ### 14.2 Adding a profile
 
-`fund.nav`, `settlement.dvp` and `eligibility.holder` use the same §3.1
-mechanism but each needs its own decision about what a leaf is and what the
-root must assert. Inventing three of those in one pass would be guessing
-rather than designing, so they are not registered until they are designed.
+`settlement.dvp` and `eligibility.holder` use the same §3.1 mechanism but each
+still needs its own decision about what a leaf is and what the root must
+assert — for DvP, whether a leaf is a trade or a leg; for eligibility, what a
+root can assert about holders it deliberately does not name. Neither is
+registered until designed: an unregistered profile is rejected outright
+(§14.1), so a half-considered entry would be worse than none.
+
+A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
+separate two v2 profiles from each other. A fund proof presented against a
+repo report is caught by the commitment itself — the report digests
+differently, so the binding in §9.2 fails.
