@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/proof-v1.schema.json",
+  "title": "Canton solvency inclusion proof v1",
+  "description": "One user's leaf preimage and sibling path, bound to the report it proves membership in (SPEC.md §9).",
+  "type": "object",
+  "required": ["format_version", "report_digest", "leaf", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": "canton-solvency-proof-v1" },
+    "report_digest": {
+      "$ref": "#/$defs/hash256",
+      "description": "Digest of the report this proof belongs to. Without it a stale proof replays against a later report."
+    },
+    "leaf": {
+      "type": "object",
+      "required": ["salt", "user_id", "balances"],
+      "additionalProperties": false,
+      "properties": {
+        "salt": {
+          "$ref": "#/$defs/hash256",
+          "description": "Per-user salt derived from the snapshot's master salt; rotates every snapshot, so leaves are unlinkable between reports."
+        },
+        "user_id": { "type": "string", "minLength": 1 },
+        "balances": { "$ref": "#/$defs/amountMap" }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "Leaf level upward. Levels where the node was promoted without a sibling contribute no step.",
+      "items": {
+        "type": "object",
+        "required": ["sibling_hash", "sibling_sums", "sibling_on_left"],
+        "additionalProperties": false,
+        "properties": {
+          "sibling_hash": { "$ref": "#/$defs/hash256" },
+          "sibling_sums": { "$ref": "#/$defs/amountMap" },
+          "sibling_on_left": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "amount": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]{1,18})?$" },
+    "amountMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/amount" }
+    },
+    "hash256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

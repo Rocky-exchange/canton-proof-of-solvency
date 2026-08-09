@@ -302,6 +302,8 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 | `canton-solvency-verifier` | [`ts/verifier`](ts/verifier) | Browser-side verifier (TypeScript, WebCrypto + BigInt) |
 | Wire format | [`SPEC.md`](SPEC.md) | Byte-level format v1 + golden vectors |
 | Example | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → root, totals, verified proof |
+| `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | Signed report + proof documents (Rust) |
+| Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema |
 | `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
 | `canton-solvency-verify` | *planned — [M5](#milestone-5--independent-verification-toolkit)* | Auditor CLI, batch verification |
 
@@ -426,6 +428,7 @@ checkable by everyone else.
 
 | # | Track | Milestone | Outcome |
 |---|---|---|---|
+| 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
 | 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted |
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — not just exchanges |
@@ -433,8 +436,32 @@ checkable by everyone else.
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software |
 | 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
 
-*Sequencing: 1 and 2 are independent and run in parallel; 3 builds on 1; 4
-needs 3; 5 runs alongside 4; 6 needs both 4 and 5.*
+*Sequencing: 0 is a prerequisite for everything — 1, 2, 3 and 5 all read or
+write the report document. 1 and 2 are then independent and run in parallel; 3
+builds on 1; 4 needs 3; 5 runs alongside 4; 6 needs both 4 and 5.*
+
+### Milestone 0 — Report & Proof Documents
+
+**Status: complete.** The core crate committed to balances but could not
+publish: it returned in-memory values, and SPEC §7 was informative. Every
+later milestone reads or writes a report document, so the format came first.
+
+**Delivered**
+
+- `canton-solvency-report` — report envelope and proof document, a
+  length-prefixed domain-separated digest ([SPEC.md](SPEC.md) §8.2) rather
+  than canonical JSON, so a document can be reformatted without invalidating
+  its signature.
+- **Ed25519 detached signatures** over the digest, with the trusted key a
+  required verifier input — the embedded key is display metadata only.
+- **Report binding** — every proof names its report's digest, so a stale proof
+  cannot be replayed against a later report.
+- **Typed verification outcomes** — a verifier reports *which* check failed,
+  including the case that matters most: a truthful root hash published
+  alongside understated totals.
+- **Golden fixtures** in [`fixtures/`](fixtures) asserted byte for byte by
+  both implementations, plus JSON Schemas in [`schemas/`](schemas) validated
+  in CI.
 
 ### Milestone 1 — Canton Reserve Verification
 
@@ -448,7 +475,7 @@ states **coverage** rather than only liabilities.
 - **Snapshot binding** — the asset-side read is pinned to the *same* ledger
   offset as the liability snapshot, so both halves are provably as-of one
   instant rather than two reads minutes apart.
-- **Coverage report format** (new SPEC §8) — per-asset reserves, liabilities
+- **Coverage report format** (new SPEC §11) — per-asset reserves, liabilities
   and coverage ratio, plus custody party IDs, ledger offset, and mark prices;
   signed by the venue.
 - **Multi-asset coverage** — ratios computed per asset; a shortfall in one
@@ -491,7 +518,7 @@ family of statements institutions on Canton actually need to make.
 
 **Deliverables**
 
-- **Profile registry** (new SPEC §10) — each profile pins a leaf schema, the
+- **Profile registry** (new SPEC §13) — each profile pins a leaf schema, the
   statement its root asserts, the aggregates that must be published, and a
   default audience matrix. Profiles ship with golden vectors, like the core
   format.
@@ -583,8 +610,8 @@ Turns one implementation into something the network can rely on.
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,
   ours verify under theirs.
-- **Public specification v1.1** — SPEC.md extended with §8 coverage, §9
-  anchoring, and §10 profiles, frozen against the conformance suite.
+- **Public specification v1.1** — SPEC.md extended with §11 coverage, §12
+  anchoring, and §13 profiles, frozen against the conformance suite.
 - **Third-party security review** — external review of the commitment core,
   salt derivation, and verifier; findings and remediations published in-repo.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
