@@ -214,9 +214,21 @@
 
   // src/report.ts
   var REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
+  var REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
   var PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
   var SIGNATURE_ALGORITHM = "ed25519";
   var REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
+  var REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
+  var KNOWN_FIELDS = [
+    "root_sums",
+    "mark_prices",
+    "disclosures.bad_debt",
+    "disclosures.excluded_house_accounts",
+    "disclosures.excluded_house_totals",
+    "customer_balances",
+    "customer_identities"
+  ];
+  var REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
   var encoder2 = new TextEncoder();
   function concat(parts) {
     const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
@@ -254,8 +266,18 @@
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
   async function reportDigestHex(report) {
+    const v2 = report.format_version === REPORT_FORMAT_VERSION_V2;
+    const manifestParts = [];
+    if (v2 && report.manifest) {
+      manifestParts.push(lp(report.manifest.audience));
+      const paths = Object.keys(report.manifest.fields).sort();
+      manifestParts.push(u64le(paths.length));
+      for (const path of paths) {
+        manifestParts.push(lp(path), lp(report.manifest.fields[path]));
+      }
+    }
     const preimage = concat([
-      encoder2.encode(REPORT_DIGEST_DOMAIN),
+      encoder2.encode(v2 ? REPORT_DIGEST_DOMAIN_V2 : REPORT_DIGEST_DOMAIN),
       lp(report.format_version),
       lp(report.profile),
       lp(report.publisher),
@@ -267,7 +289,8 @@
       lpmap(report.mark_prices),
       lpmap(report.disclosures.bad_debt),
       u64le(report.disclosures.excluded_house_accounts),
-      lpmap(report.disclosures.excluded_house_totals)
+      lpmap(report.disclosures.excluded_house_totals),
+      ...manifestParts
     ]);
     return bytesToHex2(new Uint8Array(await crypto.subtle.digest("SHA-256", preimage)));
   }
@@ -298,9 +321,64 @@
   function checkVersion(field, found, want) {
     return found === want ? null : fail({ kind: "unsupported_version", field, found });
   }
+  function checkReportVersionAndManifest(report) {
+    if (report.format_version === REPORT_FORMAT_VERSION) {
+      return report.manifest ? fail({
+        kind: "manifest_presence",
+        detail: "a v1 report cannot carry a manifest; the v1 digest does not cover it"
+      }) : null;
+    }
+    if (report.format_version !== REPORT_FORMAT_VERSION_V2) {
+      return fail({
+        kind: "unsupported_version",
+        field: "report.format_version",
+        found: report.format_version
+      });
+    }
+    const manifest = report.manifest;
+    if (!manifest) {
+      return fail({
+        kind: "manifest_presence",
+        detail: "a v2 report must carry a disclosure manifest"
+      });
+    }
+    const carriesData = {
+      root_sums: Object.keys(report.root_sums).length > 0,
+      mark_prices: Object.keys(report.mark_prices).length > 0,
+      "disclosures.bad_debt": Object.keys(report.disclosures.bad_debt).length > 0,
+      "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
+      "disclosures.excluded_house_totals": Object.keys(report.disclosures.excluded_house_totals).length > 0
+    };
+    for (const path of Object.keys(manifest.fields).sort()) {
+      const state = manifest.fields[path];
+      if (!KNOWN_FIELDS.includes(path)) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: "not a field this format defines"
+        });
+      }
+      if (!REPORT_RESIDENT_FIELDS.includes(path)) continue;
+      if (state === "published" && !carriesData[path]) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: "declared published but the report carries no data for it"
+        });
+      }
+      if (state !== "published" && carriesData[path]) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: `declared ${state} but the report publishes it anyway`
+        });
+      }
+    }
+    return null;
+  }
   async function verifyReport(signed, proof, trustedPublicKeyHex) {
     const { report } = signed;
-    const versionFailure = checkVersion("report.format_version", report.format_version, REPORT_FORMAT_VERSION) ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
+    const versionFailure = checkReportVersionAndManifest(report) ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
     if (versionFailure) return versionFailure;
     let digest;
     try {

@@ -98,3 +98,77 @@ describe("report verification", () => {
     if (!result.ok) expect(result.failure.kind).toBe("malformed");
   });
 });
+
+describe("report v2 and the disclosure manifest", () => {
+  const v2 = (): SignedReport => JSON.parse(fixture("report-v2.golden.json"));
+  const v2Proof = (): ProofDocument => JSON.parse(fixture("proof-v2.golden.json"));
+
+  it("reproduces the v2 digest and signature pinned by the Rust producer", async () => {
+    const doc = v2();
+    expect(await reportDigestHex(doc.report)).toBe(v2Proof().report_digest);
+    expect(doc.signature.value).toBe(
+      "d7385bd2c72f274584ce804ef3f513d90465d6a68896c597726f8eff84bb86ec" +
+        "a2ac42583fbb3fd4157ace9132ac24e8087cbe6f445cc984e1ad979197357e01"
+    );
+  });
+
+  it("accepts the golden v2 publication", async () => {
+    expect(await verifyReport(v2(), v2Proof(), GOLDEN_PUBLIC_KEY)).toEqual({ ok: true });
+  });
+
+  /// Domain separation: a v2 signature must not be replayable as a v1 one.
+  it("digests the same fields differently under v1 and v2", async () => {
+    const doc = v2();
+    const asV1 = { ...doc.report, format_version: "canton-solvency-report-v1" };
+    delete (asV1 as { manifest?: unknown }).manifest;
+    expect(await reportDigestHex(doc.report)).not.toBe(await reportDigestHex(asV1));
+  });
+
+  it("covers every manifest entry in the digest", async () => {
+    const base = await reportDigestHex(v2().report);
+    const changed = v2();
+    changed.report.manifest!.fields.mark_prices = "withheld";
+    expect(await reportDigestHex(changed.report)).not.toBe(base);
+
+    const audience = v2();
+    audience.report.manifest!.audience = "auditor";
+    expect(await reportDigestHex(audience.report)).not.toBe(base);
+  });
+
+  it("rejects a v1 report carrying a manifest", async () => {
+    const doc = JSON.parse(fixture("report.golden.json")) as SignedReport;
+    doc.report.manifest = v2().report.manifest;
+    const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure.kind).toBe("manifest_presence");
+  });
+
+  it("rejects a v2 report without a manifest", async () => {
+    const doc = v2();
+    delete doc.report.manifest;
+    const result = await verifyReport(doc, v2Proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure.kind).toBe("manifest_presence");
+  });
+
+  it("rejects declaring a published field withheld", async () => {
+    const doc = v2();
+    doc.report.manifest!.fields.root_sums = "withheld";
+    const result = await verifyReport(doc, v2Proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failure.kind).toBe("manifest_inconsistent");
+      if (result.failure.kind === "manifest_inconsistent") {
+        expect(result.failure.path).toBe("root_sums");
+      }
+    }
+  });
+
+  it("rejects a manifest naming a field the format does not define", async () => {
+    const doc = v2();
+    doc.report.manifest!.fields.secret_sauce = "withheld";
+    const result = await verifyReport(doc, v2Proof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure.kind).toBe("manifest_inconsistent");
+  });
+});
