@@ -401,11 +401,13 @@ cargo run --manifest-path rust/solvency-cli/Cargo.toml -- verify-chain \
 ```
 
 Or hand a non-technical user [`offline/verifier.html`](offline/verifier.html):
-a single 19 KiB file with no build step and no network calls. They save it,
-open it with their connection off, pick their report and proof, and every
+a single self-contained file with no build step and no network calls. They save
+it, open it with their connection off, pick their report and proof, and every
 figure it shows is labelled **recomputed here** or **publisher says** — so the
 line between what was proven and what was merely asserted is impossible to
-miss. Rebuild it with `npm run build:offline`; CI fails if the checked-in copy
+miss. If their venue belongs to a group, adding the group report and
+membership file checks that the venue is itself committed inside the group's
+consolidated total. Rebuild it with `npm run build:offline`; CI fails if the checked-in copy
 drifts from the source.
 
 Embed verification in a web page:
@@ -639,7 +641,10 @@ Takes the publisher out of the verification path entirely.
   the same modules the test suite exercises rather than reimplementing them,
   and labels every figure **recomputed here** or **publisher says**, so a
   reader can see which values this browser proved and which the publisher
-  merely asserted. Tests fail if the checked-in page drifts from the source or
+  merely asserted. Optional group inputs verify the full chain
+  ([SPEC.md](SPEC.md) §13.4) — and group figures are labelled *disclosed*
+  unless the chain actually verified, so a failed chain cannot present
+  unchecked totals as proven. Tests fail if the checked-in page drifts from the source or
   gains an external reference.
 
 **Still to come**

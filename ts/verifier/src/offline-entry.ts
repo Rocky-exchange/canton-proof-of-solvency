@@ -18,6 +18,10 @@ async function readFile(input: HTMLInputElement): Promise<string> {
   return file.text();
 }
 
+async function readOptional(input: HTMLInputElement): Promise<string | null> {
+  return input.files?.[0] ? input.files[0].text() : null;
+}
+
 function render(vm: ViewModel): void {
   const result = $("result");
   result.hidden = false;
@@ -61,7 +65,27 @@ async function onVerify(): Promise<void> {
       readFile($("proof") as HTMLInputElement),
     ]);
     const key = ($("key") as HTMLInputElement).value;
-    render(await verifyFromText(reportText, proofText, key));
+
+    // The group half is optional; both files are needed or neither.
+    const [groupReportText, membershipText] = await Promise.all([
+      readOptional($("group-report") as HTMLInputElement),
+      readOptional($("membership") as HTMLInputElement),
+    ]);
+    if ((groupReportText === null) !== (membershipText === null)) {
+      throw new Error("Add both the group report and the membership file, or neither.");
+    }
+
+    const groupKey = ($("group-key") as HTMLInputElement).value.trim();
+    const group =
+      groupReportText && membershipText
+        ? {
+            reportText: groupReportText,
+            membershipText,
+            ...(groupKey ? { keyHex: groupKey } : {}),
+          }
+        : undefined;
+
+    render(await verifyFromText(reportText, proofText, key, group));
   } catch (e) {
     render({
       status: "error",

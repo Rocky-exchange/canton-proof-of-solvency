@@ -84,6 +84,23 @@
     <button type="button" id="verify">Verify</button>
   </fieldset>
 
+  <fieldset>
+    <legend>If your venue is part of a group (optional)</legend>
+    <p class="hint" style="margin:0 0 .6rem">
+      Add these to check that your venue is itself committed inside the group's
+      consolidated total, not just that your balance is inside your venue's.
+    </p>
+
+    <label for="group-report">Group report <span class="hint">— the group's <code>report.json</code></span></label>
+    <input type="file" id="group-report" accept=".json,application/json" data-what="group report">
+
+    <label for="membership">Membership file <span class="hint">— your venue's <code>membership.json</code></span></label>
+    <input type="file" id="membership" accept=".json,application/json" data-what="membership file">
+
+    <label for="group-key">Group publisher key <span class="hint">— leave blank if the group signs with the same key</span></label>
+    <input type="text" id="group-key" spellcheck="false" autocomplete="off" placeholder="(same as above)">
+  </fieldset>
+
   <div class="result" id="result" hidden>
     <p id="headline"></p>
     <p id="detail"></p>

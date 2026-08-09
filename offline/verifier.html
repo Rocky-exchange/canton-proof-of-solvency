@@ -84,6 +84,23 @@
     <button type="button" id="verify">Verify</button>
   </fieldset>
 
+  <fieldset>
+    <legend>If your venue is part of a group (optional)</legend>
+    <p class="hint" style="margin:0 0 .6rem">
+      Add these to check that your venue is itself committed inside the group's
+      consolidated total, not just that your balance is inside your venue's.
+    </p>
+
+    <label for="group-report">Group report <span class="hint">— the group's <code>report.json</code></span></label>
+    <input type="file" id="group-report" accept=".json,application/json" data-what="group report">
+
+    <label for="membership">Membership file <span class="hint">— your venue's <code>membership.json</code></span></label>
+    <input type="file" id="membership" accept=".json,application/json" data-what="membership file">
+
+    <label for="group-key">Group publisher key <span class="hint">— leave blank if the group signs with the same key</span></label>
+    <input type="text" id="group-key" spellcheck="false" autocomplete="off" placeholder="(same as above)">
+  </fieldset>
+
   <div class="result" id="result" hidden>
     <p id="headline"></p>
     <p id="detail"></p>
@@ -328,8 +345,121 @@
     return { ok: true };
   }
 
+  // src/group.ts
+  var GROUP_MEMBERSHIP_FORMAT_VERSION = "canton-solvency-group-membership-v1";
+  var ENTITY_DOMAIN = "rocky-solvency-entity-v1";
+  var encoder3 = new TextEncoder();
+  function concat2(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  }
+  function hexToBytes3(hex) {
+    if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) throw new Error("invalid hex");
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+  function bytesToHex3(bytes) {
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function parseSums2(sums) {
+    return Object.fromEntries(Object.entries(sums).map(([a, v]) => [a, parseAmount18dp(v)]));
+  }
+  async function entityLeafNode(entity) {
+    const preimage = concat2([
+      encoder3.encode(ENTITY_DOMAIN),
+      lp(entity.entity_id),
+      hexToBytes3(entity.root_hash),
+      lpmap(entity.root_sums)
+    ]);
+    return {
+      hashHex: bytesToHex3(new Uint8Array(await crypto.subtle.digest("SHA-256", preimage))),
+      sums: parseSums2(entity.root_sums)
+    };
+  }
+  function fail2(failure) {
+    return { ok: false, failure };
+  }
+  async function verifyMembership(groupSigned, membership, trustedPublicKeyHex) {
+    if (membership.format_version !== GROUP_MEMBERSHIP_FORMAT_VERSION) {
+      return fail2({
+        kind: "unsupported_version",
+        field: "membership.format_version",
+        found: membership.format_version
+      });
+    }
+    const { report } = groupSigned;
+    let digest;
+    let current;
+    try {
+      digest = await reportDigestHex(report);
+      current = await entityLeafNode(membership.entity);
+    } catch (e) {
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (digest !== membership.group_report_digest) return fail2({ kind: "digest_mismatch" });
+    if (groupSigned.signature.public_key !== trustedPublicKeyHex) {
+      return fail2({ kind: "unknown_signer" });
+    }
+    let signatureValid;
+    try {
+      signatureValid = await verifyEd25519(
+        trustedPublicKeyHex,
+        digest,
+        groupSigned.signature.value
+      );
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("Ed25519 is unavailable")) throw e;
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (!signatureValid) return fail2({ kind: "bad_signature" });
+    try {
+      for (const step of membership.steps) {
+        const sibling = {
+          hashHex: bytesToHex3(hexToBytes3(step.sibling_hash)),
+          sums: parseSums2(step.sibling_sums)
+        };
+        current = step.sibling_on_left ? await combineNodes(sibling, current) : await combineNodes(current, sibling);
+      }
+    } catch (e) {
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (current.hashHex !== report.root_hash) return fail2({ kind: "root_hash_mismatch" });
+    const published = parseSums2(report.root_sums);
+    for (const asset of /* @__PURE__ */ new Set([...Object.keys(current.sums), ...Object.keys(published)])) {
+      if ((current.sums[asset] ?? 0n) !== (published[asset] ?? 0n)) {
+        return fail2({ kind: "root_sums_mismatch", asset });
+      }
+    }
+    return { ok: true };
+  }
+  async function verifyChain(groupSigned, membership, entitySigned, proof, groupTrustedKey, entityTrustedKey) {
+    const inEntity = await verifyReport(entitySigned, proof, entityTrustedKey);
+    if (!inEntity.ok) return inEntity;
+    const inGroup = await verifyMembership(groupSigned, membership, groupTrustedKey);
+    if (!inGroup.ok) return inGroup;
+    if (membership.entity.root_hash !== entitySigned.report.root_hash) {
+      return fail2({ kind: "entity_root_mismatch" });
+    }
+    const claimed = parseSums2(membership.entity.root_sums);
+    const published = parseSums2(entitySigned.report.root_sums);
+    for (const asset of /* @__PURE__ */ new Set([...Object.keys(claimed), ...Object.keys(published)])) {
+      if ((claimed[asset] ?? 0n) !== (published[asset] ?? 0n)) {
+        return fail2({ kind: "entity_sums_mismatch", asset });
+      }
+    }
+    return { ok: true };
+  }
+
   // src/offline.ts
   var FAILURE_TEXT = {
+    entity_root_mismatch: "The group document and this venue's report describe different books. They may be for different subsidiaries.",
+    entity_sums_mismatch: "The group document and this venue's report disagree on the venue's totals.",
     digest_mismatch: "This proof belongs to a different report. It may be from another day \u2014 ask for the proof issued with this report.",
     unknown_signer: "This report is not signed by the trusted key you supplied. Either the key is wrong, or this report did not come from who you think.",
     bad_signature: "The signature on this report does not verify. The report has been altered.",
@@ -349,7 +479,7 @@
       facts: []
     };
   }
-  async function verifyFromText(reportText, proofText, trustedKeyHex) {
+  async function verifyFromText(reportText, proofText, trustedKeyHex, group) {
     const key = trustedKeyHex.trim();
     if (!/^[0-9a-fA-F]{64}$/.test(key)) {
       return error("The publisher key must be 64 hex characters (32 bytes).");
@@ -365,9 +495,30 @@
     if (!signed?.report || !proof?.leaf) {
       return error("Expected one report file and one proof file \u2014 they may be swapped.");
     }
+    let groupSigned;
+    let membership;
+    let groupKey = key;
+    if (group) {
+      if (group.keyHex !== void 0) {
+        const gk = group.keyHex.trim();
+        if (!/^[0-9a-fA-F]{64}$/.test(gk)) {
+          return error("The group publisher key must be 64 hex characters (32 bytes).");
+        }
+        groupKey = gk;
+      }
+      try {
+        groupSigned = JSON.parse(group.reportText);
+        membership = JSON.parse(group.membershipText);
+      } catch {
+        return error("One of the group files is not valid JSON.");
+      }
+      if (!groupSigned?.report || !membership?.entity) {
+        return error("Expected one group report and one membership file \u2014 they may be swapped.");
+      }
+    }
     let result;
     try {
-      result = await verifyReport(signed, proof, key);
+      result = groupSigned && membership ? await verifyChain(groupSigned, membership, signed, proof, groupKey, key) : await verifyReport(signed, proof, key);
     } catch (e) {
       return error(e instanceof Error ? e.message : String(e));
     }
@@ -391,11 +542,31 @@
         provenance: "disclosed"
       }
     ];
+    if (groupSigned && membership) {
+      const provenance = result.ok ? "verified" : "disclosed";
+      facts.unshift(
+        {
+          label: "Your entity",
+          value: membership.entity.entity_id,
+          provenance
+        },
+        {
+          label: "Group consolidated totals",
+          value: amountList(groupSigned.report.root_sums),
+          provenance
+        },
+        {
+          label: "Group publisher",
+          value: groupSigned.report.publisher,
+          provenance: "disclosed"
+        }
+      );
+    }
     if (result.ok) {
       return {
         status: "verified",
-        headline: "Verified \u2014 your balance is in the published totals",
-        detail: "Your entry was recomputed in this browser and folds to the root this report publishes, and the totals match what the committed entries add up to.",
+        headline: groupSigned ? "Verified \u2014 your balance is inside the group's consolidated total" : "Verified \u2014 your balance is in the published totals",
+        detail: groupSigned ? "Your entry was recomputed in this browser, folds to the root your venue publishes, and that venue is committed inside the group's consolidated total." : "Your entry was recomputed in this browser and folds to the root this report publishes, and the totals match what the committed entries add up to.",
         facts
       };
     }
@@ -419,6 +590,9 @@
     const file = input.files?.[0];
     if (!file) throw new Error(`Choose a ${input.dataset.what ?? "file"} first.`);
     return file.text();
+  }
+  async function readOptional(input) {
+    return input.files?.[0] ? input.files[0].text() : null;
   }
   function render(vm) {
     const result = $("result");
@@ -454,7 +628,20 @@
         readFile($("proof"))
       ]);
       const key = $("key").value;
-      render(await verifyFromText(reportText, proofText, key));
+      const [groupReportText, membershipText] = await Promise.all([
+        readOptional($("group-report")),
+        readOptional($("membership"))
+      ]);
+      if (groupReportText === null !== (membershipText === null)) {
+        throw new Error("Add both the group report and the membership file, or neither.");
+      }
+      const groupKey = $("group-key").value.trim();
+      const group = groupReportText && membershipText ? {
+        reportText: groupReportText,
+        membershipText,
+        ...groupKey ? { keyHex: groupKey } : {}
+      } : void 0;
+      render(await verifyFromText(reportText, proofText, key, group));
     } catch (e) {
       render({
         status: "error",
