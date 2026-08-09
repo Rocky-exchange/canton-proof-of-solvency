@@ -330,6 +330,18 @@ FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
 2 of 3 proofs verified — FAILED
 ```
 
+把一位客户一路验证到集团的合并总额 —— 客户证明对子公司报告、子公司对集团、
+并确认这两份文档描述的是同一本账:
+
+```bash
+cargo run --manifest-path rust/solvency-cli/Cargo.toml -- verify-chain \
+  --group-report fixtures/group-report.golden.json \
+  --membership   fixtures/group-membership.golden.json \
+  --report       fixtures/report.golden.json \
+  --proof        fixtures/proof.golden.json \
+  --key <发布方公钥 hex>
+```
+
 也可以直接把 [`offline/verifier.html`](offline/verifier.html) 交给非技术用户:
 单个 19 KiB 文件,无构建步骤、无网络请求。保存到本地、断网打开、选中自己的报告
 与证明即可;页面上每一个数字都标注了**在本机重算**还是**发布方声称** —— 让
@@ -520,6 +532,9 @@ Canton 工程师背景的参与者实测验证。
   校验它自己"这种模式。
 - **JSON Schema** —— 报告与证明文档的 Schema 置于 [`schemas/`](schemas),
   并在 CI 中对黄金夹具校验。
+- **集团相关子命令** —— `verify-group` 校验实体成员资格对集团报告,
+  `verify-chain` 把一位客户一路校验到集团合并总额(见 [SPEC.md](SPEC.md) §13)。
+  `--group-key` 可单独指定集团发布方公钥,因为集团与其子公司未必用同一把密钥。
 - **独立离线验证页** —— [`offline/verifier.html`](offline/verifier.html),
   单个自包含文件,无构建步骤、无网络请求。它内嵌的正是测试套件所覆盖的同一批
   模块,而不是另写一份验证逻辑;页面上每个数字都标注**在本机重算**或

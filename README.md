@@ -387,6 +387,19 @@ FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
 2 of 3 proofs verified — FAILED
 ```
 
+Verify a customer all the way up to a group's consolidated total — their proof
+against the subsidiary's report, the subsidiary against the group, and that
+those two documents describe the same book:
+
+```bash
+cargo run --manifest-path rust/solvency-cli/Cargo.toml -- verify-chain \
+  --group-report fixtures/group-report.golden.json \
+  --membership   fixtures/group-membership.golden.json \
+  --report       fixtures/report.golden.json \
+  --proof        fixtures/proof.golden.json \
+  --key <publisher-key-hex>
+```
+
 Or hand a non-technical user [`offline/verifier.html`](offline/verifier.html):
 a single 19 KiB file with no build step and no network calls. They save it,
 open it with their connection off, pick their report and proof, and every
@@ -616,6 +629,11 @@ Takes the publisher out of the verification path entirely.
   report against the key embedded in itself.
 - **JSON Schema** for the report and proof documents, in
   [`schemas/`](schemas), validated against the golden fixtures in CI.
+- **Group verbs** — `verify-group` checks entity memberships against a group
+  report, and `verify-chain` checks a customer all the way to a group's
+  consolidated total ([SPEC.md](SPEC.md) §13). `--group-key` accepts a separate
+  group publisher key, since a group and its subsidiaries need not publish
+  under one.
 - **Standalone offline verifier** — [`offline/verifier.html`](offline/verifier.html),
   one self-contained file with no build step and no network calls. It embeds
   the same modules the test suite exercises rather than reimplementing them,

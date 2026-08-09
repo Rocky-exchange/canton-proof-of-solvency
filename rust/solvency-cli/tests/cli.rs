@@ -141,6 +141,87 @@ fn verifying_without_a_key_exits_two_and_explains_why() {
     assert!(stderr.contains("internal consistency"), "got {stderr}");
 }
 
+fn group_dir() -> tempfile::TempDir {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, fixture_name) in [
+        ("group-report.json", "group-report.golden.json"),
+        ("membership.json", "group-membership.golden.json"),
+        ("report.json", "report.golden.json"),
+        ("proof.json", "proof.golden.json"),
+    ] {
+        std::fs::write(dir.path().join(name), fixture(fixture_name)).unwrap();
+    }
+    dir
+}
+
+#[test]
+fn verify_group_exits_zero_for_a_valid_membership() {
+    let dir = group_dir();
+    let out = run(&[
+        "verify-group",
+        "--report",
+        &path(dir.path(), "group-report.json"),
+        "--membership",
+        &path(dir.path(), "membership.json"),
+        "--key",
+        KEY,
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "stdout: {stdout}");
+    assert!(stdout.contains("1 of 1"), "got {stdout}");
+}
+
+#[test]
+fn verify_chain_exits_zero_and_names_the_customer_and_entity() {
+    let dir = group_dir();
+    let out = run(&[
+        "verify-chain",
+        "--group-report",
+        &path(dir.path(), "group-report.json"),
+        "--membership",
+        &path(dir.path(), "membership.json"),
+        "--report",
+        &path(dir.path(), "report.json"),
+        "--proof",
+        &path(dir.path(), "proof.json"),
+        "--key",
+        KEY,
+        "--json",
+    ]);
+    assert_eq!(out.status.code(), Some(0));
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(
+        parsed["proofs"][0]["subject"],
+        "22222222-2222-7222-8222-222222222222 in golden-entity-a"
+    );
+}
+
+#[test]
+fn verify_chain_exits_one_when_the_customer_proof_is_tampered() {
+    let dir = group_dir();
+    std::fs::write(
+        dir.path().join("proof.json"),
+        fixture("proof.golden.json").replace("0.250000000000000000", "9.250000000000000000"),
+    )
+    .unwrap();
+    let out = run(&[
+        "verify-chain",
+        "--group-report",
+        &path(dir.path(), "group-report.json"),
+        "--membership",
+        &path(dir.path(), "membership.json"),
+        "--report",
+        &path(dir.path(), "report.json"),
+        "--proof",
+        &path(dir.path(), "proof.json"),
+        "--key",
+        KEY,
+    ]);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&out.stdout).contains("FAILED"));
+}
+
 #[test]
 fn help_exits_zero_and_documents_the_exit_codes() {
     let out = run(&["--help"]);
