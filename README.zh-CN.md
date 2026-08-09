@@ -256,6 +256,7 @@ offset、发布方、签名)、锚定链,以及验证端本身。
 | 示例 | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → 树根、总额、已验证证明 |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | 签名报告与证明文档(Rust) |
 | 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档 + JSON Schema |
+| 离线验证页 | [`offline/verifier.html`](offline/verifier.html) | 自包含页面,无构建步骤、无网络请求 |
 | `canton-disclosure-console` | *规划中 —— [M4](#milestone-4--披露控制台)* | 发布端 + 查看端 Web 控制台 |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | 审计 CLI,批量验证 |
 
@@ -328,6 +329,12 @@ report digest : 1a10a9f2748eddebe1a684106da043c165e6ba0ed01ad131d01dd646396a3987
 FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
 2 of 3 proofs verified — FAILED
 ```
+
+也可以直接把 [`offline/verifier.html`](offline/verifier.html) 交给非技术用户:
+单个 19 KiB 文件,无构建步骤、无网络请求。保存到本地、断网打开、选中自己的报告
+与证明即可;页面上每一个数字都标注了**在本机重算**还是**发布方声称** —— 让
+"被证明的"与"仅被声称的"之间的界线无法被忽略。用 `npm run build:offline` 重新
+生成;若仓库内的副本与源码不同步,CI 会失败。
 
 在网页中嵌入验证:
 
@@ -511,6 +518,11 @@ Canton 工程师背景的参与者实测验证。
   校验它自己"这种模式。
 - **JSON Schema** —— 报告与证明文档的 Schema 置于 [`schemas/`](schemas),
   并在 CI 中对黄金夹具校验。
+- **独立离线验证页** —— [`offline/verifier.html`](offline/verifier.html),
+  单个自包含文件,无构建步骤、无网络请求。它内嵌的正是测试套件所覆盖的同一批
+  模块,而不是另写一份验证逻辑;页面上每个数字都标注**在本机重算**或
+  **发布方声称**,读者一眼就能分清哪些值是这个浏览器证明的、哪些只是发布方
+  声称的。一旦仓库内的页面与源码不同步、或引入了外部引用,测试即失败。
 
 **尚未完成**
 
@@ -520,14 +532,13 @@ Canton 工程师背景的参与者实测验证。
 - 从完整叶子导出重算树根 —— 目前还没有任何组件产出这种导出格式。
 - 覆盖率、披露清单与 profile 文档的 Schema。
 - crates.io 发布与预编译二进制。
-- **独立浏览器验证页** —— 单个自包含 HTML 文件,无构建步骤、无网络请求,用户
-  可保存到本地离线校验下载来的证明;平台自己的页面自此不再属于信任路径。
 - **生产端参考接入** —— 附样例数据集、有文档的"快照 → 权益 → 树 → 发布"
   路径,与线上的 Rocky 部署互为参照。
 
 **完成标准:** CLI 在公布的时间预算内验证 [SPEC.md](SPEC.md) §6 黄金向量与
-一份生产规模的报告(10 万片叶子);离线 HTML 页在断网状态下完成证明验证;
-仓库内每一份示例文档都在 CI 中通过 schema 校验。
+一份生产规模的报告(10 万片叶子);仓库内每一份示例文档都在 CI 中通过 schema
+校验;上面列出的其余子命令补齐。*离线页面与 schema 校验已完成;10 万片叶子
+报告的时间预算尚未实测。*
 
 ### Milestone 6 —— 生态标准化
 
