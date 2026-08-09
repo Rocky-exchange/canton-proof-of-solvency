@@ -32,6 +32,10 @@ cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
 cd rust/solvency-report
 cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
 
+# Verification CLI
+cd rust/solvency-cli
+cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
+
 # TypeScript verifier
 cd ts/verifier
 npm install && npm test

@@ -257,7 +257,7 @@ offset、发布方、签名)、锚定链,以及验证端本身。
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | 签名报告与证明文档(Rust) |
 | 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档 + JSON Schema |
 | `canton-disclosure-console` | *规划中 —— [M4](#milestone-4--披露控制台)* | 发布端 + 查看端 Web 控制台 |
-| `canton-solvency-verify` | *规划中 —— [M5](#milestone-5--独立验证工具包)* | 审计 CLI,批量验证 |
+| `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | 审计 CLI,批量验证 |
 
 ## 🖥️ 披露控制台
 
@@ -309,6 +309,24 @@ TypeScript —— 对同一组黄金向量运行验证端:
 ```bash
 cd ts/verifier
 npm install && npm test
+```
+
+在命令行验证一份已发布的报告 —— 不需要服务器,也不需要联网:
+
+```bash
+# 从 CSV 生成签名报告与逐用户证明
+cargo run --manifest-path rust/solvency-report/Cargo.toml \
+  --example publish_report -- balances.csv my-master-salt ./out
+
+# 校验其中每一份证明(退出码 0 全部通过,1 有证明未通过,2 用法或 I/O 错误)
+cargo run --manifest-path rust/solvency-cli/Cargo.toml -- \
+  verify --report ./out/report.json --proof-dir ./out --key <发布方公钥 hex>
+```
+
+```text
+report digest : 1a10a9f2748eddebe1a684106da043c165e6ba0ed01ad131d01dd646396a3987
+FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
+2 of 3 proofs verified — FAILED
 ```
 
 在网页中嵌入验证:
@@ -369,7 +387,7 @@ npm 包遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 | 2 | 证明 | [报告根上链锚定](#milestone-2--报告根上链锚定) | 历史报告无法被悄悄改写或删除 |
 | 3 | 证明 | [选择性披露 Profile](#milestone-3--选择性披露-profile) | 一套格式覆盖回购、基金、结算与适格性,而不只是交易所 |
 | 4 | 使用 | [披露控制台](#milestone-4--披露控制台) | 机构不写代码即可发布,对手方不写代码即可验证 |
-| 5 | 使用 | [独立验证工具包](#milestone-5--独立验证工具包) | 任何人无需发布方的软件即可验证 |
+| 5 | 使用 | [独立验证工具包](#milestone-5--独立验证工具包) | 任何人无需发布方的软件即可验证 —— *CLI 已交付* |
 | 6 | 使用 | [生态标准化](#milestone-6--生态标准化) | 单一实现上升为网络标准 |
 
 *先后关系:0 是其余一切的前提 —— 1、2、3、5 都要读写报告文档。随后 1 与 2 相互
@@ -484,13 +502,24 @@ Canton 工程师背景的参与者实测验证。
 
 把发布方彻底移出验证路径。
 
-**交付物**
+**已交付部分**
 
-- **`canton-solvency-verify` CLI**(crates.io + 预编译二进制)—— 验证单份
-  证明、批量验证目录、从完整叶子导出重算树根、校验覆盖率报告(M1)、回溯锚定
-  链(M2)、按 profile 校验披露清单(M3),并提供适合 CI 的退出码。
-- **机器可读格式** —— 报告、证明、覆盖率、披露清单与 profile 文档的带版本
-  JSON Schema,让第三方工具去解析而不是去逆向。
+- **`canton-solvency-verify` CLI** —— [`rust/solvency-cli`](rust/solvency-cli)。
+  验证单份证明或整目录扫描,打印报告摘要,`--json` 供流水线消费,并把退出码
+  `1`(验证未通过)与 `2`(用法或 I/O 错误)区分开,使一个打错的路径永远不会
+  被当成资不抵债的证据。必须显式传入受信任公钥 —— 不存在"拿报告自带的公钥
+  校验它自己"这种模式。
+- **JSON Schema** —— 报告与证明文档的 Schema 置于 [`schemas/`](schemas),
+  并在 CI 中对黄金夹具校验。
+
+**尚未完成**
+
+- 覆盖率报告(M1)、锚定链(M2)与披露清单(M3)对应的 CLI 子命令 —— 在这些
+  文档尚未定义之前刻意不提供:一个会静默跳过检查的验证器,比一个干脆不提供该
+  检查的验证器更糟。
+- 从完整叶子导出重算树根 —— 目前还没有任何组件产出这种导出格式。
+- 覆盖率、披露清单与 profile 文档的 Schema。
+- crates.io 发布与预编译二进制。
 - **独立浏览器验证页** —— 单个自包含 HTML 文件,无构建步骤、无网络请求,用户
   可保存到本地离线校验下载来的证明;平台自己的页面自此不再属于信任路径。
 - **生产端参考接入** —— 附样例数据集、有文档的"快照 → 权益 → 树 → 发布"
