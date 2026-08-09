@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canton solvency — disclosure designer</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #16181d; --muted: #5c6370; --line: #d9dde3;
+    --panel: #f6f7f9; --ok: #0f7b45; --okbg: #e7f5ed;
+    --bad: #b3261e; --badbg: #fdecea; --warn: #7a5b00; --warnbg: #fdf5e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318; --fg: #e6e8ec; --muted: #9aa3b2; --line: #2a2f38;
+      --panel: #171a20; --ok: #5cd196; --okbg: #102a1e;
+      --bad: #ff8a80; --badbg: #2c1512; --warn: #e5c15c; --warnbg: #2a2210;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .6rem; }
+  .flow { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+  .flow li { padding: .3rem 0 .3rem .8rem; border-left: 2px solid var(--line); }
+  .badge.short { background: var(--bad); color: var(--bg); }
+  .problem { color: var(--bad); }
+  select { padding: .3rem; font: inherit; background: var(--bg); color: var(--fg);
+           border: 1px solid var(--line); border-radius: 5px; }
+  ul { margin: .3rem 0 0; padding-left: 1.2rem; font-size: .9rem; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+        padding: .8rem; overflow-x: auto; font-size: .8rem; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .lede { color: var(--muted); margin: 0 0 1.75rem; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.25rem; margin: 0 0 1.25rem; }
+  legend { padding: 0 .4rem; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+  label { display: block; margin: .9rem 0 .3rem; font-weight: 600; font-size: .92rem; }
+  label:first-of-type { margin-top: 0; }
+  .hint { color: var(--muted); font-weight: 400; font-size: .85rem; }
+  input[type=file], input[type=text] {
+    width: 100%; padding: .55rem .6rem; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--bg); color: var(--fg); font: inherit;
+  }
+  input[type=text] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+  button {
+    margin-top: 1.25rem; padding: .65rem 1.4rem; font: inherit; font-weight: 600;
+    border: 0; border-radius: 7px; background: var(--fg); color: var(--bg); cursor: pointer;
+  }
+  .result { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 1.1rem 1.25rem; background: var(--panel); }
+  .result.verified { border-left-color: var(--ok); background: var(--okbg); }
+  .result.failed { border-left-color: var(--bad); background: var(--badbg); }
+  .result.error { border-left-color: var(--warn); background: var(--warnbg); }
+  #headline { margin: 0 0 .4rem; font-size: 1.15rem; }
+  .result.verified #headline { color: var(--ok); }
+  .result.failed #headline { color: var(--bad); }
+  .result.error #headline { color: var(--warn); }
+  #detail { margin: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1.1rem; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .5rem; border-top: 1px solid var(--line); vertical-align: top; }
+  th[scope=row] { font-weight: 600; white-space: nowrap; width: 12rem; }
+  td.value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; word-break: break-all; }
+  .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+  .badge.verified { background: var(--ok); color: var(--bg); }
+  .badge.disclosed { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  footer { margin-top: 2rem; color: var(--muted); font-size: .85rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Canton solvency — disclosure designer</h1>
+  <p class="lede">
+    Decide what a report discloses, and see the decision before you make it.
+    Everything happens in this page — it makes no network requests.
+    <strong>This designs a manifest; it does not publish one.</strong> Publishing
+    needs a participant node and the producer's signing key, neither of which a
+    page loaded from a file can reach. Export the manifest and hand it to the
+    producer.
+  </p>
+
+  <fieldset>
+    <legend>Documents</legend>
+
+    <label for="draft">Draft report <span class="hint">— the report you are about to publish</span></label>
+    <input type="file" id="draft" accept=".json,application/json" data-what="draft report">
+
+    <label for="previous">Previous report <span class="hint">— optional; enables the diff</span></label>
+    <input type="file" id="previous" accept=".json,application/json" data-what="previous report">
+
+    <label for="audience">Audience <span class="hint">— who this packaging is cut for</span></label>
+    <input type="text" id="audience" value="public" spellcheck="false" autocomplete="off">
+  </fieldset>
+
+  <div id="designer" hidden>
+    <h2>What this report discloses</h2>
+    <table>
+      <thead><tr><th>Field</th><th>State</th><th></th></tr></thead>
+      <tbody id="fields"></tbody>
+    </table>
+
+    <h2>Problems</h2>
+    <p class="hint">Publishing with any of these would be rejected by a verifier.</p>
+    <ul id="problems"></ul>
+
+    <h2>Changed since the previous report</h2>
+    <ul id="changes"></ul>
+
+    <h2>Reduced disclosure</h2>
+    <p class="hint">Reducing disclosure can be legitimate. It should never be accidental.</p>
+    <ul id="warnings"></ul>
+
+    <h2>What this audience will see</h2>
+    <p class="hint">Shown</p>
+    <ul id="shown"></ul>
+    <p class="hint">Proven but not shown</p>
+    <ul id="proven"></ul>
+    <p class="hint">Withheld</p>
+    <ul id="hidden"></ul>
+
+    <h2>Manifest</h2>
+    <pre id="manifest-json" class="value"></pre>
+    <button type="button" id="export">Export manifest</button>
+  </div>
+
+  <footer>
+    <p>
+      A manifest is bound into the signed report, so a reduction in disclosure is
+      on the record whether or not anyone was watching for it. That is the point
+      of designing it deliberately rather than discovering it later.
+    </p>
+    <p>
+      The export is a manifest, not a report. The producer signs it into the report
+      it belongs to; nothing here holds a signing key.
+    </p>
+  </footer>
+</main>
+<script>/*BUNDLE*/</script>
+</body>
+</html>

@@ -306,7 +306,7 @@
   function lookupProfile(name) {
     return PROFILE_REGISTRY.find((p) => p.name === name);
   }
-  var KNOWN_FIELDS = [
+  var KNOWN_MANIFEST_FIELDS = [
     "root_sums",
     "mark_prices",
     "disclosures.bad_debt",
@@ -315,6 +315,7 @@
     "customer_balances",
     "customer_identities"
   ];
+  var KNOWN_FIELDS = KNOWN_MANIFEST_FIELDS;
   var REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
   var encoder3 = new TextEncoder();
   function concat2(parts) {

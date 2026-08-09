@@ -20,12 +20,23 @@ export const PAGES = [
     entry: "../src/offline-entry.ts",
     template: "../offline-template.html",
     out: "../../../offline/verifier.html",
+    verifies: true,
   },
   {
     name: "disclosure console",
     entry: "../src/console-entry.ts",
     template: "../console-template.html",
     out: "../../../console/viewer.html",
+    verifies: true,
+  },
+  {
+    name: "disclosure designer",
+    entry: "../src/publisher-entry.ts",
+    template: "../publisher-template.html",
+    out: "../../../console/designer.html",
+    // Designs a manifest; verifies nothing, so it carries no commitment
+    // logic and no provenance vocabulary.
+    verifies: false,
   },
 ];
 

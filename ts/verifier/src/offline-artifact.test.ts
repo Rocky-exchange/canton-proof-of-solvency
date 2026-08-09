@@ -37,15 +37,23 @@ for (const page of PAGES) {
       }
     });
 
-    it("embeds the verification logic rather than reimplementing it", () => {
+    // A page that verifies must run the real logic and speak the provenance
+    // vocabulary. The designer does neither, because it verifies nothing —
+    // asserting these of it would be asserting something untrue.
+    it.runIf(page.verifies)("embeds the verification logic rather than reimplementing it", () => {
       expect(checkedIn).toContain("rocky-solvency-leaf-v1");
       expect(checkedIn).toContain("rocky-solvency-node-v1");
       expect(checkedIn).toContain("rocky-solvency-report-v1");
     });
 
-    it("keeps the provenance vocabulary the pages are built around", () => {
+    it.runIf(page.verifies)("keeps the provenance vocabulary the pages are built around", () => {
       expect(checkedIn).toContain("recomputed here");
       expect(checkedIn).toContain("publisher says");
+    });
+
+    it.runIf(!page.verifies)("holds no signing key and claims no verification", () => {
+      expect(checkedIn).not.toContain("recomputed here");
+      expect(checkedIn.toLowerCase()).toContain("does not publish");
     });
 
     /**

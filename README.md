@@ -310,12 +310,15 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 
 ## 🖥️ Disclosure Console
 
-> **Status: viewer shipped, publisher not started.** The viewer is
-> [`console/viewer.html`](console/viewer.html) — one self-contained file, no
-> build step and no network calls. The publisher half is genuinely blocked:
-> connecting a participant node, designing a disclosure against live data and
-> publishing all need a ledger connection, which a page loaded from a file
-> cannot have and which this repository has never had access to.
+> **Status: viewer and designer shipped; publishing itself is not.**
+> [`console/viewer.html`](console/viewer.html) reads a published disclosure;
+> [`console/designer.html`](console/designer.html) designs the manifest for the
+> next one and diffs it against the last, refusing to export a manifest a
+> verifier would reject. Both are self-contained files with no network calls.
+> What remains blocked is narrower than it first looked: connecting a
+> participant node, reading live data, and signing and publishing need a ledger
+> connection and the producer's key, which a page loaded from a file cannot
+> have. The designer exports a manifest for the producer instead.
 
 A commitment nobody can operate is not transparency infrastructure. The console
 is two surfaces over one format.
@@ -605,9 +608,15 @@ adopted infrastructure.
 
 **Deliverables**
 
-- **Publisher console** — node connection and party declaration, profile
-  selection, the disclosure designer with per-audience live preview,
-  pre-publication diff, scheduling, signing, publishing, anchoring.
+- ~~**Disclosure designer and pre-publication diff**~~ — **delivered**,
+  [`console/designer.html`](console/designer.html). Per-field states with a
+  live per-audience preview, a diff against the previous report, and reduced
+  disclosure called out separately from other changes because it can be
+  legitimate but never accidental. Export is blocked while any field's
+  declared state contradicts the draft, so the screen catches what
+  verification would reject.
+- **Still blocked on a node:** connection and party declaration, reading live
+  data, scheduling, signing, publishing, anchoring.
 - **Viewer console** — provenance state on every figure
   (verified / disclosed / withheld), the data-flow graph of parties,
   synchronizers, and contract types behind each subtotal, plus coverage and

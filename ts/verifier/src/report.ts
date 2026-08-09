@@ -88,7 +88,7 @@ export function lookupProfile(name: string): ProfileRules | undefined {
   return PROFILE_REGISTRY.find((p) => p.name === name);
 }
 
-const KNOWN_FIELDS = [
+export const KNOWN_MANIFEST_FIELDS = [
   "root_sums",
   "mark_prices",
   "disclosures.bad_debt",
@@ -97,6 +97,7 @@ const KNOWN_FIELDS = [
   "customer_balances",
   "customer_identities",
 ];
+const KNOWN_FIELDS = KNOWN_MANIFEST_FIELDS;
 const REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
 
 /** Amounts arrive as decimal strings and are canonicalised before hashing. */
