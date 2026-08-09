@@ -568,9 +568,13 @@ family of statements institutions on Canton actually need to make.
   `settlement.dvp`, `eligibility.holder`, chosen against what is actually
   moving onto Canton: repo, tokenized funds, DvP treasury settlement, and
   permissioned issuance.
-- **Disclosure manifest** — machine-readable per-field
-  published / committed / withheld declaration, bound into the signed report
-  and diffable between reports, so reducing disclosure is itself on the record.
+- ~~**Disclosure manifest**~~ — **delivered as report v2**,
+  [SPEC.md](SPEC.md) §8.5. Per-field published / committed / withheld,
+  bound into the signed report under its own digest domain, and diffable
+  between reports so a reduction in disclosure is on the record. Consistency
+  is *checked*, not asserted: declaring a field published while omitting it,
+  or withheld while printing it, is rejected. v1 is untouched and still
+  verifies.
 - ~~**Hierarchical commitments**~~ — **delivered**, [SPEC.md](SPEC.md) §13.
   Entity roots are the leaves of a group tree, so a subsidiary proves its
   position to its own regulator without exposing siblings while the group root

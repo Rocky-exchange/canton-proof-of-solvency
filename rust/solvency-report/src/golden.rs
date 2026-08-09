@@ -59,6 +59,7 @@ pub fn metadata() -> ReportMetadata {
             excluded_house_accounts: 1,
             excluded_house_totals: amounts(&[("USDA", 1_000_000_000_000_000_000_000)]),
         },
+        manifest: None,
     }
 }
 
@@ -66,6 +67,41 @@ pub fn metadata() -> ReportMetadata {
 /// exercises a two-step path with the sibling on the left).
 pub fn fixture() -> (SignedReport, ProofDocument) {
     let published = publish(&leaves(), &metadata(), &signer()).unwrap();
+    let proof = published.proofs[1].clone();
+    (published.signed_report, proof)
+}
+
+/// The SPEC §8.5 v2 fixture: the §10 report plus a disclosure manifest,
+/// consistent with what that report actually carries.
+pub fn manifest() -> crate::manifest::Manifest {
+    use crate::manifest::{Disclosure, Manifest};
+    Manifest {
+        audience: "public".to_string(),
+        fields: [
+            ("root_sums", Disclosure::Published),
+            ("mark_prices", Disclosure::Published),
+            ("disclosures.bad_debt", Disclosure::Published),
+            ("disclosures.excluded_house_accounts", Disclosure::Published),
+            ("disclosures.excluded_house_totals", Disclosure::Published),
+            ("customer_balances", Disclosure::Committed),
+            ("customer_identities", Disclosure::Withheld),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect(),
+    }
+}
+
+pub fn fixture_v2() -> (SignedReport, ProofDocument) {
+    let published = publish(
+        &leaves(),
+        &ReportMetadata {
+            manifest: Some(manifest()),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
     let proof = published.proofs[1].clone();
     (published.signed_report, proof)
 }
@@ -148,6 +184,56 @@ mod tests {
             PROOF_JSON.trim_end(),
             "fixtures/proof.golden.json is stale"
         );
+    }
+
+    const REPORT_V2_JSON: &str = include_str!("../../../fixtures/report-v2.golden.json");
+    const PROOF_V2_JSON: &str = include_str!("../../../fixtures/proof-v2.golden.json");
+
+    #[test]
+    fn golden_vectors_pin_the_v2_report_format() {
+        let (signed, proof) = fixture_v2();
+        assert_eq!(
+            signed.report.format_version,
+            crate::document::REPORT_FORMAT_VERSION_V2
+        );
+        assert_eq!(
+            signed.signature.value,
+            "d7385bd2c72f274584ce804ef3f513d90465d6a68896c597726f8eff84bb86ec\
+             a2ac42583fbb3fd4157ace9132ac24e8087cbe6f445cc984e1ad979197357e01"
+        );
+        // Same tree as §10: v2 changes the envelope, not the commitment.
+        assert_eq!(signed.report.root_hash, fixture().0.report.root_hash);
+        // ...but a different digest, because the domain differs.
+        assert_ne!(
+            report_digest(&signed.report),
+            report_digest(&fixture().0.report)
+        );
+        assert_eq!(
+            proof.report_digest,
+            hex::encode(report_digest(&signed.report))
+        );
+    }
+
+    #[test]
+    fn v2_fixture_files_match_what_the_producer_emits() {
+        let (signed, proof) = fixture_v2();
+        assert_eq!(
+            serde_json::to_string_pretty(&signed).unwrap(),
+            REPORT_V2_JSON.trim_end(),
+            "fixtures/report-v2.golden.json is stale"
+        );
+        assert_eq!(
+            serde_json::to_string_pretty(&proof).unwrap(),
+            PROOF_V2_JSON.trim_end(),
+            "fixtures/proof-v2.golden.json is stale"
+        );
+    }
+
+    #[test]
+    fn the_v2_fixture_verifies_when_read_back_from_disk() {
+        let signed: SignedReport = serde_json::from_str(REPORT_V2_JSON).unwrap();
+        let proof: ProofDocument = serde_json::from_str(PROOF_V2_JSON).unwrap();
+        assert_eq!(verify(&signed, &proof, &signer().public_key_hex()), Ok(()));
     }
 
     const GROUP_REPORT_JSON: &str = include_str!("../../../fixtures/group-report.golden.json");

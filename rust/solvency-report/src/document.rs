@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub const REPORT_FORMAT_VERSION: &str = "canton-solvency-report-v1";
+pub const REPORT_FORMAT_VERSION_V2: &str = "canton-solvency-report-v2";
 pub const PROOF_FORMAT_VERSION: &str = "canton-solvency-proof-v1";
 pub const SIGNATURE_ALGORITHM: &str = "ed25519";
 
@@ -67,6 +68,10 @@ pub struct Report {
     #[serde(with = "amount_map")]
     pub mark_prices: BTreeMap<String, u128>,
     pub disclosures: Disclosures,
+    /// v2 only. Serialized only when present, so a v1 report's bytes are
+    /// exactly what they were before v2 existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<crate::manifest::Manifest>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

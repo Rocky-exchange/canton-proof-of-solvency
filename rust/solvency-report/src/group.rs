@@ -89,7 +89,11 @@ pub fn publish_group(
     let tree = SumTree::build(leaves)?;
 
     let report = Report {
-        format_version: crate::document::REPORT_FORMAT_VERSION.to_string(),
+        format_version: if meta.manifest.is_some() {
+            crate::document::REPORT_FORMAT_VERSION_V2.to_string()
+        } else {
+            crate::document::REPORT_FORMAT_VERSION.to_string()
+        },
         profile: GROUP_PROFILE.to_string(),
         publisher: meta.publisher.clone(),
         snapshot_time: meta.snapshot_time.clone(),
@@ -99,6 +103,7 @@ pub fn publish_group(
         root_sums: tree.root().sums.clone(),
         mark_prices: meta.mark_prices.clone(),
         disclosures: meta.disclosures.clone(),
+        manifest: meta.manifest.clone(),
     };
 
     let digest = report_digest(&report);
@@ -284,6 +289,7 @@ mod tests {
             ledger_offset: "000000000000000900".to_string(),
             mark_prices: BTreeMap::new(),
             disclosures: Default::default(),
+            manifest: None,
         }
     }
 

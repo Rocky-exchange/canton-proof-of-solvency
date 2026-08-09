@@ -16,9 +16,26 @@ import {
 } from "./verify";
 
 export const REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
+export const REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
 export const PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
 export const SIGNATURE_ALGORITHM = "ed25519";
 const REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
+const REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
+
+/** How a field was handled in this report (SPEC §8.5). */
+export type Disclosure = "published" | "committed" | "withheld";
+export type Manifest = { audience: string; fields: Record<string, Disclosure> };
+
+const KNOWN_FIELDS = [
+  "root_sums",
+  "mark_prices",
+  "disclosures.bad_debt",
+  "disclosures.excluded_house_accounts",
+  "disclosures.excluded_house_totals",
+  "customer_balances",
+  "customer_identities",
+];
+const REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
 
 /** Amounts arrive as decimal strings and are canonicalised before hashing. */
 export type AmountMap = Record<string, string>;
@@ -38,6 +55,8 @@ export type Report = {
     excluded_house_accounts: number;
     excluded_house_totals: AmountMap;
   };
+  /** v2 only. */
+  manifest?: Manifest;
 };
 
 export type SignedReport = {
@@ -61,6 +80,8 @@ export type VerificationFailure =
   | { kind: "root_sums_mismatch"; asset: string }
   | { kind: "entity_root_mismatch" }
   | { kind: "entity_sums_mismatch"; asset: string }
+  | { kind: "manifest_presence"; detail: string }
+  | { kind: "manifest_inconsistent"; path: string; detail: string }
   | { kind: "malformed"; detail: string };
 
 export type VerificationResult = { ok: true } | { ok: false; failure: VerificationFailure };
@@ -111,8 +132,18 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 export async function reportDigestHex(report: Report): Promise<string> {
+  const v2 = report.format_version === REPORT_FORMAT_VERSION_V2;
+  const manifestParts: Uint8Array[] = [];
+  if (v2 && report.manifest) {
+    manifestParts.push(lp(report.manifest.audience));
+    const paths = Object.keys(report.manifest.fields).sort();
+    manifestParts.push(u64le(paths.length));
+    for (const path of paths) {
+      manifestParts.push(lp(path), lp(report.manifest.fields[path]));
+    }
+  }
   const preimage = concat([
-    encoder.encode(REPORT_DIGEST_DOMAIN),
+    encoder.encode(v2 ? REPORT_DIGEST_DOMAIN_V2 : REPORT_DIGEST_DOMAIN),
     lp(report.format_version),
     lp(report.profile),
     lp(report.publisher),
@@ -125,6 +156,7 @@ export async function reportDigestHex(report: Report): Promise<string> {
     lpmap(report.disclosures.bad_debt),
     u64le(report.disclosures.excluded_house_accounts),
     lpmap(report.disclosures.excluded_house_totals),
+    ...manifestParts,
   ]);
   return bytesToHex(new Uint8Array(await crypto.subtle.digest("SHA-256", preimage)));
 }
@@ -169,6 +201,72 @@ function checkVersion(field: string, found: string, want: string): VerificationR
   return found === want ? null : fail({ kind: "unsupported_version", field, found });
 }
 
+/**
+ * v1 and v2 differ only in the manifest and the digest domain. A manifest that
+ * merely asserted things would be decoration, so every claim it makes about a
+ * field living in the report body is checked against the body.
+ */
+export function checkReportVersionAndManifest(report: Report): VerificationResult | null {
+  if (report.format_version === REPORT_FORMAT_VERSION) {
+    return report.manifest
+      ? fail({
+          kind: "manifest_presence",
+          detail: "a v1 report cannot carry a manifest; the v1 digest does not cover it",
+        })
+      : null;
+  }
+  if (report.format_version !== REPORT_FORMAT_VERSION_V2) {
+    return fail({
+      kind: "unsupported_version",
+      field: "report.format_version",
+      found: report.format_version,
+    });
+  }
+  const manifest = report.manifest;
+  if (!manifest) {
+    return fail({
+      kind: "manifest_presence",
+      detail: "a v2 report must carry a disclosure manifest",
+    });
+  }
+
+  const carriesData: Record<string, boolean> = {
+    root_sums: Object.keys(report.root_sums).length > 0,
+    mark_prices: Object.keys(report.mark_prices).length > 0,
+    "disclosures.bad_debt": Object.keys(report.disclosures.bad_debt).length > 0,
+    "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
+    "disclosures.excluded_house_totals":
+      Object.keys(report.disclosures.excluded_house_totals).length > 0,
+  };
+
+  for (const path of Object.keys(manifest.fields).sort()) {
+    const state = manifest.fields[path];
+    if (!KNOWN_FIELDS.includes(path)) {
+      return fail({
+        kind: "manifest_inconsistent",
+        path,
+        detail: "not a field this format defines",
+      });
+    }
+    if (!REPORT_RESIDENT_FIELDS.includes(path)) continue;
+    if (state === "published" && !carriesData[path]) {
+      return fail({
+        kind: "manifest_inconsistent",
+        path,
+        detail: "declared published but the report carries no data for it",
+      });
+    }
+    if (state !== "published" && carriesData[path]) {
+      return fail({
+        kind: "manifest_inconsistent",
+        path,
+        detail: `declared ${state} but the report publishes it anyway`,
+      });
+    }
+  }
+  return null;
+}
+
 /** Recompute the leaf, fold the path, compare hash *and* per-asset totals. */
 export async function verifyReport(
   signed: SignedReport,
@@ -177,7 +275,7 @@ export async function verifyReport(
 ): Promise<VerificationResult> {
   const { report } = signed;
   const versionFailure =
-    checkVersion("report.format_version", report.format_version, REPORT_FORMAT_VERSION) ??
+    checkReportVersionAndManifest(report) ??
     checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ??
     checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
   if (versionFailure) return versionFailure;

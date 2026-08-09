@@ -33,6 +33,16 @@ pub enum VerificationFailure {
     EntitySumsMismatch {
         asset: String,
     },
+    /// A v1 report carrying a manifest, or a v2 report without one.
+    ManifestPresence {
+        detail: &'static str,
+    },
+    /// The manifest disagrees with what the report actually carries, or names
+    /// a field the verifier has no opinion about.
+    ManifestInconsistent {
+        path: String,
+        detail: String,
+    },
     Malformed(String),
 }
 
@@ -60,6 +70,13 @@ impl std::fmt::Display for VerificationFailure {
                 f,
                 "the group membership and the entity report disagree on the {asset} total"
             ),
+            Self::ManifestPresence { detail } => write!(f, "{detail}"),
+            Self::ManifestInconsistent { path, detail } => {
+                write!(
+                    f,
+                    "manifest disagrees with the report about {path}: {detail}"
+                )
+            }
             Self::Malformed(what) => write!(f, "malformed document: {what}"),
         }
     }
@@ -101,11 +118,7 @@ pub fn verify(
     trusted_public_key_hex: &str,
 ) -> Result<(), VerificationFailure> {
     let report = &signed.report;
-    expect_version(
-        "report.format_version",
-        &report.format_version,
-        REPORT_FORMAT_VERSION,
-    )?;
+    check_report_version_and_manifest(report)?;
     expect_version(
         "proof.format_version",
         &proof.format_version,
@@ -129,6 +142,87 @@ pub fn verify(
         &proof.report_digest,
         trusted_public_key_hex,
     )
+}
+
+/// v1 and v2 differ only in the manifest and the digest domain; everything
+/// after is shared.
+pub(crate) fn check_report_version_and_manifest(
+    report: &crate::document::Report,
+) -> Result<(), VerificationFailure> {
+    use crate::document::REPORT_FORMAT_VERSION_V2;
+    match report.format_version.as_str() {
+        REPORT_FORMAT_VERSION => {
+            if report.manifest.is_some() {
+                return Err(F::ManifestPresence {
+                    detail: "a v1 report cannot carry a manifest; the v1 digest does not cover it",
+                });
+            }
+            Ok(())
+        }
+        REPORT_FORMAT_VERSION_V2 => {
+            let manifest = report.manifest.as_ref().ok_or(F::ManifestPresence {
+                detail: "a v2 report must carry a disclosure manifest",
+            })?;
+            check_manifest_consistency(report, manifest)
+        }
+        found => Err(F::UnsupportedVersion {
+            field: "report.format_version",
+            found: found.to_string(),
+        }),
+    }
+}
+
+/// A manifest that merely asserted things would be decoration. Every claim it
+/// makes about a field living in the report body is checked against what the
+/// body actually carries.
+fn check_manifest_consistency(
+    report: &crate::document::Report,
+    manifest: &crate::manifest::Manifest,
+) -> Result<(), VerificationFailure> {
+    use crate::manifest::{Disclosure, KNOWN_FIELDS, REPORT_RESIDENT_FIELDS};
+
+    for (path, state) in &manifest.fields {
+        if !KNOWN_FIELDS.contains(&path.as_str()) {
+            return Err(F::ManifestInconsistent {
+                path: path.clone(),
+                detail: "not a field this format defines".to_string(),
+            });
+        }
+        if !REPORT_RESIDENT_FIELDS.contains(&path.as_str()) {
+            continue; // e.g. customer_balances: attested through the commitment
+        }
+
+        let carries_data = match path.as_str() {
+            "root_sums" => !report.root_sums.is_empty(),
+            "mark_prices" => !report.mark_prices.is_empty(),
+            "disclosures.bad_debt" => !report.disclosures.bad_debt.is_empty(),
+            "disclosures.excluded_house_accounts" => report.disclosures.excluded_house_accounts > 0,
+            "disclosures.excluded_house_totals" => {
+                !report.disclosures.excluded_house_totals.is_empty()
+            }
+            _ => unreachable!("checked against REPORT_RESIDENT_FIELDS above"),
+        };
+
+        match state {
+            Disclosure::Published if !carries_data => {
+                return Err(F::ManifestInconsistent {
+                    path: path.clone(),
+                    detail: "declared published but the report carries no data for it".to_string(),
+                })
+            }
+            Disclosure::Withheld | Disclosure::Committed if carries_data => {
+                return Err(F::ManifestInconsistent {
+                    path: path.clone(),
+                    detail: format!(
+                        "declared {} but the report publishes it anyway",
+                        state.as_str()
+                    ),
+                })
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }
 
 /// The tail shared by customer proofs (§9.1) and group memberships (§13):
@@ -274,6 +368,7 @@ mod tests {
             ledger_offset: "000000000000012345".to_string(),
             mark_prices: BTreeMap::new(),
             disclosures: Default::default(),
+            manifest: None,
         }
     }
 
@@ -463,6 +558,145 @@ mod tests {
         let pubn = publication(1);
         assert!(pubn.proofs[0].steps.is_empty());
         assert_eq!(check(&pubn, 0), Ok(()));
+    }
+
+    mod v2 {
+        use super::*;
+        use crate::manifest::{Disclosure, Manifest};
+
+        fn manifest(entries: &[(&str, Disclosure)]) -> Manifest {
+            Manifest {
+                audience: "public".to_string(),
+                fields: entries.iter().map(|(k, v)| (k.to_string(), *v)).collect(),
+            }
+        }
+
+        /// Consistent with what `metadata()` actually publishes: root_sums
+        /// carries data, mark_prices and the disclosures do not.
+        fn consistent() -> Manifest {
+            manifest(&[
+                ("root_sums", Disclosure::Published),
+                ("mark_prices", Disclosure::Withheld),
+                ("customer_balances", Disclosure::Committed),
+            ])
+        }
+
+        fn publish_v2(m: Manifest) -> Publication {
+            publish(
+                &leaves(5),
+                &ReportMetadata {
+                    manifest: Some(m),
+                    ..metadata()
+                },
+                &signer(),
+            )
+            .unwrap()
+        }
+
+        fn check_v2(p: &Publication) -> Result<(), VerificationFailure> {
+            verify(&p.signed_report, &p.proofs[0], &signer().public_key_hex())
+        }
+
+        #[test]
+        fn a_v2_report_declares_v2_and_verifies() {
+            let p = publish_v2(consistent());
+            assert_eq!(
+                p.signed_report.report.format_version,
+                crate::document::REPORT_FORMAT_VERSION_V2
+            );
+            assert_eq!(check_v2(&p), Ok(()));
+        }
+
+        #[test]
+        fn a_v1_report_carrying_a_manifest_is_rejected() {
+            let mut p = publish(&leaves(5), &metadata(), &signer()).unwrap();
+            p.signed_report.report.manifest = Some(consistent());
+            assert!(matches!(
+                check_v2(&p),
+                Err(VerificationFailure::ManifestPresence { .. })
+            ));
+        }
+
+        #[test]
+        fn a_v2_report_without_a_manifest_is_rejected() {
+            let mut p = publish_v2(consistent());
+            p.signed_report.report.manifest = None;
+            assert!(matches!(
+                check_v2(&p),
+                Err(VerificationFailure::ManifestPresence { .. })
+            ));
+        }
+
+        /// The teeth: you cannot claim to have published something you did not.
+        #[test]
+        fn declaring_a_field_published_when_the_report_omits_it_is_rejected() {
+            let p = publish_v2(manifest(&[("mark_prices", Disclosure::Published)]));
+            match check_v2(&p) {
+                Err(VerificationFailure::ManifestInconsistent { path, detail }) => {
+                    assert_eq!(path, "mark_prices");
+                    assert!(detail.contains("no data"), "got {detail}");
+                }
+                other => panic!("expected an inconsistency, got {other:?}"),
+            }
+        }
+
+        /// Nor claim to have withheld something you in fact printed.
+        #[test]
+        fn declaring_a_published_field_withheld_is_rejected() {
+            let p = publish_v2(manifest(&[("root_sums", Disclosure::Withheld)]));
+            match check_v2(&p) {
+                Err(VerificationFailure::ManifestInconsistent { path, detail }) => {
+                    assert_eq!(path, "root_sums");
+                    assert!(detail.contains("publishes it anyway"), "got {detail}");
+                }
+                other => panic!("expected an inconsistency, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn a_manifest_naming_an_unknown_field_is_rejected() {
+            let p = publish_v2(manifest(&[("secret_sauce", Disclosure::Withheld)]));
+            match check_v2(&p) {
+                Err(VerificationFailure::ManifestInconsistent { path, .. }) => {
+                    assert_eq!(path, "secret_sauce")
+                }
+                other => panic!("expected an inconsistency, got {other:?}"),
+            }
+        }
+
+        /// Fields attested through the commitment are not report-resident, so
+        /// the body check must not fire on them.
+        #[test]
+        fn committed_fields_outside_the_report_body_are_accepted() {
+            let p = publish_v2(manifest(&[
+                ("customer_balances", Disclosure::Committed),
+                ("customer_identities", Disclosure::Withheld),
+            ]));
+            assert_eq!(check_v2(&p), Ok(()));
+        }
+
+        #[test]
+        fn editing_the_manifest_after_signing_breaks_the_digest_binding() {
+            let mut p = publish_v2(consistent());
+            p.signed_report
+                .report
+                .manifest
+                .as_mut()
+                .unwrap()
+                .fields
+                .insert("customer_identities".into(), Disclosure::Withheld);
+            assert_eq!(check_v2(&p), Err(VerificationFailure::DigestMismatch));
+        }
+
+        #[test]
+        fn an_unknown_report_version_is_rejected() {
+            let mut p = publish_v2(consistent());
+            p.signed_report.report.format_version = "canton-solvency-report-v9".into();
+            assert!(matches!(
+                check_v2(&p),
+                Err(VerificationFailure::UnsupportedVersion { .. })
+            ));
+        }
     }
 
     #[test]

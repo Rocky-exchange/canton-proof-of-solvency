@@ -73,6 +73,7 @@ fn main() -> anyhow::Result<()> {
         ledger_offset: "000000000000000042".to_string(),
         mark_prices: BTreeMap::new(),
         disclosures: Disclosures::default(),
+        manifest: None,
     };
 
     let published = publish(&leaves, &metadata, &signer)?;

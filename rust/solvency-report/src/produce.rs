@@ -28,6 +28,9 @@ pub struct ReportMetadata {
     pub ledger_offset: String,
     pub mark_prices: BTreeMap<String, u128>,
     pub disclosures: Disclosures,
+    /// Supplying one publishes a v2 report (SPEC §8.5); omitting it publishes
+    /// v1, whose bytes are unchanged by v2's existence.
+    pub manifest: Option<crate::manifest::Manifest>,
 }
 
 /// A signed report and the per-user proofs that reduce to it.
@@ -55,7 +58,11 @@ pub fn publish(
     let tree = SumTree::build(nodes)?;
 
     let report = Report {
-        format_version: REPORT_FORMAT_VERSION.to_string(),
+        format_version: if meta.manifest.is_some() {
+            crate::document::REPORT_FORMAT_VERSION_V2.to_string()
+        } else {
+            REPORT_FORMAT_VERSION.to_string()
+        },
         profile: meta.profile.clone(),
         publisher: meta.publisher.clone(),
         snapshot_time: meta.snapshot_time.clone(),
@@ -65,6 +72,7 @@ pub fn publish(
         root_sums: tree.root().sums.clone(),
         mark_prices: meta.mark_prices.clone(),
         disclosures: meta.disclosures.clone(),
+        manifest: meta.manifest.clone(),
     };
 
     let digest = report_digest(&report);
@@ -137,6 +145,7 @@ mod tests {
             ledger_offset: "000000000000012345".to_string(),
             mark_prices: BTreeMap::new(),
             disclosures: Disclosures::default(),
+            manifest: None,
         }
     }
 

@@ -17,6 +17,7 @@ pub mod digest;
 pub mod document;
 pub mod golden;
 pub mod group;
+pub mod manifest;
 pub mod produce;
 pub mod sign;
 pub mod verify;

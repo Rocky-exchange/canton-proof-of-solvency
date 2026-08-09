@@ -1,0 +1,26 @@
+{
+  "format_version": "canton-solvency-proof-v1",
+  "report_digest": "121d86f823ac6c1c1b6f430c73baa1bf5bb42eb528395c861cdcc9fc49e3135c",
+  "leaf": {
+    "salt": "332f77b30295afb7a346ba580de798bc08f3bada500905be6bd7a552c7eec458",
+    "user_id": "22222222-2222-7222-8222-222222222222",
+    "balances": {
+      "CBTC": "0.250000000000000000",
+      "USDA": "1.000000000000000001"
+    }
+  },
+  "steps": [
+    {
+      "sibling_hash": "05666cf01538aa610cc1285d1acf84953a961bd8346154cec9fb8785bb626363",
+      "sibling_sums": {
+        "USDA": "100.500000000000000000"
+      },
+      "sibling_on_left": true
+    },
+    {
+      "sibling_hash": "171f5e7577171aeabb58b3013b0e0e2d0b9f45b387fe8b1ed2027be1a0d7108c",
+      "sibling_sums": {},
+      "sibling_on_left": false
+    }
+  ]
+}

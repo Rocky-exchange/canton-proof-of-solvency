@@ -53,6 +53,7 @@ fn main() -> anyhow::Result<()> {
         ledger_offset: "000000000000000001".to_string(),
         mark_prices: BTreeMap::new(),
         disclosures: Disclosures::default(),
+        manifest: None,
     };
 
     let t = Instant::now();

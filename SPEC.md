@@ -192,6 +192,78 @@ signature — which is what lets §10 pin exact bytes.
 
 JSON Schema: [`schemas/report-v1.schema.json`](schemas/report-v1.schema.json).
 
+### 8.5 Disclosure manifest (format v2)
+
+A v1 report is honest about what it contains and silent about what it chose
+not to contain. An institution can quietly stop disclosing a field between
+quarters and nothing records that it used to. Format **v2** adds a manifest
+that makes the disclosure decision itself part of the signed artefact.
+
+```json
+"manifest": {
+  "audience": "public",
+  "fields": {
+    "root_sums": "published",
+    "mark_prices": "published",
+    "customer_balances": "committed",
+    "customer_identities": "withheld"
+  }
+}
+```
+
+| State | Meaning |
+|---|---|
+| `published` | Present in the report body and readable |
+| `committed` | Proven through the commitment but not shown |
+| `withheld` | Deliberately not disclosed to this audience |
+
+`audience` names who this packaging was cut for. Generating audience-scoped
+packagings is not part of this version; the field records the intent.
+
+**Digest.** v2 uses its own domain string, so the same fields cannot digest
+identically under both versions and a v2 signature cannot be replayed as a v1
+one:
+
+```
+report_digest_v2 = SHA-256( "rocky-solvency-report-v2"
+                          ‖ <every §8.2 field, identical order and encoding>
+                          ‖ lp(audience)
+                          ‖ u64le(field_count)
+                          ‖ ( lp(path) ‖ lp(state) )*   paths bytewise )
+```
+
+**Version rules.** A v1 report **MUST NOT** carry a manifest — the v1 digest
+does not cover it, so one could be added or removed without breaking the
+signature. A v2 report **MUST** carry one.
+
+**Consistency is checked, not asserted.** A manifest that merely made claims
+would be decoration. For every field that lives in the report body, verifiers
+**MUST** reject a report where:
+
+- a field is declared `published` but the body carries no data for it; or
+- a field is declared `committed` or `withheld` but the body publishes it.
+
+Manifest keys **MUST** come from the defined vocabulary — `root_sums`,
+`mark_prices`, `disclosures.bad_debt`,
+`disclosures.excluded_house_accounts`, `disclosures.excluded_house_totals`,
+`customer_balances`, `customer_identities` — and an unrecognised key is an
+error rather than something to ignore, so a producer cannot bury a field the
+verifier has no opinion about.
+
+**Diffing.** Comparing two reports' manifests yields per-field additions,
+removals, and state changes. A *reduction* is any move away from `published`,
+or the removal of a field that was published. Because the manifest is inside
+the signed and digest-covered report, a publisher cannot reduce disclosure
+without that reduction being on the record.
+
+**v1 is unaffected.** Its domain string, preimage, golden vectors and
+fixtures are unchanged, and v1 reports keep verifying: historical reports are
+what an auditor returns to years later.
+
+Golden vectors: [`fixtures/report-v2.golden.json`](fixtures/report-v2.golden.json)
+and [`fixtures/proof-v2.golden.json`](fixtures/proof-v2.golden.json), built on
+the same tree as §10 — v2 changes the envelope, not the commitment.
+
 ## 9. Proof document
 
 Carries one user's leaf preimage and sibling path (§5), bound to a report.
