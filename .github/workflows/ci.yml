@@ -19,6 +19,9 @@ jobs:
       - run: cargo test --manifest-path rust/solvency-cli/Cargo.toml
       - run: cargo clippy --manifest-path rust/solvency-cli/Cargo.toml --all-targets -- -D warnings
       - run: cargo fmt --manifest-path rust/solvency-cli/Cargo.toml --check
+      - run: cargo test --manifest-path rust/reserve-attest/Cargo.toml
+      - run: cargo clippy --manifest-path rust/reserve-attest/Cargo.toml --all-targets -- -D warnings
+      - run: cargo fmt --manifest-path rust/reserve-attest/Cargo.toml --check
 
   ts:
     runs-on: ubuntu-latest

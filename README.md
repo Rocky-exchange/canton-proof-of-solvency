@@ -473,7 +473,7 @@ checkable by everyone else.
 | # | Track | Milestone | Outcome |
 |---|---|---|---|
 | 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
-| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format shipped* |
+| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format and client shipped* |
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly — *chain shipped* |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code — *viewer shipped* |
@@ -514,8 +514,7 @@ states **coverage** rather than only liabilities.
 
 **Deliverables**
 
-- `canton-reserve-attest` — Ledger API client that reads the active contract
-  set for a declared set of custody parties and aggregates holdings per asset.
+- ~~`canton-reserve-attest`~~ — **delivered**, [`rust/reserve-attest`](rust/reserve-attest). Builds the active-contract request for a declared party set, parses the response into positions, and commits them as a `coverage.custody` report. The socket sits behind a `Transport` the caller supplies, so request construction, response parsing and report building are all unit-tested; only the HTTP call itself needs a node. **Not yet run against a participant** — the wire shape is written to the Ledger API's documented JSON form and will need fixing against a real one.
 - **Snapshot binding** — the asset-side read is pinned to the *same* ledger
   offset as the liability snapshot, so both halves are provably as-of one
   instant rather than two reads minutes apart.
