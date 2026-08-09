@@ -447,9 +447,73 @@ and
 [`fixtures/coverage-statement.golden.json`](fixtures/coverage-statement.golden.json),
 paired with the §10 report.
 
-## 12. Reserved
+## 12. On-ledger anchoring
 
-`§12` on-ledger anchoring is reserved for the milestone of the same name.
+A signature proves who published a report. It does not stop a publisher
+quietly replacing one, or dropping a day nobody asked about. An anchor chain
+does.
+
+```json
+{
+  "format_version": "canton-solvency-anchor-v1",
+  "report_digest": "<hex32>",
+  "root_hash": "<hex32>",
+  "snapshot_time": "2026-01-01T00:00:00Z",
+  "ledger_offset": "000000000000000042",
+  "publisher": "golden::publisher",
+  "prev_anchor": "<hex32>"
+}
+```
+
+```
+anchor_digest = SHA-256( "rocky-solvency-anchor-v1"
+                       ‖ lp(format_version) ‖ lp(report_digest) ‖ lp(root_hash)
+                       ‖ lp(snapshot_time)  ‖ lp(ledger_offset)  ‖ lp(publisher)
+                       ‖ ( 0x00 | 0x01 ‖ lp(prev_anchor) ) )
+```
+
+The predecessor is preceded by a **presence byte**, not encoded as an empty
+string. Without it, a genesis anchor and an anchor naming an empty predecessor
+hash identically, and a publisher could present a mid-history anchor as the
+start of its history.
+
+**Anchors carry digests and offsets, never balances.** An amount on a ledger
+contract is disclosed to every observer of that contract — exactly the data
+this format exists to keep private.
+
+### 12.1 Chain rules
+
+Verifiers walk a history oldest-first and reject:
+
+- a first anchor that names a predecessor — a **complete** history starts at
+  genesis, and verifying a suffix would let a publisher present only the days
+  that suit them;
+- an anchor that does not name the one before it, which covers both a dropped
+  day and a fork;
+- `snapshot_time` that does not strictly increase — two reports for the same
+  instant are a restatement, not a history;
+- `ledger_offset` that rewinds;
+- a change of publisher mid-history.
+
+Editing any past report changes its digest, so its anchor changes, so every
+later link stops matching. That is the property: tampering is not merely
+improbable, it is arithmetic.
+
+### 12.2 What the ledger adds
+
+The chain arithmetic above is verifiable **offline** from the anchor documents
+alone. What a ledger contract adds is permanence — a record the publisher
+cannot rewrite or quietly withdraw, witnessed by whoever it names as
+observers. See [`daml/`](daml) for the package, and read its README: it is a
+reviewed design that has **not** been compiled or run, because that needs the
+Daml SDK and a participant node.
+
+As §8.4 notes, anchoring is also the intended home for publisher key
+distribution: a key bound on-ledger is a key a reader can obtain from
+somewhere other than the server that served the report.
+
+Golden vector: [`fixtures/anchor.golden.json`](fixtures/anchor.golden.json),
+the genesis anchor of the §10 report.
 
 ## 13. Hierarchical commitments
 

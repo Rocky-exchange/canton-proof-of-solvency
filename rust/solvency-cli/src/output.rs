@@ -67,6 +67,30 @@ pub fn render_coverage_text(outcome: &canton_solvency_report::coverage::Coverage
     out
 }
 
+pub fn render_chain_text(summary: &crate::anchors::ChainSummary) -> String {
+    let mut out = format!(
+        "publisher     : {}\nhistory       : {} anchors, {} to {}\n",
+        summary.publisher, summary.anchors, summary.first, summary.last
+    );
+    match &summary.failure {
+        Some(failure) => out.push_str(&format!("BROKEN        : {failure}\n")),
+        None => out.push_str("history intact\n"),
+    }
+    out
+}
+
+pub fn render_chain_json(summary: &crate::anchors::ChainSummary) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": summary.intact(),
+        "publisher": summary.publisher,
+        "anchors": summary.anchors,
+        "first": summary.first,
+        "last": summary.last,
+        "failure": summary.failure,
+    }))
+    .expect("summary is always serializable")
+}
+
 pub fn render_coverage_json(outcome: &canton_solvency_report::coverage::CoverageOutcome) -> String {
     use canton_solvency_merkle::format_amount_18dp;
     let assets: Vec<serde_json::Value> = outcome

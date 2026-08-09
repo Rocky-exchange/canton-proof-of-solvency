@@ -23,6 +23,7 @@ const validateCustody = ajv.compile(json("schemas/custody-report-v1.schema.json"
 const validateCoverageStatement = ajv.compile(
   json("schemas/coverage-statement-v1.schema.json") as object
 );
+const validateAnchor = ajv.compile(json("schemas/anchor-v1.schema.json") as object);
 const validateMembership = ajv.compile(
   json("schemas/group-membership-v1.schema.json") as object
 );
@@ -173,6 +174,7 @@ describe("schema coverage", () => {
     "group-membership.golden.json": validateMembership,
     "custody-report.golden.json": validateCustody,
     "coverage-statement.golden.json": validateCoverageStatement,
+    "anchor.golden.json": validateAnchor,
   };
 
   it("covers every fixture in the repository", () => {
@@ -203,6 +205,34 @@ describe("coverage documents", () => {
       const doc = json("fixtures/coverage-statement.golden.json") as Record<string, unknown>;
       delete doc[field];
       expect(validateCoverageStatement(doc), `${field} was optional`).toBe(false);
+    }
+  });
+});
+
+describe("anchor schema", () => {
+  it("accepts the golden genesis anchor", () => {
+    expect(validateAnchor(json("fixtures/anchor.golden.json"))).toBe(true);
+  });
+
+  it("accepts an anchor naming a predecessor", () => {
+    const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+    doc.prev_anchor = "ab".repeat(32);
+    expect(validateAnchor(doc)).toBe(true);
+  });
+
+  /// Anchors carry digests and offsets only. An amount here would be
+  /// disclosed to every observer of the ledger contract.
+  it("rejects an anchor carrying balances", () => {
+    const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+    doc.root_sums = { USDA: "1" };
+    expect(validateAnchor(doc)).toBe(false);
+  });
+
+  it("requires the report binding and the publisher", () => {
+    for (const field of ["report_digest", "publisher", "ledger_offset"]) {
+      const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+      delete doc[field];
+      expect(validateAnchor(doc), `${field} was optional`).toBe(false);
     }
   });
 });

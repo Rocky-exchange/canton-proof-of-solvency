@@ -195,6 +195,12 @@ pub fn coverage_fixture() -> (SignedReport, crate::coverage::CoverageStatement) 
     (custody, statement)
 }
 
+/// The SPEC §12 anchor fixture: the genesis anchor of the §10 report.
+pub fn anchor_fixture() -> crate::anchor::Anchor {
+    let (signed, _) = fixture();
+    crate::anchor::anchor_report(&signed, None)
+}
+
 /// The SPEC §13 group fixture: the §10 report as one entity, plus a second
 /// entity with fixed values, consolidated under one group report.
 pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) {

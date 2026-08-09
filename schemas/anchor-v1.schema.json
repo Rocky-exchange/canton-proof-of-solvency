@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/anchor-v1.schema.json",
+  "title": "Canton solvency report anchor v1",
+  "description": "One report's place in a publisher's history (SPEC.md \u00a712). A history file is an array of these, oldest first. Anchors carry digests and offsets only, never balances: an amount on a ledger contract is disclosed to every observer.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "report_digest",
+    "root_hash",
+    "snapshot_time",
+    "ledger_offset",
+    "publisher"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": "canton-solvency-anchor-v1"
+    },
+    "report_digest": {
+      "$ref": "#/$defs/hash256"
+    },
+    "root_hash": {
+      "$ref": "#/$defs/hash256"
+    },
+    "snapshot_time": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "ledger_offset": {
+      "type": "string",
+      "minLength": 1
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1
+    },
+    "prev_anchor": {
+      "$ref": "#/$defs/hash256",
+      "description": "Digest of the previous anchor. Absent only for the first; an absent predecessor and an empty one are distinguished by the digest rule."
+    }
+  },
+  "$defs": {
+    "hash256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

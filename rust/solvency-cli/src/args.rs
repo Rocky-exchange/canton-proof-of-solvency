@@ -19,6 +19,7 @@ USAGE:
   canton-solvency-verify coverage --custody <path> --liabilities <path>
                                 --statement <path> --key <hex64>
                                 [--custody-key <hex64>] [--json]
+  canton-solvency-verify anchors --chain <dir-or-file> [--json]
   canton-solvency-verify manifest-diff --previous <path> --current <path> [--json]
   canton-solvency-verify digest --report <path>
   canton-solvency-verify --help | --version
@@ -62,6 +63,11 @@ pub enum Command {
         /// Defaults to `trusted_key`; groups and entities may publish under
         /// different keys.
         group_key: String,
+        json: bool,
+    },
+    /// Walk a publisher's anchor history (SPEC §12).
+    Anchors {
+        chain: PathBuf,
         json: bool,
     },
     /// Custody assets against liabilities (SPEC §11).
@@ -108,7 +114,8 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
-        "verify" | "verify-group" | "verify-chain" | "coverage" | "manifest-diff" | "digest" => {}
+        "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
+        | "digest" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -121,7 +128,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--help" | "-h" => return Ok(Command::Help),
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
-            | "--custody" | "--liabilities" | "--statement" | "--custody-key" => {
+            | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -177,6 +184,10 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
                 json,
             })
         }
+        "anchors" => Ok(Command::Anchors {
+            chain: required_path("--chain")?,
+            json,
+        }),
         "manifest-diff" => Ok(Command::ManifestDiff {
             previous: required_path("--previous")?,
             current: required_path("--current")?,
@@ -495,6 +506,23 @@ mod tests {
             let flag = missing.split_whitespace().next().unwrap();
             assert!(err.to_string().contains(flag), "got {err}");
         }
+    }
+
+    #[test]
+    fn parses_an_anchor_walk() {
+        assert_eq!(
+            parse_str("anchors --chain ./history --json").unwrap(),
+            Command::Anchors {
+                chain: PathBuf::from("./history"),
+                json: true,
+            }
+        );
+    }
+
+    /// Anchors are public facts; verifying them needs no key.
+    #[test]
+    fn walking_anchors_needs_no_key() {
+        assert!(parse_str("anchors --chain ./history").is_ok());
     }
 
     #[test]
