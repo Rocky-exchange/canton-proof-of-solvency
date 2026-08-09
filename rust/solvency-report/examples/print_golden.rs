@@ -19,6 +19,12 @@ fn main() {
     println!("--- proof-v2.json ---");
     println!("{}", serde_json::to_string_pretty(&v2_proof).unwrap());
 
+    let (repo, repo_proof) = golden::repo_fixture();
+    println!("--- repo-report.json ---");
+    println!("{}", serde_json::to_string_pretty(&repo).unwrap());
+    println!("--- repo-proof.json ---");
+    println!("{}", serde_json::to_string_pretty(&repo_proof).unwrap());
+
     let (group, membership) = golden::group_fixture();
     println!("--- group-report.json ---");
     println!("{}", serde_json::to_string_pretty(&group).unwrap());

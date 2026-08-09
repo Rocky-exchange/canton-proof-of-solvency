@@ -45,6 +45,43 @@ leaf_hash = SHA-256( "rocky-solvency-leaf-v1"
 - `user_id` is the UTF-8 identity string (e.g. a UUID).
 - A leaf **node** carries `(leaf_hash, sums)` where `sums` is the balance map.
 
+### 3.1 Leaf format v2 — named amount maps
+
+A v1 leaf carries exactly one amount map. That is enough for a customer's
+balances; it cannot express a statement that *compares* two quantities, such
+as a repo leg's collateral against its exposure.
+
+```
+leaf_hash_v2 = SHA-256( "rocky-solvency-leaf-v2"
+                      ‖ salt                       (32 bytes)
+                      ‖ SHA-256(utf8(subject_id))
+                      ‖ u64le(map_count)
+                      ‖ ( lp(map_name) ‖ lpmap(amounts) )*   map names bytewise )
+```
+
+`lp`/`lpmap` are the §8.1 length-prefixed primitives. §2's delimiter join is
+deliberately not reused: length-prefixing exists precisely because joins are
+ambiguous under adversarial input, and using a join again in a new format
+would be indefensible.
+
+`subject_id` rather than `user_id`: a v2 leaf is not necessarily a customer.
+
+**What the tree sums.** A leaf node's sums are every map flattened under
+**qualified keys**, `<map>/<asset>`. A repo tree's root therefore publishes
+`collateral/USDA` *and* `exposure/USDA`, so a statement comparing two maps is
+checkable **at the published root** rather than only by someone holding every
+leaf. The §4 node rule is unchanged: sums remain a flat map.
+
+**Name restriction.** Because §4 still canonicalises sums with a `:`/`|`
+join, an unconstrained qualified key could forge a boundary. v2 leaves
+therefore **MUST** reject map names and asset names that are empty or contain
+anything outside `[A-Za-z0-9._-]`.
+
+> **Known limitation.** v1 has the same latent join ambiguity and is *not*
+> fixed here. Fixing it would change every node hash and therefore every §6
+> vector — a destructive change, where this one is additive. v1 leaves, v1
+> vectors and existing fixtures are untouched and keep verifying.
+
 ## 4. Merkle sum tree
 
 Internal node over children `L`, `R`:
@@ -308,6 +345,17 @@ the other is not a mismatch.
 
 JSON Schema: [`schemas/proof-v1.schema.json`](schemas/proof-v1.schema.json).
 
+### 9.2 Proof document v2
+
+For v2 leaves. `format_version` is `canton-solvency-proof-v2` and `leaf`
+carries `{salt, subject_id, maps}` in place of `{salt, user_id, balances}`.
+Everything else — the report binding, signature check, fold, and the
+comparison of both hash and sums — is identical to §9.1.
+
+Verifiers **MUST** refuse a v1 proof against a profile whose leaves are v2,
+and a v2 proof against a profile whose leaves are v1 (§14.1). Without that
+check the mismatch surfaces as an opaque hash failure.
+
 ## 10. Golden vectors (report and proof)
 
 Extends the §6 fixture — same three users, master salt `golden-v1` — with
@@ -452,6 +500,18 @@ mean anything.
 |---|---|---|---|
 | `solvency.liabilities` | one customer's per-asset equity (§3) | every customer balance is committed, and the root's totals are the liabilities | `root_sums` |
 | `solvency.group` | one subsidiary's root (§13.1) | every entity's root is committed, and the root's totals are the consolidated liabilities | `root_sums` |
+| `collateral.repo` | one open repo leg (§3.1) | every open leg is committed, and the root totals are aggregate collateral and exposure | `collateral/*`, `exposure/*`, and coverage |
+
+`collateral.repo` carries an extra rule: for **every asset**, aggregate
+`collateral` must be at least aggregate `exposure`. A surplus in one asset
+does not excuse a shortfall in another. This is checked, not asserted — a
+report declaring the profile while publishing totals that do not cover its
+exposure is rejected, which is the entire point of the profile.
+
+Golden vectors: [`fixtures/repo-report.golden.json`](fixtures/repo-report.golden.json)
+and [`fixtures/repo-proof.golden.json`](fixtures/repo-proof.golden.json).
+Coverage there is checkable by hand: collateral `110+55+22 = 187` against
+exposure `100+50+20 = 170`.
 
 ### 14.1 Rules
 
@@ -471,8 +531,7 @@ Verifiers **MUST**:
 
 ### 14.2 Adding a profile
 
-Profiles beyond these two — repo collateralisation, fund NAV, settlement
-assurance, holder eligibility — need a leaf carrying more than one amount
-map, which changes the §3 leaf hash and therefore every §6 vector. That is a
-separate format decision from §8.5's envelope change, and is deliberately not
-made here.
+`fund.nav`, `settlement.dvp` and `eligibility.holder` use the same §3.1
+mechanism but each needs its own decision about what a leaf is and what the
+root must assert. Inventing three of those in one pass would be guessing
+rather than designing, so they are not registered until they are designed.

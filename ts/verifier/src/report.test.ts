@@ -3,8 +3,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { leafNodeV2 } from "./verify";
 import {
   reportDigestHex,
+  verifyReportV2,
+  type ProofDocumentV2,
   verifyReport,
   type ProofDocument,
   type SignedReport,
@@ -176,7 +179,7 @@ describe("report v2 and the disclosure manifest", () => {
 describe("profile registry", () => {
   it("rejects a report whose profile is not registered", async () => {
     const doc = signed();
-    doc.report.profile = "collateral.repo";
+    doc.report.profile = "settlement.dvp";
     const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -205,5 +208,63 @@ describe("profile registry", () => {
     if (!result.ok && result.failure.kind === "profile") {
       expect(result.failure.detail).toContain("vacuous");
     }
+  });
+});
+
+describe("leaf v2 and the collateral.repo profile", () => {
+  const repoReport = (): SignedReport => JSON.parse(fixture("repo-report.golden.json"));
+  const repoProof = (): ProofDocumentV2 => JSON.parse(fixture("repo-proof.golden.json"));
+
+  it("accepts the golden repo publication produced by Rust", async () => {
+    expect(await verifyReportV2(repoReport(), repoProof(), GOLDEN_PUBLIC_KEY)).toEqual({
+      ok: true,
+    });
+  });
+
+  it("reproduces the v2 leaf hash the Rust producer committed", async () => {
+    const proof = repoProof();
+    const node = await leafNodeV2(proof.leaf.salt, proof.leaf.subject_id, proof.leaf.maps);
+    // The leaf's own qualified sums, independent of the tree.
+    expect(node.sums["collateral/USDA"]).toBe(110n * 10n ** 18n);
+    expect(node.sums["exposure/USDA"]).toBe(100n * 10n ** 18n);
+  });
+
+  it("rejects a tampered leg", async () => {
+    const proof = repoProof();
+    proof.leaf.maps.collateral.USDA = "999";
+    const result = await verifyReportV2(repoReport(), proof, GOLDEN_PUBLIC_KEY);
+    expect(result).toEqual({ ok: false, failure: { kind: "root_hash_mismatch" } });
+  });
+
+  /// The statement the profile exists to make, enforced at the root.
+  it("rejects an under-collateralised book", async () => {
+    const doc = repoReport();
+    doc.report.root_sums["exposure/USDA"] = "999";
+    const result = await verifyReportV2(doc, repoProof(), GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("does not cover");
+    }
+  });
+
+  it("refuses a v1 proof against a repo report and vice versa", async () => {
+    const asV1 = await verifyReport(repoReport(), proof(), GOLDEN_PUBLIC_KEY);
+    expect(asV1.ok).toBe(false);
+    if (!asV1.ok && asV1.failure.kind === "profile") {
+      expect(asV1.failure.detail).toContain("repoleg leaves");
+    }
+    const asV2 = await verifyReportV2(signed(), repoProof(), GOLDEN_PUBLIC_KEY);
+    expect(asV2.ok).toBe(false);
+    if (!asV2.ok && asV2.failure.kind === "profile") {
+      expect(asV2.failure.detail).toContain("customer leaves");
+    }
+  });
+
+  it("refuses an asset name that could forge a node boundary", async () => {
+    const proof = repoProof();
+    proof.leaf.maps.collateral = { "x|exposure/USDA": "1" };
+    const result = await verifyReportV2(repoReport(), proof, GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.failure.kind).toBe("malformed");
   });
 });
