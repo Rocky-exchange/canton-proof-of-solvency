@@ -219,6 +219,13 @@
   var SIGNATURE_ALGORITHM = "ed25519";
   var REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
   var REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
+  var PROFILE_REGISTRY = [
+    { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
+    { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] }
+  ];
+  function lookupProfile(name) {
+    return PROFILE_REGISTRY.find((p) => p.name === name);
+  }
   var KNOWN_FIELDS = [
     "root_sums",
     "mark_prices",
@@ -376,9 +383,31 @@
     }
     return null;
   }
+  function expectLeafKind(report, wanted) {
+    const rules = lookupProfile(report.profile);
+    if (!rules) {
+      return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
+    }
+    for (const aggregate of rules.requiredAggregates) {
+      const present = aggregate === "root_sums" ? Object.keys(report.root_sums).length > 0 : Object.keys(report.mark_prices).length > 0;
+      if (!present) {
+        return fail({
+          kind: "profile",
+          detail: `profile ${rules.name}: ${aggregate} is required by this profile but the report carries none, so the statement would be vacuous`
+        });
+      }
+    }
+    if (rules.leaf !== wanted) {
+      return fail({
+        kind: "profile",
+        detail: `profile ${rules.name} commits to ${rules.leaf} leaves; this proof is for ${wanted} leaves`
+      });
+    }
+    return null;
+  }
   async function verifyReport(signed, proof, trustedPublicKeyHex) {
     const { report } = signed;
-    const versionFailure = checkReportVersionAndManifest(report) ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
+    const versionFailure = checkReportVersionAndManifest(report) ?? expectLeafKind(report, "customer") ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
     if (versionFailure) return versionFailure;
     let digest;
     try {
@@ -472,6 +501,8 @@
       });
     }
     const { report } = groupSigned;
+    const profileFailure = expectLeafKind(report, "entity");
+    if (profileFailure) return profileFailure;
     let digest;
     let current;
     try {

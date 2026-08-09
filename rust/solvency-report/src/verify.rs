@@ -33,6 +33,11 @@ pub enum VerificationFailure {
     EntitySumsMismatch {
         asset: String,
     },
+    /// The declared profile is not in the registry, or the report does not
+    /// satisfy it.
+    Profile {
+        detail: String,
+    },
     /// A v1 report carrying a manifest, or a v2 report without one.
     ManifestPresence {
         detail: &'static str,
@@ -70,6 +75,7 @@ impl std::fmt::Display for VerificationFailure {
                 f,
                 "the group membership and the entity report disagree on the {asset} total"
             ),
+            Self::Profile { detail } => write!(f, "{detail}"),
             Self::ManifestPresence { detail } => write!(f, "{detail}"),
             Self::ManifestInconsistent { path, detail } => {
                 write!(
@@ -119,6 +125,9 @@ pub fn verify(
 ) -> Result<(), VerificationFailure> {
     let report = &signed.report;
     check_report_version_and_manifest(report)?;
+    // A customer inclusion proof cannot belong to a tree whose leaves are
+    // entities; without this it would fail later as an opaque hash mismatch.
+    expect_leaf_kind(report, crate::profile::LeafKind::Customer)?;
     expect_version(
         "proof.format_version",
         &proof.format_version,
@@ -142,6 +151,33 @@ pub fn verify(
         &proof.report_digest,
         trusted_public_key_hex,
     )
+}
+
+/// Validates the declared profile and requires the tree's leaves to be what
+/// the caller is about to present a proof for.
+pub(crate) fn expect_leaf_kind(
+    report: &crate::document::Report,
+    wanted: crate::profile::LeafKind,
+) -> Result<(), VerificationFailure> {
+    let rules = crate::profile::validate(report).map_err(|e| F::Profile {
+        detail: match e {
+            crate::profile::ProfileError::Unknown { found } => {
+                format!("profile {found:?} is not in the registry")
+            }
+            crate::profile::ProfileError::Violation { profile, detail } => {
+                format!("profile {profile}: {detail}")
+            }
+        },
+    })?;
+    if rules.leaf != wanted {
+        return Err(F::Profile {
+            detail: format!(
+                "profile {} commits to {:?} leaves; this proof is for {:?} leaves",
+                rules.name, rules.leaf, wanted
+            ),
+        });
+    }
+    Ok(())
 }
 
 /// v1 and v2 differ only in the manifest and the digest domain; everything
@@ -351,9 +387,15 @@ mod tests {
                 let user_id = format!("user-{i}");
                 LeafInput {
                     salt: leaf_salt(b"master", &user_id),
-                    balances: [("USDA".to_string(), i as u128 * 1_000_000_000_000_000_000)]
-                        .into_iter()
-                        .collect(),
+                    // Two assets: dropping one must still leave a report that
+                    // satisfies its profile, so the sum comparison is what
+                    // catches it rather than the vacuity check.
+                    balances: [
+                        ("USDA".to_string(), i as u128 * 1_000_000_000_000_000_000),
+                        ("CBTC".to_string(), i as u128 * 1_000_000_000_000_000),
+                    ]
+                    .into_iter()
+                    .collect(),
                     user_id,
                 }
             })
@@ -498,6 +540,46 @@ mod tests {
                 asset: "USDA".into()
             })
         );
+    }
+
+    /// A liabilities report with no totals at all asserts nothing, and is
+    /// rejected by the profile rules rather than by the sum comparison.
+    #[test]
+    fn a_report_with_no_totals_is_rejected_as_vacuous() {
+        let pubn = restate(publication(5), |r| r.root_sums.clear());
+        match check(&pubn, 0) {
+            Err(VerificationFailure::Profile { detail }) => {
+                assert!(detail.contains("root_sums"), "got {detail}");
+                assert!(detail.contains("vacuous"), "got {detail}");
+            }
+            other => panic!("expected a profile failure, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_customer_proof_cannot_verify_against_a_group_report() {
+        let pubn = restate(publication(5), |r| {
+            r.profile = crate::group::GROUP_PROFILE.to_string()
+        });
+        match check(&pubn, 0) {
+            Err(VerificationFailure::Profile { detail }) => {
+                assert!(detail.contains("Entity"), "got {detail}");
+            }
+            other => panic!("expected a profile failure, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_unregistered_profile_is_rejected() {
+        let pubn = restate(publication(5), |r| {
+            r.profile = "collateral.repo".to_string()
+        });
+        match check(&pubn, 0) {
+            Err(VerificationFailure::Profile { detail }) => {
+                assert!(detail.contains("registry"), "got {detail}");
+            }
+            other => panic!("expected a profile failure, got {other:?}"),
+        }
     }
 
     #[test]

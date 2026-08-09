@@ -560,7 +560,13 @@ family of statements institutions on Canton actually need to make.
 
 **Deliverables**
 
-- **Profile registry** (new SPEC §14) — each profile pins a leaf schema, the
+- ~~**Profile registry**~~ — **delivered**, [SPEC.md](SPEC.md) §14, for the
+  two profiles the current leaf supports: `solvency.liabilities` and
+  `solvency.group`. An unregistered profile is rejected, a report omitting an
+  aggregate its profile requires is rejected as vacuous, and a proof whose
+  leaf kind does not match the profile is refused — so a customer proof can no
+  longer fail against a group report as an opaque hash mismatch. The four
+  profiles below still need a richer leaf. *Original scope:* each profile pins a leaf schema, the
   statement its root asserts, the aggregates that must be published, and a
   default audience matrix. Profiles ship with golden vectors, like the core
   format.

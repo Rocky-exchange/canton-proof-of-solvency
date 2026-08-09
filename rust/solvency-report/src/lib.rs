@@ -19,5 +19,6 @@ pub mod golden;
 pub mod group;
 pub mod manifest;
 pub mod produce;
+pub mod profile;
 pub mod sign;
 pub mod verify;

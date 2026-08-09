@@ -437,6 +437,42 @@ total is checkable by hand against the §10 vector. Complete documents:
 [`fixtures/group-membership.golden.json`](fixtures/group-membership.golden.json),
 asserted byte for byte by both implementations.
 
-## 14. Reserved
+## 14. Profile registry
 
-`§14` disclosure profiles is reserved for the milestone of the same name.
+A report has always carried a `profile` field. Until this section nothing
+checked it: any string was accepted and no rules attached to it. A profile
+names the statement a root asserts, so leaving it unchecked meant a report
+could claim to be one thing and be another.
+
+Each registered profile pins what a leaf represents, the statement the root
+asserts, and the aggregates the report must publish for that statement to
+mean anything.
+
+| Profile | A leaf is | The root asserts | Requires |
+|---|---|---|---|
+| `solvency.liabilities` | one customer's per-asset equity (§3) | every customer balance is committed, and the root's totals are the liabilities | `root_sums` |
+| `solvency.group` | one subsidiary's root (§13.1) | every entity's root is committed, and the root's totals are the consolidated liabilities | `root_sums` |
+
+### 14.1 Rules
+
+Verifiers **MUST**:
+
+- reject a report whose `profile` is not in the registry, rather than
+  accepting an unrecognised one — the same discipline as manifest keys in
+  §8.5;
+- reject a report that omits an aggregate its profile requires, because the
+  statement would be vacuous: a liabilities report with no totals asserts
+  nothing; and
+- reject a proof whose leaf kind does not match the profile's. A customer
+  inclusion proof (§9) does not belong to a tree whose leaves are entities,
+  and a group membership (§13.3) does not belong to a customer-level book.
+  Without this check the mismatch surfaces later as an opaque hash failure,
+  which tells the reader nothing about what went wrong.
+
+### 14.2 Adding a profile
+
+Profiles beyond these two — repo collateralisation, fund NAV, settlement
+assurance, holder eligibility — need a leaf carrying more than one amount
+map, which changes the §3 leaf hash and therefore every §6 vector. That is a
+separate format decision from §8.5's envelope change, and is deliberately not
+made here.
