@@ -13,6 +13,7 @@
 //!
 //! [`SPEC.md`]: https://github.com/Rocky-exchange/canton-proof-of-solvency/blob/main/SPEC.md
 
+pub mod coverage;
 pub mod digest;
 pub mod document;
 pub mod golden;

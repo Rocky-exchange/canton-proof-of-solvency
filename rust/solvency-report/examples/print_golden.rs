@@ -25,6 +25,12 @@ fn main() {
     println!("--- repo-proof.json ---");
     println!("{}", serde_json::to_string_pretty(&repo_proof).unwrap());
 
+    let (custody, statement) = golden::coverage_fixture();
+    println!("--- custody-report.json ---");
+    println!("{}", serde_json::to_string_pretty(&custody).unwrap());
+    println!("--- coverage-statement.json ---");
+    println!("{}", serde_json::to_string_pretty(&statement).unwrap());
+
     let (group, membership) = golden::group_fixture();
     println!("--- group-report.json ---");
     println!("{}", serde_json::to_string_pretty(&group).unwrap());

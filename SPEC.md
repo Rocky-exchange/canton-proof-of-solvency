@@ -392,10 +392,64 @@ the second user, exercising a two-step path whose first sibling is on the
 left. Both reference implementations assert these files byte for byte, and
 regenerate them with `cargo run --example print_golden`.
 
-## 11–12. Reserved
+## 11. Coverage
 
-`§11` coverage reports and `§12` on-ledger anchoring are reserved for the
-milestones of the same name; see the README.
+A liabilities report says what is owed. It cannot say whether anything backs
+it. Coverage pairs it with a **custody report** — an ordinary §8 report over
+`coverage.custody` leaves, whose root sums are qualified `held/<asset>` keys.
+
+### 11.1 Coverage statement
+
+```json
+{
+  "format_version": "canton-solvency-coverage-v1",
+  "custody_report_digest": "<hex32>",
+  "liabilities_report_digest": "<hex32>",
+  "custody_basis": "omnibus custody party venue::custody"
+}
+```
+
+The statement **restates no figures**. A number restated in a third document
+is a number that can disagree with its sources; the comparison is derived from
+the two reports it names.
+
+Binding by digest is what makes the claim non-transferable. Without it a venue
+could present today's custody totals beside last quarter's smaller
+liabilities and the arithmetic would check out.
+
+### 11.2 Verification
+
+1. The statement's version is recognised.
+2. The custody report declares `coverage.custody` and the liabilities report
+   declares `solvency.liabilities`. Without this a liabilities report could
+   stand in for custody and cover itself.
+3. Both digests match the reports supplied.
+4. Both signatures verify against caller-supplied trusted keys — which may
+   differ, since a custodian and a venue are often different institutions.
+5. For **every asset owed**, `held/<asset>` ≥ that asset's liability.
+
+Step 5 is driven by what is owed, not by what is held: an asset held but not
+owed is not a coverage question, while an asset owed and *not held at all*
+is the worst case and must not read as "nothing required". Coverage is per
+asset — a surplus in one does not excuse a shortfall in another.
+
+### 11.3 What coverage does not prove
+
+That the custody report describes real holdings. `custody_basis` records how
+custody was established and is signed, but nothing here proves it: that is an
+attestation problem, not a commitment one. What §11 does prove is that a
+specific custody claim and a specific liabilities claim were published
+together and compared honestly.
+
+Golden vectors:
+[`fixtures/custody-report.golden.json`](fixtures/custody-report.golden.json)
+and
+[`fixtures/coverage-statement.golden.json`](fixtures/coverage-statement.golden.json),
+paired with the §10 report.
+
+## 12. Reserved
+
+`§12` on-ledger anchoring is reserved for the milestone of the same name.
 
 ## 13. Hierarchical commitments
 

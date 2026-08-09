@@ -1,7 +1,9 @@
 use canton_solvency_verify::args::{parse, Command, USAGE};
+use canton_solvency_verify::coverage::run_coverage;
 use canton_solvency_verify::diff::run_diff;
 use canton_solvency_verify::output::{
-    render_diff_json, render_diff_text, render_json, render_text,
+    render_coverage_json, render_coverage_text, render_diff_json, render_diff_text, render_json,
+    render_text,
 };
 use canton_solvency_verify::{
     exit_code, run::run, EXIT_OK, EXIT_USAGE_OR_IO, EXIT_VERIFICATION_FAILED,
@@ -26,6 +28,30 @@ fn main() {
             std::process::exit(EXIT_OK);
         }
         _ => {}
+    }
+
+    if let Command::Coverage { json, .. } = command {
+        match run_coverage(&command) {
+            Ok(outcome) => {
+                print!(
+                    "{}",
+                    if json {
+                        render_coverage_json(&outcome) + "\n"
+                    } else {
+                        render_coverage_text(&outcome)
+                    }
+                );
+                std::process::exit(if outcome.fully_covered() {
+                    EXIT_OK
+                } else {
+                    EXIT_VERIFICATION_FAILED
+                });
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                std::process::exit(EXIT_USAGE_OR_IO);
+            }
+        }
     }
 
     if let Command::ManifestDiff { json, .. } = command {

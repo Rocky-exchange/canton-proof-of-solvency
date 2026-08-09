@@ -471,7 +471,7 @@ checkable by everyone else.
 | # | Track | Milestone | Outcome |
 |---|---|---|---|
 | 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
-| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted |
+| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format shipped* |
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
@@ -517,7 +517,7 @@ states **coverage** rather than only liabilities.
 - **Snapshot binding** — the asset-side read is pinned to the *same* ledger
   offset as the liability snapshot, so both halves are provably as-of one
   instant rather than two reads minutes apart.
-- **Coverage report format** (new SPEC §11) — per-asset reserves, liabilities
+- ~~**Coverage report format**~~ — **delivered**, [SPEC.md](SPEC.md) §11. A custody report over `coverage.custody` leaves, plus a statement binding it to a liabilities report by digest so today's assets cannot be shown against last quarter's smaller liabilities. Coverage is checked per asset, and an asset owed but not held at all is a shortfall rather than silence. The `coverage` CLI verb exits 1 on any shortfall. **Still needs a participant node:** reading real holdings over the Ledger API, and pinning that read to the liabilities snapshot's offset, cannot be built or tested without one. *Original scope:* per-asset reserves, liabilities
   and coverage ratio, plus custody party IDs, ledger offset, and mark prices;
   signed by the venue.
 - **Multi-asset coverage** — ratios computed per asset; a shortfall in one

@@ -26,6 +26,8 @@ pub enum LeafKind {
     SettledTrade,
     /// One holder's attested attributes at issuance.
     AttestedHolder,
+    /// One custody position held by a declared party.
+    CustodyPosition,
 }
 
 impl LeafKind {
@@ -34,7 +36,11 @@ impl LeafKind {
     pub fn uses_leaf_v2(&self) -> bool {
         matches!(
             self,
-            Self::RepoLeg | Self::Shareholder | Self::SettledTrade | Self::AttestedHolder
+            Self::RepoLeg
+                | Self::Shareholder
+                | Self::SettledTrade
+                | Self::AttestedHolder
+                | Self::CustodyPosition
         )
     }
 }
@@ -161,6 +167,23 @@ pub const ELIGIBILITY_HOLDER: ProfileRules = ProfileRules {
     unanimous_maps: &["attested"],
 };
 
+/// The asset side. A leaf is one custody position, so a custodian can prove a
+/// single position to its holder without publishing the whole book — the same
+/// property the liabilities side has always had.
+///
+/// This profile alone says nothing about solvency: it states what is held, not
+/// that it covers anything. Pairing it with a liabilities report is what makes
+/// a coverage claim, and that pairing is §11's job.
+pub const COVERAGE_CUSTODY: ProfileRules = ProfileRules {
+    name: "coverage.custody",
+    statement: "every custody position is committed, and the root totals are the assets held",
+    leaf: LeafKind::CustodyPosition,
+    required_aggregates: &["held/*"],
+    coverage: None,
+    required_leaf_maps: &["held"],
+    unanimous_maps: &[],
+};
+
 pub const REGISTRY: &[ProfileRules] = &[
     SOLVENCY_LIABILITIES,
     SOLVENCY_GROUP,
@@ -168,6 +191,7 @@ pub const REGISTRY: &[ProfileRules] = &[
     FUND_NAV,
     SETTLEMENT_DVP,
     ELIGIBILITY_HOLDER,
+    COVERAGE_CUSTODY,
 ];
 
 pub fn lookup(name: &str) -> Option<&'static ProfileRules> {
