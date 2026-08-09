@@ -33,6 +33,229 @@ browser — that their balance is included in the published totals. Raw data
 never leaves the venue's participant node. The public sees commitments,
 proofs, and totals: the same trust shape as Canton itself.
 
+Proof of solvency is the **first disclosure profile** built on that machinery,
+not the whole of it. The same commitment, proof, and verification core answers
+the more general question every institution arriving on Canton has to solve:
+*how do you prove a specific statement about private ledger data, to a specific
+audience, without publishing the data?* Reserve coverage, repo
+collateralization, fund NAV backing, atomic settlement assurance, and holder
+eligibility are all that same shape — see
+[Disclosure Profiles](#-disclosure-profiles).
+
+### In plain terms
+
+**What "liabilities" means.** When you deposit money at an exchange, it stops
+being a pile of coins with your name on it and becomes *a debt the venue owes
+you*. Add up what the venue owes every customer and you have its
+**liabilities**. Set that against the assets it actually holds in custody: if
+assets ≥ liabilities, the venue is **solvent** — everyone could ask for their
+money back at once and be paid.
+
+**What "recompute" means.** Any venue can *claim* it is solvent. The question
+is whether you have to take its word for it. On a public blockchain you don't:
+anyone can download the ledger and redo the arithmetic from the raw data,
+arriving at the same totals without asking permission. That is what
+"recompute" means here — independently redoing the sums, instead of trusting a
+number somebody published.
+
+Canton deliberately does not work that way. Balances are private — which is
+precisely why institutions use it — so no outsider can redo the arithmetic.
+This project hands back the checkable part without giving up the privacy:
+
+1. **The venue commits.** Each day it totals what it owes every customer and
+   compresses that entire list — every customer, every balance — into a single
+   64-character fingerprint, called the *root*. Change one balance anywhere in
+   the list and the fingerprint changes completely, so publishing it pins the
+   venue to one specific version of its books.
+2. **The venue publishes.** The root, plus the totals it claims to owe.
+3. **You check.** You download a small file: your own balance, plus roughly
+   seventeen intermediate fingerprints — that is all it takes for a venue with
+   100,000 customers. Your browser redoes the slice of the arithmetic that
+   involves you and confirms it lands exactly on the published root *and* the
+   published total.
+
+If it lands, your money was counted, at the amount shown to you, inside the
+figure the venue told the world. If the venue quietly dropped you, shrank your
+balance, or understated the total, the check fails — on your computer, not on
+theirs. No identities are exposed along the way: other customers appear only
+as unlabeled fingerprints and subtotals, and because the salts are rotated
+every snapshot, those cannot be tied to a person or tracked from one report to
+the next.
+
+**Glossary**
+
+| Term | In plain words |
+|---|---|
+| Liabilities | What the venue owes its users — the sum of every customer balance |
+| Solvency | Assets held ≥ liabilities owed |
+| Recompute | Redo the arithmetic yourself from raw data, instead of trusting a published number |
+| Commitment | A short fingerprint of a large dataset, published up front; the data cannot change afterwards without the fingerprint changing |
+| Leaf / root | Your individual entry / the one fingerprint covering the whole list |
+| Inclusion proof | The few extra fingerprints needed to show your entry is inside the committed list |
+| Merkle sum tree | The structure that lets a single root prove membership *and* the totals at once |
+| Salt | A per-user random value mixed into your entry, so nobody can guess it by trying balances |
+
+## 🧭 Why Canton Needs This
+
+Elsewhere, proof of solvency supplements public data. On Canton it *is* the
+public data — and the gap is structural, not a matter of a venue choosing to
+disclose less.
+
+### Institutional Canton is arriving faster than its disclosure tooling
+
+What is moving onto Canton is no longer test balances:
+
+| Date | Who | What went on-chain |
+|---|---|---|
+| 2025-11-12 | Franklin Templeton | [Benji tokenized-fund platform extends to Canton](https://www.canton.network/canton-network-press-releases/franklin-templetons-benji-technology-platform-expands-to-canton-network) |
+| 2025-12-17 | DTCC + Digital Asset | [Tokenizing DTC-custodied U.S. Treasuries](https://blog.digitalasset.com/press-release/dtcc-and-digital-asset-partner-to-tokenize-dtc-custodied-u.s.-treasury-securities-on-the-canton-network) — MVP in controlled production H1 2026; DTCC joins the Canton Foundation as co-chair alongside Euroclear |
+| 2026-01-07 | J.P. Morgan (Kinexys) | [USD JPM Coin (JPMD) issued natively on Canton](https://www.prnewswire.com/news-releases/digital-asset-and-kinexys-by-jp-morgan-announce-intention-to-bring-usd-jpm-coin-jpmd-natively-to-the-canton-network-302654967.html) |
+| 2026-07-01 | Tradeweb | [Real-time on-chain U.S. Treasury trade](https://blog.digitalasset.com/press-release/tradeweb-on-chain-us-treasuries-canton) — Franklin Templeton ↔ Virtu Financial, tokenized UST against digital cash, atomically settled |
+| ongoing | Broadridge | Distributed Ledger Repo, running institutional repo volume on Canton-related infrastructure |
+
+*These are Canton Network deployments, not users of this project — they are the
+context it is built for. Actual adopters are listed under
+[Who Is Using](#-who-is-using).*
+
+Each one creates a claim that somebody downstream needs to check and currently
+cannot: that a tokenized Treasury is backed by the security in custody, that a
+repo is collateralized to its haircut, that a fund's NAV is backed by its
+holdings, that both legs of a delivery-versus-payment actually settled. Canton
+keeps the underlying data private — correctly, or these firms could not use it
+at all. The missing half is a standard way to *prove* the claim to the party
+entitled to check it.
+
+### "Make it transparent" is the wrong instruction for an institution
+
+Different audiences are entitled to different things, and the gap between them
+is the whole product:
+
+| Audience | Must be able to check | Must not see | Today's substitute |
+|---|---|---|---|
+| End investor / client | My position is included; the fund is backed | Other clients' positions | Monthly statement PDF |
+| Trading counterparty | Collateral behind our open trades exists and covers exposure | The venue's other counterparties and their sizes | Bilateral trust, margin calls |
+| Issuer / custodian | Token supply matches assets under custody | Client-level allocations | Reconciliation files |
+| Auditor | The whole book reconciles; sampling is complete | (entitled to everything, under NDA) | Quarterly attestation |
+| Regulator | Segregation, concentration, and limits are respected | Commercially sensitive detail beyond the mandate | Periodic filings |
+| Public market | The issuer is solvent; reserves cover liabilities | Anything client-identifying | Press release |
+
+Every row is the same cryptographic operation with a different audience and a
+different disclosed subset. Six bespoke implementations, one per institution,
+is how an ecosystem ends up with no standard at all.
+
+### Underneath, the reasons are structural
+
+- **No third party can recompute the books.** A participant node sees only
+  the contracts it is a stakeholder in; there is no global state and no
+  public explorer or indexer over it. The traditional substitute is an
+  auditor's attestation, but it is periodic, delivered as prose, and — the
+  part that matters — not checkable by the person whose money it is. You can
+  read the report; you cannot find *yourself* in it.
+
+- **The venue is the only party that can total the book.** Canton is a
+  network of networks: holdings and user positions can span multiple
+  synchronizers and applications, and no single vantage point aggregates
+  them. The venue is therefore the sole author of the number — precisely the
+  situation that calls for a commitment users can check rather than a figure
+  users must accept.
+
+- **There is no "as of block N".** Ethereum-style transparency inherits a
+  canonical, globally agreed instant for free. Canton participants each have
+  their own ordered event streams, so "as of when" has to be constructed,
+  published, and pinned — hence the snapshot timestamp and ledger high-water
+  mark this format requires ([SPEC.md](SPEC.md) §7). Without them a snapshot
+  is unfalsifiable: any inconvenient balance can be blamed on timing.
+
+- **The stakes are institutional.** Canton hosts regulated venues, tokenized
+  funds, and RWA platforms whose counterparties have mandates requiring
+  evidence rather than assurances — under confidentiality terms that forbid
+  the usual answer of publishing everything.
+
+- **Commitments are already Canton's native trust shape.** Participants
+  detect divergence by periodically exchanging hash commitments over shared
+  contract state, not by exposing the state itself. Publishing a per-user
+  Merkle sum commitment and answering membership questions on demand is the
+  same pattern, extended from participant-to-participant to venue-to-public.
+  Nothing here runs against the grain of the network.
+
+## 🔀 Why Not Port an Ethereum Proof-of-Reserves Design?
+
+Because the Merkle tree is the easy tenth of the problem, and every
+assumption the other nine tenths rest on is absent here.
+
+| An Ethereum PoR design assumes… | On Canton | So this design must |
+|---|---|---|
+| **Reserves are public** — `balanceOf` on a known address; explorers and dashboards let anyone cross-check the asset side for free. | Custody holdings are Daml contracts visible only to their stakeholders. There is no address to point at, and no explorer to point it at. | Treat *both* sides of the inequality as private. The asset side becomes a published, committed figure with its own attestation path ([Milestone 1](#milestone-1--canton-reserve-verification)) — not a link to a block explorer. |
+| **Control of reserves is provable by signing** — a wallet signs a challenge; the address is the identity. | Holdings are contracts held by parties, not balances behind a key whose state is publicly readable. | Attest and disclose custody explicitly. The tree never implies it — see [Security Model](#-security-model). |
+| **The snapshot is a block height** — "as of block N" is canonical and anyone can re-derive state from it. | No global block height; each participant has its own event stream per synchronizer. | Make snapshot timestamp and ledger high-water mark normative published fields; the report is what pins the instant. |
+| **A balance is an account entry**, read out of an exchange database. | A balance is an aggregate: active holding contracts, amounts locked in in-flight settlement workflows, and at a derivatives venue margin and unrealized PnL at mark. | Specify the derivation instead of leaving it to the integrator — clamp-and-disclose negatives, exclude *and* disclose house accounts, publish the mark prices used. |
+| **`uint256` and integer arithmetic** — amounts are wei; decimals are a display concern. | Daml `Decimal` is a signed `NUMERIC(38,18)`. | Use exact 18-decimal fixed point end to end, one canonical string render, overflow-checked addition — otherwise two implementations disagree in the last digit and every proof fails. |
+| **Verification happens against a public contract**, increasingly a ZK verifier contract anyone can call. | A Daml contract is visible only to its stakeholders, so "on-ledger" does not mean "publicly verifiable". | Run verification in the user's browser. On-ledger anchoring ([Milestone 2](#milestone-2--on-ledger-anchoring)) buys tamper-evident history, not public verifiability; the client-side check stays the trust root. |
+
+And the trees circulating in the Ethereum ecosystem are often the ones you
+least want to copy. These are not hypotheticals — each has appeared in a
+deployed proof-of-reserves scheme, and each has a rule in
+[SPEC.md](SPEC.md) that forecloses it:
+
+- **Odd nodes duplicated.** Hashing a lone node against itself counts its
+  subtree twice and inflates the committed total. → Odd nodes are *promoted*
+  unchanged (§4).
+- **Sums outside the hash.** If per-node totals aren't bound into the node
+  hash, a root can be honest about membership and wrong about the total. →
+  Sums are hashed at every level, and verification compares sums *and*
+  hashes (§4, §5).
+- **Leaves that leak.** Unsalted leaves over a small balance space are
+  brute-forceable, and leaves that stay stable across reports let an observer
+  track one user over time. → `salt = HMAC-SHA256(per-snapshot master salt,
+  user_id)`, so the same user's leaf hash is unlinkable between snapshots
+  (§3).
+- **Negatives allowed to net.** One under-water account silently offsets
+  other users' balances and the venue prints a solvent total. → Negative
+  equity never enters the tree; it is clamped and disclosed as bad debt (§1).
+
+## 📐 Disclosure Profiles
+
+A **profile** is a named statement, a leaf schema, and an audience matrix. The
+cryptographic core underneath never changes — which is what makes this a format
+rather than a script.
+
+**Constant across every profile:** the Merkle sum tree and its domain-separated
+hashes, canonical 18-decimal encoding, per-snapshot salt derivation, the
+inclusion-proof format and verification rule, the report envelope (format
+version, snapshot time, ledger offset, publisher, signature), the anchor chain,
+and the verifier itself.
+
+**Varies per profile:** what a leaf represents, what statement the root
+asserts, which aggregates are published, and who is entitled to which view.
+
+| Profile | Statement proven | A leaf is | Status |
+|---|---|---|---|
+| `solvency.liabilities` | Every customer balance is committed, and the root's totals are the liabilities | one customer's per-asset equity | **shipped** |
+| `solvency.coverage` | Custody holdings ≥ liabilities, asset by asset | one custody position | M1 |
+| `collateral.repo` | Every open repo is collateralized to its haircut-adjusted requirement | one trade leg and its posted collateral | M3 |
+| `fund.nav` | NAV per share is backed by committed holdings at published marks | one holding line item / one shareholder | M3 |
+| `settlement.dvp` | Across this window, no leg settled without its counter-leg | one settled trade | M3 |
+| `eligibility.holder` | Every holder satisfied rule R at issuance | one holder's attested attributes | M3 |
+
+**The disclosure manifest.** Each report carries a machine-readable manifest
+declaring, field by field, what is *published* (visible to that audience),
+*committed* (proven but not shown), or *withheld*. Because the manifest is
+bound into the signed and anchored report, an institution cannot quietly
+disclose less than it did last quarter — the reduction is itself on the record
+and surfaces as a diff. Selective disclosure becomes an auditable decision
+rather than an editorial one.
+
+**Hierarchy.** A large institution is not one book. A Merkle sum tree composes
+naturally: entity-level roots become the leaves of a group-level tree, so a
+subsidiary can prove its own subtree to its own regulator without exposing its
+siblings, while the group root still sums to the consolidated total.
+
+**Extending the node rule.** Some statements need more than sums —
+concentration limits ("no counterparty exceeds 10% of the pool") need a
+per-node maximum alongside the per-node total. That changes the node hash, so
+it ships as a new format version under new domain strings, never as a silent
+upgrade (see [Versioning](#-versioning--compatibility)).
+
 ## ✨ Features
 
 - **Merkle sum tree commitments** — every node carries per-asset totals, so
@@ -79,6 +302,50 @@ proofs, and totals: the same trust shape as Canton itself.
 | `canton-solvency-verifier` | [`ts/verifier`](ts/verifier) | Browser-side verifier (TypeScript, WebCrypto + BigInt) |
 | Wire format | [`SPEC.md`](SPEC.md) | Byte-level format v1 + golden vectors |
 | Example | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → root, totals, verified proof |
+| `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
+| `canton-solvency-verify` | *planned — [M5](#milestone-5--independent-verification-toolkit)* | Auditor CLI, batch verification |
+
+## 🖥️ Disclosure Console
+
+> **Status: planned — [Milestone 4](#milestone-4--disclosure-console).** Today
+> the reference deployment publishes with the Rust producer and verifies with
+> the TypeScript library. The console is the layer that makes both usable by
+> people who do not run scripts.
+
+A commitment nobody can operate is not transparency infrastructure. The console
+is two surfaces over one format.
+
+**Publisher — for the disclosing institution's operations and compliance teams**
+
+- Connect a participant node, declare parties, pick a profile. No code.
+- **Disclosure designer** — decide field by field what is published, committed,
+  or withheld, per audience, with a live preview of exactly what a
+  counterparty, an auditor, a regulator, and the public will each see.
+- **Pre-publication diff** — before anything ships, see what changed against
+  the previous report, with newly disclosed *and* newly hidden fields called
+  out. Accidental disclosure and quiet de-disclosure are both caught here.
+- Schedule, sign, publish, anchor
+  ([Milestone 2](#milestone-2--on-ledger-anchoring)).
+
+**Viewer — for counterparties, auditors, regulators, and end clients**
+
+- **Provenance on every number.** Nothing is rendered without stating how it is
+  known: *verified* (recomputed in your browser from the commitment),
+  *disclosed* (asserted by the publisher, not proven), or *withheld*. Making
+  the boundary between proof and assertion impossible to miss is the point of
+  the product.
+- **Data-flow view** — the Canton shape behind a figure, drawn as a graph:
+  which parties, which synchronizers, which contract types feed each subtotal.
+  Aimed squarely at institutions with deep entity hierarchies who are new to
+  Canton and need to see where a number comes from.
+- **Coverage view** — per-asset reserves against liabilities, with shortfalls
+  flagged rather than netted away.
+- **History view** — the anchor chain over time; a restated or missing report
+  shows up as a break in the chain, not as a footnote.
+- **Self-check** — drop in your own proof file and verify it locally, offline.
+- **Evidence pack** — export a signed archive an auditor can re-verify years
+  later with the CLI, with no dependency on the publisher's infrastructure or
+  on this project's.
 
 ## 🚀 Quick Start
 
@@ -132,7 +399,8 @@ totals equal the sum of every committed leaf.
 **What it does not prove by itself:** that *every* real user is in the tree
 (detection relies on users checking — which is why verification is one click
 on the reference deployment), or that the asset side is honest (custody
-attestation is the next roadmap item). Frequency matters: a daily snapshot
+attestation is [Milestone 1](#milestone-1--canton-reserve-verification)).
+Frequency matters: a daily snapshot
 commits to daily states, not intra-day ones.
 
 Found a vulnerability? Please report it privately — see [SECURITY.md](SECURITY.md).
@@ -145,13 +413,188 @@ breaks the golden vectors in [SPEC.md](SPEC.md) §6 is a new format version**,
 shipped under new domain strings — never a silent change. Crates and packages
 follow [Semantic Versioning](https://semver.org/).
 
-## 🗺️ Roadmap
+## 🗺️ Grant Scope & Deliverables
 
-- [ ] Custody-side attestation: pair liability commitments with Canton party
-      holdings in a single coverage report
-- [ ] On-ledger anchoring of report roots (tamper-evident history)
-- [ ] Standalone auditor CLI for batch proof verification
-- [ ] Wire-format CIP once two independent deployments exist
+**Already shipped (v0.1.0, running in production):** the liability side — the
+Merkle sum tree commitment core in Rust, the browser verifier in TypeScript,
+wire format v1 with cross-implementation golden vectors, and a live deployment
+publishing daily reports at [Rocky](https://rocky.exchange).
+
+The milestones below complete the picture along two tracks: **Prove** extends
+what the format can attest, **Use** makes it operable by institutions and
+checkable by everyone else.
+
+| # | Track | Milestone | Outcome |
+|---|---|---|---|
+| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted |
+| 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
+| 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — not just exchanges |
+| 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
+| 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software |
+| 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
+
+*Sequencing: 1 and 2 are independent and run in parallel; 3 builds on 1; 4
+needs 3; 5 runs alongside 4; 6 needs both 4 and 5.*
+
+### Milestone 1 — Canton Reserve Verification
+
+Pairs the liability commitment with attested custody holdings, so a report
+states **coverage** rather than only liabilities.
+
+**Deliverables**
+
+- `canton-reserve-attest` — Ledger API client that reads the active contract
+  set for a declared set of custody parties and aggregates holdings per asset.
+- **Snapshot binding** — the asset-side read is pinned to the *same* ledger
+  offset as the liability snapshot, so both halves are provably as-of one
+  instant rather than two reads minutes apart.
+- **Coverage report format** (new SPEC §8) — per-asset reserves, liabilities
+  and coverage ratio, plus custody party IDs, ledger offset, and mark prices;
+  signed by the venue.
+- **Multi-asset coverage** — ratios computed per asset; a shortfall in one
+  asset is flagged, never netted against a surplus in another.
+
+**Done when:** golden vectors are extended to the coverage report and asserted
+by both implementations; an end-to-end run against a Canton localnet turns
+seeded holdings plus user balances into a verified coverage report; a
+regression test proves a per-asset shortfall cannot be hidden by aggregate
+netting.
+
+### Milestone 2 — On-ledger Anchoring
+
+Makes report history tamper-evident: a venue cannot silently restate or drop a
+past report.
+
+**Deliverables**
+
+- **Daml package `SolvencyReportAnchor`** — one immutable contract per report
+  carrying `{format_version, report_root, root_sums_hash, snapshot_time,
+  ledger_offset, publisher, prev_anchor}`, with an observer set the venue can
+  widen to auditors, counterparties, or a public observer party.
+- **Anchoring client** — build → anchor → publish, with the anchor contract ID
+  embedded in the published report.
+- **Hash-linked history** — each anchor references its predecessor, so a gap,
+  a fork, or an edited past report becomes detectable rather than merely
+  improbable.
+- **Verifier support** — check a report against its anchor and walk the chain
+  backwards.
+
+**Done when:** a test suite demonstrates that editing any historical report,
+omitting a day, or forking the chain fails verification; and the visibility
+model is documented explicitly, including its limit — anchoring gives
+tamper-evidence to parties who can see the contract, not public verifiability.
+
+### Milestone 3 — Selective Disclosure Profiles
+
+Generalizes the format from one statement about exchange liabilities into the
+family of statements institutions on Canton actually need to make.
+
+**Deliverables**
+
+- **Profile registry** (new SPEC §10) — each profile pins a leaf schema, the
+  statement its root asserts, the aggregates that must be published, and a
+  default audience matrix. Profiles ship with golden vectors, like the core
+  format.
+- **Four profiles beyond solvency** — `collateral.repo`, `fund.nav`,
+  `settlement.dvp`, `eligibility.holder`, chosen against what is actually
+  moving onto Canton: repo, tokenized funds, DvP treasury settlement, and
+  permissioned issuance.
+- **Disclosure manifest** — machine-readable per-field
+  published / committed / withheld declaration, bound into the signed report
+  and diffable between reports, so reducing disclosure is itself on the record.
+- **Hierarchical commitments** — entity roots as the leaves of a group tree, so
+  a subsidiary proves its subtree to its own regulator without exposing
+  siblings while the group root still sums to the consolidated total.
+- **Audience-scoped packaging** — one commitment, several packaged views, each
+  carrying only what its audience is entitled to and all reducing to the same
+  root.
+
+**Done when:** every profile has golden vectors asserted by both
+implementations; a hierarchy test proves a subsidiary's subtree verifies
+against the group root with no sibling data present; a manifest-diff test
+detects a silently reduced disclosure; and at least one profile beyond
+`solvency.liabilities` runs end to end against a Canton localnet.
+
+### Milestone 4 — Disclosure Console
+
+Turns the format into something a compliance team can operate and a
+counterparty's analyst can read — the difference between a specification and
+adopted infrastructure.
+
+**Deliverables**
+
+- **Publisher console** — node connection and party declaration, profile
+  selection, the disclosure designer with per-audience live preview,
+  pre-publication diff, scheduling, signing, publishing, anchoring.
+- **Viewer console** — provenance state on every figure
+  (verified / disclosed / withheld), the data-flow graph of parties,
+  synchronizers, and contract types behind each subtotal, plus coverage and
+  anchor-history views and a drop-in self-check.
+- **Verification stays in the client** — the viewer recomputes proofs in the
+  browser; the server is a delivery mechanism, never an authority. A hosted
+  instance and a self-hostable build ship together.
+- **Evidence pack export** — a signed archive re-verifiable offline by the CLI
+  (M5), with no dependency on the publisher.
+- **Non-technical onboarding path** — a documented walkthrough from participant
+  node to first published report without writing code, plus a demo instance
+  loaded with synthetic repo, fund, and settlement data.
+
+**Done when:** an operator who writes neither Rust nor TypeScript publishes a
+conforming report against a localnet from the console alone; a test fails the
+build if any rendered figure lacks a provenance state; the viewer completes
+verification with its origin server blocked after page load; and the
+walkthrough is validated with participants who are not Canton engineers.
+
+### Milestone 5 — Independent Verification Toolkit
+
+Takes the publisher out of the verification path entirely.
+
+**Deliverables**
+
+- **`canton-solvency-verify` CLI** (crates.io + prebuilt binaries) — verify a
+  single proof, batch-verify a directory, recompute a root from a full leaf
+  dump, check a coverage report (M1), walk an anchor chain (M2), and validate a
+  disclosure manifest against its profile (M3), with CI-friendly exit codes.
+- **Machine-readable formats** — versioned JSON Schema for the report, proof,
+  coverage, manifest, and profile documents, so third-party tooling parses them
+  instead of reverse-engineering them.
+- **Standalone browser verifier** — a single self-contained HTML file, no
+  build step and no network calls, that a user can save and run offline
+  against a downloaded proof; the venue's own page stops being part of the
+  trust path.
+- **Reference producer integration** — a documented snapshot → equity → tree →
+  publish path with a sample dataset, alongside the live Rocky deployment.
+
+**Done when:** the CLI verifies the [SPEC.md](SPEC.md) §6 golden vectors and a
+production-shaped report (100k leaves) within a published time budget; the
+offline HTML page verifies a proof with networking disabled; and every example
+document in the repository is schema-validated in CI.
+
+### Milestone 6 — Ecosystem Standardization
+
+Turns one implementation into something the network can rely on.
+
+**Deliverables**
+
+- **Conformance suite** — an executable test corpus any implementation runs to
+  claim compatibility, covering the wire format, coverage reports, anchors,
+  profiles, and manifests.
+- **Two independent Canton integrations** — at least one producer other than
+  Rocky publishing conforming reports, ideally on a different profile, with
+  interop shown in both directions: their reports verify under this toolkit,
+  ours verify under theirs.
+- **Public specification v1.1** — SPEC.md extended with §8 coverage, §9
+  anchoring, and §10 profiles, frozen against the conformance suite.
+- **Third-party security review** — external review of the commitment core,
+  salt derivation, and verifier; findings and remediations published in-repo.
+- **CIP proposal** — the wire format submitted to the Canton Improvement
+  Proposal process, with the conformance suite as its normative tests.
+
+**Done when:** two independent implementations pass the conformance suite; the
+security review and its remediations are public; and the CIP is submitted with
+review comments answered. *Whether a CIP is accepted is decided by Canton
+governance, not by this project — the deliverable is a submitted, maintained
+proposal.*
 
 ## 🤝 Contributing
 
