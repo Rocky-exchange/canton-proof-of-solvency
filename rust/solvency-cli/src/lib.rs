@@ -35,7 +35,7 @@ mod tests {
             report_digest: "aa".repeat(32),
             outcomes: vec![ProofOutcome {
                 path: PathBuf::from("p.json"),
-                user_id: "u".to_string(),
+                subject: "u".to_string(),
                 failure: failure.map(String::from),
             }],
         }

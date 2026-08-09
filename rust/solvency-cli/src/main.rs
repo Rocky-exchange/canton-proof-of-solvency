@@ -23,7 +23,12 @@ fn main() {
         _ => {}
     }
 
-    let json = matches!(command, Command::Verify { json: true, .. });
+    let json = matches!(
+        command,
+        Command::Verify { json: true, .. }
+            | Command::VerifyGroup { json: true, .. }
+            | Command::VerifyChain { json: true, .. }
+    );
     let result = run(&command);
     let code = exit_code(&result);
 

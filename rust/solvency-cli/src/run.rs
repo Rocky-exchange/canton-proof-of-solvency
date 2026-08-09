@@ -3,6 +3,7 @@
 use crate::args::{Command, ProofSource};
 use anyhow::{Context, Result};
 use canton_solvency_report::document::{ProofDocument, SignedReport};
+use canton_solvency_report::group::{verify_chain, verify_membership, GroupMembershipDocument};
 use canton_solvency_report::verify::verify;
 use std::path::{Path, PathBuf};
 
@@ -11,7 +12,8 @@ use std::path::{Path, PathBuf};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ProofOutcome {
     pub path: PathBuf,
-    pub user_id: String,
+    /// Customer id, or entity id when checking a group membership.
+    pub subject: String,
     pub failure: Option<String>,
 }
 
@@ -94,7 +96,7 @@ pub fn run(command: &Command) -> Result<Summary> {
                     }
                 };
                 outcomes.push(ProofOutcome {
-                    user_id: proof.leaf.user_id.clone(),
+                    subject: proof.leaf.user_id.clone(),
                     failure: verify(&signed, &proof, trusted_key)
                         .err()
                         .map(|f| f.to_string()),
@@ -105,6 +107,87 @@ pub fn run(command: &Command) -> Result<Summary> {
             Ok(Summary {
                 report_digest: hex_digest(&signed),
                 outcomes,
+            })
+        }
+        Command::VerifyGroup {
+            report,
+            memberships,
+            trusted_key,
+            ..
+        } => {
+            let signed: SignedReport = load(report)?;
+            let paths = match memberships {
+                ProofSource::File(p) => vec![p.clone()],
+                ProofSource::Dir(d) => proof_paths(d)?,
+            };
+            let sweeping = matches!(memberships, ProofSource::Dir(_));
+
+            let mut outcomes = Vec::new();
+            for path in paths {
+                let text = std::fs::read_to_string(&path)
+                    .with_context(|| format!("reading {}", path.display()))?;
+                let membership: GroupMembershipDocument = match serde_json::from_str(&text) {
+                    Ok(m) => m,
+                    // Publishers put the group report beside the memberships.
+                    Err(e) => {
+                        if sweeping && serde_json::from_str::<SignedReport>(&text).is_ok() {
+                            continue;
+                        }
+                        return Err(
+                            anyhow::Error::new(e).context(format!("parsing {}", path.display()))
+                        );
+                    }
+                };
+                outcomes.push(ProofOutcome {
+                    subject: membership.entity.entity_id.clone(),
+                    failure: verify_membership(&signed, &membership, trusted_key)
+                        .err()
+                        .map(|f| f.to_string()),
+                    path,
+                });
+            }
+
+            Ok(Summary {
+                report_digest: hex_digest(&signed),
+                outcomes,
+            })
+        }
+
+        Command::VerifyChain {
+            group_report,
+            membership,
+            report,
+            proof,
+            trusted_key,
+            group_key,
+            ..
+        } => {
+            let group_signed: SignedReport = load(group_report)?;
+            let membership_doc: GroupMembershipDocument = load(membership)?;
+            let entity_signed: SignedReport = load(report)?;
+            let proof_doc: ProofDocument = load(proof)?;
+
+            let failure = verify_chain(
+                &group_signed,
+                &membership_doc,
+                &entity_signed,
+                &proof_doc,
+                group_key,
+                trusted_key,
+            )
+            .err()
+            .map(|f| f.to_string());
+
+            Ok(Summary {
+                report_digest: hex_digest(&group_signed),
+                outcomes: vec![ProofOutcome {
+                    path: proof.clone(),
+                    subject: format!(
+                        "{} in {}",
+                        proof_doc.leaf.user_id, membership_doc.entity.entity_id
+                    ),
+                    failure,
+                }],
             })
         }
         Command::Help | Command::Version => Ok(Summary {
@@ -166,7 +249,7 @@ mod tests {
         assert!(summary.all_passed());
         assert_eq!(summary.report_digest, GOLDEN_DIGEST);
         assert_eq!(
-            summary.outcomes[0].user_id,
+            summary.outcomes[0].subject,
             "22222222-2222-7222-8222-222222222222"
         );
     }
@@ -282,6 +365,114 @@ mod tests {
         std::fs::write(&junk, "{ not json").unwrap();
         let err = run(&verify_cmd(report, ProofSource::File(junk))).unwrap_err();
         assert!(err.to_string().contains("parsing"), "got {err}");
+    }
+
+    fn group_dir() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let group = dir.path().join("group-report.json");
+        let membership = dir.path().join("membership.json");
+        std::fs::write(&group, fixture("group-report.golden.json")).unwrap();
+        std::fs::write(&membership, fixture("group-membership.golden.json")).unwrap();
+        (dir, group, membership)
+    }
+
+    #[test]
+    fn a_group_membership_verifies_against_its_group_report() {
+        let (_d, group, membership) = group_dir();
+        let summary = run(&Command::VerifyGroup {
+            report: group,
+            memberships: ProofSource::File(membership),
+            trusted_key: KEY.to_string(),
+            json: false,
+        })
+        .unwrap();
+        assert!(summary.all_passed());
+        assert_eq!(summary.outcomes[0].subject, "golden-entity-a");
+    }
+
+    #[test]
+    fn a_relabelled_entity_fails_group_verification() {
+        let (dir, group, _) = group_dir();
+        let bad = dir.path().join("bad.json");
+        std::fs::write(
+            &bad,
+            fixture("group-membership.golden.json").replace("golden-entity-a", "golden-entity-z"),
+        )
+        .unwrap();
+        let summary = run(&Command::VerifyGroup {
+            report: group,
+            memberships: ProofSource::File(bad),
+            trusted_key: KEY.to_string(),
+            json: false,
+        })
+        .unwrap();
+        assert!(!summary.all_passed());
+    }
+
+    #[test]
+    fn a_group_directory_skips_the_group_report_beside_the_memberships() {
+        let (dir, group, _) = group_dir();
+        let summary = run(&Command::VerifyGroup {
+            report: group,
+            memberships: ProofSource::Dir(dir.path().into()),
+            trusted_key: KEY.to_string(),
+            json: false,
+        })
+        .unwrap();
+        assert_eq!(summary.outcomes.len(), 1);
+        assert!(summary.all_passed());
+    }
+
+    #[test]
+    fn a_full_chain_verifies_a_customer_up_to_the_group_total() {
+        let (dir, group, membership) = group_dir();
+        let report = dir.path().join("report.json");
+        let proof = dir.path().join("proof.json");
+        std::fs::write(&report, fixture("report.golden.json")).unwrap();
+        std::fs::write(&proof, fixture("proof.golden.json")).unwrap();
+
+        let summary = run(&Command::VerifyChain {
+            group_report: group,
+            membership,
+            report,
+            proof,
+            trusted_key: KEY.to_string(),
+            group_key: KEY.to_string(),
+            json: false,
+        })
+        .unwrap();
+        assert!(summary.all_passed());
+        assert_eq!(summary.outcomes.len(), 1);
+    }
+
+    #[test]
+    fn a_chain_with_a_tampered_customer_proof_fails() {
+        let (dir, group, membership) = group_dir();
+        let report = dir.path().join("report.json");
+        let proof = dir.path().join("proof.json");
+        std::fs::write(&report, fixture("report.golden.json")).unwrap();
+        std::fs::write(
+            &proof,
+            fixture("proof.golden.json").replace("0.250000000000000000", "9.250000000000000000"),
+        )
+        .unwrap();
+
+        let summary = run(&Command::VerifyChain {
+            group_report: group,
+            membership,
+            report,
+            proof,
+            trusted_key: KEY.to_string(),
+            group_key: KEY.to_string(),
+            json: false,
+        })
+        .unwrap();
+        assert!(!summary.all_passed());
+        assert!(summary.outcomes[0]
+            .failure
+            .as_deref()
+            .unwrap()
+            .contains("root"));
     }
 
     #[test]

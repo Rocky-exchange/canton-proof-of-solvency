@@ -2,6 +2,7 @@
 //! a well-formed command.
 
 use anyhow::{bail, Result};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub const USAGE: &str = "\
@@ -10,6 +11,11 @@ canton-solvency-verify — offline verification of Canton solvency reports
 USAGE:
   canton-solvency-verify verify --report <path> --key <hex64>
                                 (--proof <path> | --proof-dir <dir>) [--json]
+  canton-solvency-verify verify-group --report <group-report> --key <hex64>
+                                (--membership <path> | --membership-dir <dir>) [--json]
+  canton-solvency-verify verify-chain --group-report <path> --membership <path>
+                                --report <path> --proof <path>
+                                --key <hex64> [--group-key <hex64>] [--json]
   canton-solvency-verify digest --report <path>
   canton-solvency-verify --help | --version
 
@@ -33,6 +39,25 @@ pub enum Command {
         report: PathBuf,
         proofs: ProofSource,
         trusted_key: String,
+        json: bool,
+    },
+    /// Entity memberships against a group report (SPEC §13.3).
+    VerifyGroup {
+        report: PathBuf,
+        memberships: ProofSource,
+        trusted_key: String,
+        json: bool,
+    },
+    /// A customer all the way to a group's consolidated total (SPEC §13.4).
+    VerifyChain {
+        group_report: PathBuf,
+        membership: PathBuf,
+        report: PathBuf,
+        proof: PathBuf,
+        trusted_key: String,
+        /// Defaults to `trusted_key`; groups and entities may publish under
+        /// different keys.
+        group_key: String,
         json: bool,
     },
     Digest {
@@ -64,59 +89,89 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
-        "verify" | "digest" => {}
+        "verify" | "verify-group" | "verify-chain" | "digest" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
-    let mut report: Option<PathBuf> = None;
-    let mut proof: Option<PathBuf> = None;
-    let mut proof_dir: Option<PathBuf> = None;
-    let mut trusted_key: Option<String> = None;
+    let mut flags: BTreeMap<String, String> = BTreeMap::new();
     let mut json = false;
 
     while let Some(flag) = args.next() {
-        let mut value = || -> Result<String> {
-            args.next()
-                .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))
-        };
         match flag.as_str() {
-            "--report" => report = Some(PathBuf::from(value()?)),
-            "--proof" => proof = Some(PathBuf::from(value()?)),
-            "--proof-dir" => proof_dir = Some(PathBuf::from(value()?)),
-            "--key" => trusted_key = Some(value()?),
             "--json" => json = true,
             "--help" | "-h" => return Ok(Command::Help),
+            "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
+            | "--membership" | "--membership-dir" | "--group-key" => {
+                let value = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
+                flags.insert(flag, value);
+            }
             other => bail!("unknown flag {other:?}\n\n{USAGE}"),
         }
     }
 
-    let report = report.ok_or_else(|| anyhow::anyhow!("--report is required"))?;
-
-    if first == "digest" {
-        return Ok(Command::Digest { report });
-    }
-
-    let proofs = match (proof, proof_dir) {
-        (Some(p), None) => ProofSource::File(p),
-        (None, Some(d)) => ProofSource::Dir(d),
-        (None, None) => bail!("one of --proof or --proof-dir is required"),
-        (Some(_), Some(_)) => bail!("--proof and --proof-dir are mutually exclusive"),
+    let path = |name: &str| -> Option<PathBuf> { flags.get(name).map(PathBuf::from) };
+    let required_path = |name: &str| -> Result<PathBuf> {
+        path(name).ok_or_else(|| anyhow::anyhow!("{name} is required"))
+    };
+    let key = || -> Result<String> {
+        let k = flags.get("--key").cloned().ok_or_else(|| {
+            anyhow::anyhow!(
+                "--key is required: a report checked against its own embedded key \
+                 proves only internal consistency"
+            )
+        })?;
+        validate_key(&k)?;
+        Ok(k)
+    };
+    // One `--proof`/`--membership`, or one directory of them, never both.
+    let source = |file: &str, dir: &str| -> Result<ProofSource> {
+        match (path(file), path(dir)) {
+            (Some(p), None) => Ok(ProofSource::File(p)),
+            (None, Some(d)) => Ok(ProofSource::Dir(d)),
+            (None, None) => bail!("one of {file} or {dir} is required"),
+            (Some(_), Some(_)) => bail!("{file} and {dir} are mutually exclusive"),
+        }
     };
 
-    let trusted_key = trusted_key.ok_or_else(|| {
-        anyhow::anyhow!(
-            "--key is required: a report checked against its own embedded key \
-             proves only internal consistency"
-        )
-    })?;
-    validate_key(&trusted_key)?;
-
-    Ok(Command::Verify {
-        report,
-        proofs,
-        trusted_key,
-        json,
-    })
+    match first.as_str() {
+        "digest" => Ok(Command::Digest {
+            report: required_path("--report")?,
+        }),
+        "verify" => Ok(Command::Verify {
+            report: required_path("--report")?,
+            proofs: source("--proof", "--proof-dir")?,
+            trusted_key: key()?,
+            json,
+        }),
+        "verify-group" => Ok(Command::VerifyGroup {
+            report: required_path("--report")?,
+            memberships: source("--membership", "--membership-dir")?,
+            trusted_key: key()?,
+            json,
+        }),
+        "verify-chain" => {
+            let trusted_key = key()?;
+            let group_key = match flags.get("--group-key") {
+                Some(k) => {
+                    validate_key(k)?;
+                    k.clone()
+                }
+                None => trusted_key.clone(),
+            };
+            Ok(Command::VerifyChain {
+                group_report: required_path("--group-report")?,
+                membership: required_path("--membership")?,
+                report: required_path("--report")?,
+                proof: required_path("--proof")?,
+                trusted_key,
+                group_key,
+                json,
+            })
+        }
+        _ => unreachable!("subcommand already validated"),
+    }
 }
 
 #[cfg(test)]
@@ -210,6 +265,115 @@ mod tests {
         ))
         .is_err());
         assert!(parse_str("frobnicate").is_err());
+    }
+
+    #[test]
+    fn parses_a_group_membership_verification() {
+        assert_eq!(
+            parse_str(&format!(
+                "verify-group --report g.json --membership m.json --key {KEY}"
+            ))
+            .unwrap(),
+            Command::VerifyGroup {
+                report: PathBuf::from("g.json"),
+                memberships: ProofSource::File(PathBuf::from("m.json")),
+                trusted_key: KEY.to_string(),
+                json: false,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_a_group_membership_directory() {
+        let cmd = parse_str(&format!(
+            "verify-group --report g.json --membership-dir d --key {KEY} --json"
+        ))
+        .unwrap();
+        assert_eq!(
+            cmd,
+            Command::VerifyGroup {
+                report: PathBuf::from("g.json"),
+                memberships: ProofSource::Dir(PathBuf::from("d")),
+                trusted_key: KEY.to_string(),
+                json: true,
+            }
+        );
+    }
+
+    #[test]
+    fn parses_a_full_chain_verification() {
+        assert_eq!(
+            parse_str(&format!(
+                "verify-chain --group-report g.json --membership m.json \
+                 --report r.json --proof p.json --key {KEY}"
+            ))
+            .unwrap(),
+            Command::VerifyChain {
+                group_report: PathBuf::from("g.json"),
+                membership: PathBuf::from("m.json"),
+                report: PathBuf::from("r.json"),
+                proof: PathBuf::from("p.json"),
+                trusted_key: KEY.to_string(),
+                group_key: KEY.to_string(),
+                json: false,
+            }
+        );
+    }
+
+    /// A group and its subsidiaries need not publish under one key.
+    #[test]
+    fn a_chain_can_name_a_separate_group_key() {
+        let other = "cd".repeat(32);
+        let cmd = parse_str(&format!(
+            "verify-chain --group-report g.json --membership m.json --report r.json \
+             --proof p.json --key {KEY} --group-key {other}"
+        ))
+        .unwrap();
+        match cmd {
+            Command::VerifyChain {
+                trusted_key,
+                group_key,
+                ..
+            } => {
+                assert_eq!(trusted_key, KEY);
+                assert_eq!(group_key, other);
+            }
+            other => panic!("expected a chain command, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_chain_missing_any_of_its_four_documents_is_rejected() {
+        let full = format!(
+            "verify-chain --group-report g.json --membership m.json --report r.json \
+             --proof p.json --key {KEY}"
+        );
+        for missing in [
+            "--group-report g.json",
+            "--membership m.json",
+            "--report r.json",
+            "--proof p.json",
+        ] {
+            let err = parse_str(&full.replace(missing, "")).unwrap_err();
+            let flag = missing.split_whitespace().next().unwrap();
+            assert!(err.to_string().contains(flag), "removing {flag}: got {err}");
+        }
+    }
+
+    #[test]
+    fn a_malformed_group_key_is_rejected() {
+        let err = parse_str(&format!(
+            "verify-chain --group-report g.json --membership m.json --report r.json \
+             --proof p.json --key {KEY} --group-key nope"
+        ))
+        .unwrap_err();
+        assert!(err.to_string().contains("key"), "got {err}");
+    }
+
+    #[test]
+    fn group_verification_requires_a_membership_source() {
+        let err = parse_str(&format!("verify-group --report g.json --key {KEY}")).unwrap_err();
+        assert!(err.to_string().contains("--membership"), "got {err}");
     }
 
     #[test]

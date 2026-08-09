@@ -15,7 +15,7 @@ pub fn render_text(summary: &Summary) -> String {
         out.push_str(&format!(
             "FAILED {} ({}): {}\n",
             outcome.path.display(),
-            outcome.user_id,
+            outcome.subject,
             outcome.failure.as_deref().unwrap_or_default()
         ));
     }
@@ -41,7 +41,7 @@ pub fn render_json(summary: &Summary) -> String {
         .map(|o| {
             serde_json::json!({
                 "path": o.path.display().to_string(),
-                "user_id": o.user_id,
+                "subject": o.subject,
                 "ok": o.failure.is_none(),
                 "failure": o.failure,
             })
@@ -74,7 +74,7 @@ mod tests {
     fn ok_outcome(name: &str) -> ProofOutcome {
         ProofOutcome {
             path: PathBuf::from(name),
-            user_id: "user-1".to_string(),
+            subject: "user-1".to_string(),
             failure: None,
         }
     }
@@ -82,7 +82,7 @@ mod tests {
     fn bad_outcome(name: &str) -> ProofOutcome {
         ProofOutcome {
             path: PathBuf::from(name),
-            user_id: "user-2".to_string(),
+            subject: "user-2".to_string(),
             failure: Some("proof does not fold to the published root".to_string()),
         }
     }
