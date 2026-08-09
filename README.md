@@ -590,9 +590,7 @@ family of statements institutions on Canton actually need to make.
   still sums to the consolidated total. A customer can verify their own balance
   all the way up to a group's consolidated liabilities. Needed no wire-format
   break: a group tree is an ordinary §4 sum tree whose leaves are entities.
-- **Audience-scoped packaging** — one commitment, several packaged views, each
-  carrying only what its audience is entitled to and all reducing to the same
-  root.
+- ~~**Audience-scoped packaging**~~ — **delivered**, [SPEC.md](SPEC.md) §14.4. Every packaging commits to the same leaves, so roots and totals agree while manifests differ; two packagings naming the same audience are refused, and a comparison check catches two audiences being handed genuinely different books.
 
 **Done when:** every profile has golden vectors asserted by both
 implementations; a hierarchy test proves a subsidiary's subtree verifies
@@ -671,8 +669,7 @@ Takes the publisher out of the verification path entirely.
   manifests (M3) — deliberately absent until those documents exist, because a
   verifier that silently skips a check is worse than one that does not offer
   it.
-- Recomputing a root from a full leaf dump — needs a dump format nothing
-  emits yet.
+- ~~Recomputing a root from a full leaf dump~~ — **delivered**: the `recompute` verb rebuilds the tree from a dump and compares root *and* totals. An inclusion proof cannot show a tree contains only the entries it should; a dump can, at the cost of all privacy, which is why it is an auditor's tool under engagement rather than something a venue publishes.
 - Schemas for the coverage, manifest, and profile documents.
 - crates.io release and prebuilt binaries.
 - **Reference producer integration** — a documented snapshot → equity → tree →

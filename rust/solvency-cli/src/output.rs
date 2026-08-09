@@ -67,6 +67,33 @@ pub fn render_coverage_text(outcome: &canton_solvency_report::coverage::Coverage
     out
 }
 
+pub fn render_recompute_text(outcome: &crate::recompute::RecomputeOutcome) -> String {
+    let mut out = format!(
+        "leaves rebuilt: {}\npublished root: {}\nrecomputed    : {}\n",
+        outcome.leaves, outcome.published_root, outcome.recomputed_root
+    );
+    for asset in &outcome.disagreeing_assets {
+        out.push_str(&format!("DISAGREES     : {asset}\n"));
+    }
+    out.push_str(if outcome.matches() {
+        "the dump reproduces the published commitment\n"
+    } else {
+        "the dump does NOT reproduce the published commitment\n"
+    });
+    out
+}
+
+pub fn render_recompute_json(outcome: &crate::recompute::RecomputeOutcome) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": outcome.matches(),
+        "leaves": outcome.leaves,
+        "published_root": outcome.published_root,
+        "recomputed_root": outcome.recomputed_root,
+        "disagreeing_assets": outcome.disagreeing_assets,
+    }))
+    .expect("outcome is always serializable")
+}
+
 pub fn render_chain_text(summary: &crate::anchors::ChainSummary) -> String {
     let mut out = format!(
         "publisher     : {}\nhistory       : {} anchors, {} to {}\n",

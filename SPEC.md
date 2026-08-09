@@ -682,6 +682,21 @@ the same treatment: a decision about what a leaf is, what the root asserts,
 and which rules are checked rather than asserted. An unregistered profile is
 rejected outright (§14.1), so a half-considered entry is worse than none.
 
+### 14.4 Audience-scoped packaging
+
+One commitment may be packaged for several audiences. Every packaging commits
+to the same leaves, so the root hash, the totals and the leaf count are
+identical; only the manifest (§8.5) differs.
+
+Two packagings therefore have **different digests and different signatures**,
+which is correct: they are different statements about the same commitment.
+A verifier comparing two packagings checks that the root, totals and leaf
+count agree — without that check a venue could hand two audiences genuinely
+different books, and each would verify in isolation.
+
+Producers **MUST NOT** emit two packagings naming the same audience: one would
+silently stand in for the other.
+
 ### 14.3 Conformance corpus
 
 [`conformance/`](conformance) holds the cases an implementation must agree on

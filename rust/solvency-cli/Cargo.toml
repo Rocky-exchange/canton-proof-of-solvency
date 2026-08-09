@@ -15,6 +15,7 @@ categories = ["command-line-utilities", "cryptography"]
 canton-solvency-merkle = { path = "../solvency-merkle", version = "0.1.0" }
 canton-solvency-report = { path = "../solvency-report", version = "0.1.0" }
 anyhow = "1"
+hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

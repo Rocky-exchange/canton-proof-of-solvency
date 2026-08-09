@@ -19,6 +19,7 @@ USAGE:
   canton-solvency-verify coverage --custody <path> --liabilities <path>
                                 --statement <path> --key <hex64>
                                 [--custody-key <hex64>] [--json]
+  canton-solvency-verify recompute --leaves <path> --report <path> [--json]
   canton-solvency-verify anchors --chain <dir-or-file> [--json]
   canton-solvency-verify manifest-diff --previous <path> --current <path> [--json]
   canton-solvency-verify digest --report <path>
@@ -63,6 +64,12 @@ pub enum Command {
         /// Defaults to `trusted_key`; groups and entities may publish under
         /// different keys.
         group_key: String,
+        json: bool,
+    },
+    /// Rebuild a root from a full leaf dump and compare it to the report.
+    Recompute {
+        leaves: PathBuf,
+        report: PathBuf,
         json: bool,
     },
     /// Walk a publisher's anchor history (SPEC §12).
@@ -115,7 +122,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
         "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
-        | "digest" => {}
+        | "recompute" | "digest" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -128,7 +135,8 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--help" | "-h" => return Ok(Command::Help),
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
-            | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain" => {
+            | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
+            | "--leaves" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -184,6 +192,11 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
                 json,
             })
         }
+        "recompute" => Ok(Command::Recompute {
+            leaves: required_path("--leaves")?,
+            report: required_path("--report")?,
+            json,
+        }),
         "anchors" => Ok(Command::Anchors {
             chain: required_path("--chain")?,
             json,
@@ -523,6 +536,27 @@ mod tests {
     #[test]
     fn walking_anchors_needs_no_key() {
         assert!(parse_str("anchors --chain ./history").is_ok());
+    }
+
+    #[test]
+    fn parses_a_recompute() {
+        assert_eq!(
+            parse_str("recompute --leaves dump.json --report r.json").unwrap(),
+            Command::Recompute {
+                leaves: PathBuf::from("dump.json"),
+                report: PathBuf::from("r.json"),
+                json: false,
+            }
+        );
+    }
+
+    /// Recomputing checks arithmetic against a published figure; it verifies
+    /// no signature, so it takes no key.
+    #[test]
+    fn recompute_needs_both_documents_and_no_key() {
+        assert!(parse_str("recompute --leaves dump.json").is_err());
+        assert!(parse_str("recompute --report r.json").is_err());
+        assert!(parse_str("recompute --leaves d.json --report r.json").is_ok());
     }
 
     #[test]
