@@ -16,6 +16,7 @@ USAGE:
   canton-solvency-verify verify-chain --group-report <path> --membership <path>
                                 --report <path> --proof <path>
                                 --key <hex64> [--group-key <hex64>] [--json]
+  canton-solvency-verify manifest-diff --previous <path> --current <path> [--json]
   canton-solvency-verify digest --report <path>
   canton-solvency-verify --help | --version
 
@@ -23,8 +24,8 @@ The trusted key is required. A report checked against the key embedded in
 itself proves only internal consistency, never who published it.
 
 EXIT CODES:
-  0  everything verified
-  1  at least one verification failed
+  0  everything verified, or no disclosure was reduced
+  1  a verification failed, or disclosure was reduced between two reports
   2  usage, I/O, or parse error";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -60,6 +61,12 @@ pub enum Command {
         group_key: String,
         json: bool,
     },
+    /// What changed in the disclosure manifest between two reports (§8.5).
+    ManifestDiff {
+        previous: PathBuf,
+        current: PathBuf,
+        json: bool,
+    },
     Digest {
         report: PathBuf,
     },
@@ -89,7 +96,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
-        "verify" | "verify-group" | "verify-chain" | "digest" => {}
+        "verify" | "verify-group" | "verify-chain" | "manifest-diff" | "digest" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -101,7 +108,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--json" => json = true,
             "--help" | "-h" => return Ok(Command::Help),
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
-            | "--membership" | "--membership-dir" | "--group-key" => {
+            | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -138,6 +145,11 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "digest" => Ok(Command::Digest {
             report: required_path("--report")?,
+        }),
+        "manifest-diff" => Ok(Command::ManifestDiff {
+            previous: required_path("--previous")?,
+            current: required_path("--current")?,
+            json,
         }),
         "verify" => Ok(Command::Verify {
             report: required_path("--report")?,
@@ -374,6 +386,35 @@ mod tests {
     fn group_verification_requires_a_membership_source() {
         let err = parse_str(&format!("verify-group --report g.json --key {KEY}")).unwrap_err();
         assert!(err.to_string().contains("--membership"), "got {err}");
+    }
+
+    #[test]
+    fn parses_a_manifest_diff() {
+        assert_eq!(
+            parse_str("manifest-diff --previous a.json --current b.json --json").unwrap(),
+            Command::ManifestDiff {
+                previous: PathBuf::from("a.json"),
+                current: PathBuf::from("b.json"),
+                json: true,
+            }
+        );
+    }
+
+    /// Comparing a report with itself is a usage error, not an empty diff.
+    #[test]
+    fn a_manifest_diff_needs_both_reports() {
+        for missing in ["--previous a.json", "--current b.json"] {
+            let full = "manifest-diff --previous a.json --current b.json";
+            let err = parse_str(&full.replace(missing, "")).unwrap_err();
+            let flag = missing.split_whitespace().next().unwrap();
+            assert!(err.to_string().contains(flag), "got {err}");
+        }
+    }
+
+    /// A diff reads no commitments, so demanding a key would be theatre.
+    #[test]
+    fn a_manifest_diff_does_not_require_a_key() {
+        assert!(parse_str("manifest-diff --previous a.json --current b.json").is_ok());
     }
 
     #[test]

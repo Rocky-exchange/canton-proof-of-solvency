@@ -146,6 +146,30 @@ export async function verifyFromText(
     },
   ];
 
+  // The manifest is signed and consistency-checked, but nothing in it is
+  // recomputed from the commitment, so it is reported as the publisher's
+  // statement rather than as something this browser derived.
+  const manifest = report.manifest;
+  if (manifest) {
+    const byState = (want: string): string =>
+      Object.keys(manifest.fields)
+        .filter((path) => manifest.fields[path] === want)
+        .sort()
+        .join(", ") || "(none)";
+    facts.push(
+      {
+        label: "Withheld from this audience",
+        value: byState("withheld"),
+        provenance: "disclosed",
+      },
+      {
+        label: "Proven but not shown",
+        value: byState("committed"),
+        provenance: "disclosed",
+      }
+    );
+  }
+
   if (groupSigned && membership) {
     // Proven only when the chain verified; otherwise these are unchecked
     // claims and must not be dressed up as recomputed.

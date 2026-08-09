@@ -4,6 +4,7 @@
 //! `main` only maps a [`run::Summary`] onto stdout and an exit code.
 
 pub mod args;
+pub mod diff;
 pub mod output;
 pub mod run;
 
