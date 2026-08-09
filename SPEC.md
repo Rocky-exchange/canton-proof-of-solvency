@@ -110,3 +110,169 @@ mark prices used for any unrealized-PnL folding, per-asset liability totals
 (= root sums), custody asset totals, insurance/bad-debt disclosures, and the
 count of excluded house accounts. See the reference deployment's methodology
 page for a complete example.
+
+Sections 8–10 make the transport of those obligations normative. Custody asset
+totals are not yet covered — they arrive with the coverage report (§11).
+
+## 8. Report envelope
+
+A report is the published statement about one snapshot. Amounts are the §1
+canonical form; hashes are lowercase hex.
+
+### 8.1 Digest primitives
+
+Every variable-length field enters a preimage length-prefixed:
+
+```
+lp(s)    = u64le(byte_length(utf8(s))) ‖ utf8(s)
+lpmap(m) = u64le(entry_count) ‖ (lp(asset) ‖ lp(canonical_amount))*   assets bytewise
+```
+
+The delimiter join of §2 is **not** reused here. Asset names and party
+identifiers are attacker-influenced in the general case, and a join is
+ambiguous under adversarial input: an asset literally named `A|B:0.000…001`
+would otherwise be indistinguishable from two entries. Length prefixes remove
+that class of forgery.
+
+### 8.2 Digest
+
+```
+report_digest = SHA-256( "rocky-solvency-report-v1"
+                       ‖ lp(format_version) ‖ lp(profile) ‖ lp(publisher)
+                       ‖ lp(snapshot_time)  ‖ lp(ledger_offset) ‖ lp(root_hash)
+                       ‖ u64le(leaf_count)
+                       ‖ lpmap(root_sums) ‖ lpmap(mark_prices)
+                       ‖ lpmap(bad_debt)
+                       ‖ u64le(excluded_house_accounts)
+                       ‖ lpmap(excluded_house_totals) )
+```
+
+The digest is computed over these fields, **not** over the JSON encoding, so a
+document may be reformatted, re-indented, or re-serialized without
+invalidating its signature. Because only named fields enter the preimage,
+implementations **MUST** reject unknown fields — otherwise an unsigned field
+could ride along inside a signed document.
+
+### 8.3 Fields
+
+| Field | Type | Notes |
+|---|---|---|
+| `format_version` | string | `canton-solvency-report-v1` |
+| `profile` | string | Disclosure profile; `solvency.liabilities` in v1 |
+| `publisher` | string | Canton party identifier of the publishing institution |
+| `snapshot_time` | string | RFC 3339 UTC, `Z` suffix, second precision |
+| `ledger_offset` | string | **Opaque.** Participant offset pinning the snapshot; not assumed numeric |
+| `root_hash` | hex(32) | §4 root |
+| `leaf_count` | uint64 | Number of committed leaves |
+| `root_sums` | amount map | The published liability totals (§4) |
+| `mark_prices` | amount map | Prices used for any unrealized-PnL folding |
+| `disclosures.bad_debt` | amount map | Clamped negative equity (§1), surfaced not netted |
+| `disclosures.excluded_house_accounts` | uint64 | |
+| `disclosures.excluded_house_totals` | amount map | |
+
+### 8.4 Signature
+
+An Ed25519 detached signature over the 32 raw digest bytes:
+
+```json
+"signature": { "algorithm": "ed25519", "public_key": "<hex(32)>", "value": "<hex(64)>" }
+```
+
+Ed25519 is deterministic, so a given key and report always yield the same
+signature — which is what lets §10 pin exact bytes.
+
+> **The embedded `public_key` is display metadata, not identity.** A verifier
+> **MUST** take the trusted key as an input obtained out of band and compare
+> it; a signature that certifies itself proves only internal consistency. How
+> a publisher's key is distributed, rotated, and revoked is **not solved by
+> this version.** Fetching the key from the same server that served the report
+> gains nothing. The intended answer is to bind the key on-ledger with the
+> anchor (§12); until then, deployments must document their own key
+> distribution.
+
+JSON Schema: [`schemas/report-v1.schema.json`](schemas/report-v1.schema.json).
+
+## 9. Proof document
+
+Carries one user's leaf preimage and sibling path (§5), bound to a report.
+
+| Field | Type | Notes |
+|---|---|---|
+| `format_version` | string | `canton-solvency-proof-v1` |
+| `report_digest` | hex(32) | §8.2 digest of the report this proof belongs to |
+| `leaf.salt` | hex(32) | §3 derived salt |
+| `leaf.user_id` | string | |
+| `leaf.balances` | amount map | |
+| `steps[].sibling_hash` | hex(32) | |
+| `steps[].sibling_sums` | amount map | |
+| `steps[].sibling_on_left` | bool | |
+
+`report_digest` is what stops a stale proof being replayed: without it, a proof
+issued for yesterday's report verifies against today's whenever the user's
+balance is unchanged, and a venue could stop committing a user while their old
+proof still appeared to pass.
+
+### 9.1 Verification
+
+A conforming verifier performs all of the following and fails on the first
+that does not hold:
+
+1. `report.format_version`, `proof.format_version`, and `signature.algorithm`
+   are recognised.
+2. The recomputed §8.2 digest equals `proof.report_digest`.
+3. `signature.public_key` equals the caller-supplied trusted key, and the
+   signature verifies over the digest.
+4. The leaf hash is recomputed from the disclosed preimage (§3).
+5. The path is folded (§4), and **both** the resulting hash equals
+   `report.root_hash` **and** the resulting per-asset sums equal
+   `report.root_sums`.
+
+Step 5 comparing sums is not redundant. A publisher can commit a truthful tree
+and still print understated totals in the report; only an independent
+comparison of the folded sums against the published ones detects it.
+
+Absent and zero are the same claim: an asset missing from one side and zero on
+the other is not a mismatch.
+
+JSON Schema: [`schemas/proof-v1.schema.json`](schemas/proof-v1.schema.json).
+
+## 10. Golden vectors (report and proof)
+
+Extends the §6 fixture — same three users, master salt `golden-v1` — with
+report metadata and a fixed signing seed of **32 bytes of `0x01`**.
+
+```
+profile         = solvency.liabilities
+publisher       = golden::publisher
+snapshot_time   = 2026-01-01T00:00:00Z
+ledger_offset   = 000000000000000042
+mark_prices     = CBTC: 50000
+bad_debt        = USDA: 2.5
+excluded_house_accounts = 1
+excluded_house_totals   = USDA: 1000
+```
+
+Expected values (hex):
+
+```
+public_key     = 8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c
+report_digest  = 0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61
+signature      = b1bf2a1fc11476610e385e5017cf7a568b13a0c84088b66ecf58ffa04b78499a
+                 da7ff8ebf3c2ee7ec0d10d7130cdc868a8074ff51725252631c67f61ce575a07
+root_hash      = 02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970  (unchanged from §6)
+```
+
+`root_hash` is identical to the §6 vector: the envelope composes on top of
+wire format v1 rather than altering it.
+
+The complete documents are checked in as
+[`fixtures/report.golden.json`](fixtures/report.golden.json) and
+[`fixtures/proof.golden.json`](fixtures/proof.golden.json) — the proof is for
+the second user, exercising a two-step path whose first sibling is on the
+left. Both reference implementations assert these files byte for byte, and
+regenerate them with `cargo run --example print_golden`.
+
+## 11–13. Reserved
+
+`§11` coverage reports, `§12` on-ledger anchoring, and `§13` disclosure
+profiles are reserved for the milestones of the same name; see the README.
