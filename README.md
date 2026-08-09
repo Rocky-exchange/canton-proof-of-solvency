@@ -304,6 +304,7 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 | Example | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → root, totals, verified proof |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | Signed report + proof documents (Rust) |
 | Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema |
+| Offline verifier | [`offline/verifier.html`](offline/verifier.html) | Self-contained page, no build step, no network |
 | `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | Auditor CLI, batch verification |
 
@@ -385,6 +386,14 @@ report digest : 1a10a9f2748eddebe1a684106da043c165e6ba0ed01ad131d01dd646396a3987
 FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
 2 of 3 proofs verified — FAILED
 ```
+
+Or hand a non-technical user [`offline/verifier.html`](offline/verifier.html):
+a single 19 KiB file with no build step and no network calls. They save it,
+open it with their connection off, pick their report and proof, and every
+figure it shows is labelled **recomputed here** or **publisher says** — so the
+line between what was proven and what was merely asserted is impossible to
+miss. Rebuild it with `npm run build:offline`; CI fails if the checked-in copy
+drifts from the source.
 
 Embed verification in a web page:
 
@@ -604,6 +613,13 @@ Takes the publisher out of the verification path entirely.
   report against the key embedded in itself.
 - **JSON Schema** for the report and proof documents, in
   [`schemas/`](schemas), validated against the golden fixtures in CI.
+- **Standalone offline verifier** — [`offline/verifier.html`](offline/verifier.html),
+  one self-contained file with no build step and no network calls. It embeds
+  the same modules the test suite exercises rather than reimplementing them,
+  and labels every figure **recomputed here** or **publisher says**, so a
+  reader can see which values this browser proved and which the publisher
+  merely asserted. Tests fail if the checked-in page drifts from the source or
+  gains an external reference.
 
 **Still to come**
 
@@ -615,17 +631,14 @@ Takes the publisher out of the verification path entirely.
   emits yet.
 - Schemas for the coverage, manifest, and profile documents.
 - crates.io release and prebuilt binaries.
-- **Standalone browser verifier** — a single self-contained HTML file, no
-  build step and no network calls, that a user can save and run offline
-  against a downloaded proof; the venue's own page stops being part of the
-  trust path.
 - **Reference producer integration** — a documented snapshot → equity → tree →
   publish path with a sample dataset, alongside the live Rocky deployment.
 
 **Done when:** the CLI verifies the [SPEC.md](SPEC.md) §6 golden vectors and a
-production-shaped report (100k leaves) within a published time budget; the
-offline HTML page verifies a proof with networking disabled; and every example
-document in the repository is schema-validated in CI.
+production-shaped report (100k leaves) within a published time budget; every
+example document in the repository is schema-validated in CI; and the
+remaining verbs above exist. *The offline page and schema validation are
+already done; the timing budget on a 100k-leaf report is not yet measured.*
 
 ### Milestone 6 — Ecosystem Standardization
 
