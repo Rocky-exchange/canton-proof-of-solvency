@@ -1,0 +1,26 @@
+{
+  "report": {
+    "format_version": "canton-solvency-report-v1",
+    "profile": "collateral.repo",
+    "publisher": "golden::publisher",
+    "snapshot_time": "2026-01-01T00:00:00Z",
+    "ledger_offset": "000000000000000042",
+    "root_hash": "5c018ba640db02fdd645b6a1318d2fa71ed083813bb366dddd28e683d3b8d458",
+    "leaf_count": 3,
+    "root_sums": {
+      "collateral/USDA": "187.000000000000000000",
+      "exposure/USDA": "170.000000000000000000"
+    },
+    "mark_prices": {},
+    "disclosures": {
+      "bad_debt": {},
+      "excluded_house_accounts": 0,
+      "excluded_house_totals": {}
+    }
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "value": "6661dcdfc397612bf2985a9b8b1f2b20c428ab738a39cd3eacf1620354b713f6fea186bb0bbfa4457eccaaf5252d365e54c8290bfe83293ac933bef284765b08"
+  }
+}

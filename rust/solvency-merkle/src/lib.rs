@@ -60,7 +60,90 @@ pub fn canonical_balances(balances: &[(String, u128)]) -> Result<String> {
         .join("|"))
 }
 
+/// `u64le(len) ‖ utf8(s)`. Length prefixes keep a preimage unambiguous where
+/// a delimiter join cannot: an asset literally named `A|B:1` can imitate two
+/// entries in a joined encoding, and cannot here.
+pub fn lp(s: &str) -> Vec<u8> {
+    let mut out = (s.len() as u64).to_le_bytes().to_vec();
+    out.extend_from_slice(s.as_bytes());
+    out
+}
+
+/// `u64le(count) ‖ (lp(asset) ‖ lp(canonical_amount))*`, assets bytewise.
+pub fn lpmap(m: &BTreeMap<String, u128>) -> Vec<u8> {
+    let mut out = (m.len() as u64).to_le_bytes().to_vec();
+    for (asset, amount) in m {
+        out.extend(lp(asset));
+        out.extend(lp(&format_amount_18dp(*amount)));
+    }
+    out
+}
+
 const LEAF_DOMAIN: &[u8] = b"rocky-solvency-leaf-v1";
+const LEAF_DOMAIN_V2: &[u8] = b"rocky-solvency-leaf-v2";
+
+/// Map and asset names in a v2 leaf. Constrained because the §4 node hash
+/// still joins sums with `:` and `|`, so an unconstrained qualified key could
+/// forge a boundary. v1 has the same latent ambiguity and is left alone:
+/// fixing it there would change every node hash.
+fn is_safe_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+}
+
+/// Qualified key joining a map name to an asset: `collateral/USDA`.
+pub fn qualified(map_name: &str, asset: &str) -> String {
+    format!("{map_name}/{asset}")
+}
+
+/// H(domain ‖ salt ‖ H(subject_id) ‖ count ‖ (lp(map) ‖ lpmap(amounts))*)
+///
+/// A v2 leaf carries several named amount maps, so a statement can compare
+/// them — a repo leg's collateral against its exposure — where a v1 leaf
+/// could only carry balances.
+pub fn leaf_hash_v2(
+    salt: &[u8; 32],
+    subject_id: &str,
+    maps: &BTreeMap<String, BTreeMap<String, u128>>,
+) -> Result<[u8; 32]> {
+    for (map_name, amounts) in maps {
+        ensure!(is_safe_name(map_name), "unsafe map name {map_name:?}");
+        for asset in amounts.keys() {
+            ensure!(is_safe_name(asset), "unsafe asset name {asset:?}");
+        }
+    }
+
+    let mut h = Sha256::new();
+    h.update(LEAF_DOMAIN_V2);
+    h.update(salt);
+    h.update(Sha256::digest(subject_id.as_bytes()));
+    h.update((maps.len() as u64).to_le_bytes());
+    for (map_name, amounts) in maps {
+        h.update(lp(map_name));
+        h.update(lpmap(amounts));
+    }
+    Ok(h.finalize().into())
+}
+
+/// A v2 leaf node. Its sums are every map flattened under qualified keys, so
+/// the root publishes a total per map per asset and a statement comparing two
+/// maps is checkable at the root rather than only per leaf.
+pub fn leaf_node_v2(
+    salt: &[u8; 32],
+    subject_id: &str,
+    maps: &BTreeMap<String, BTreeMap<String, u128>>,
+) -> Result<Node> {
+    let hash = leaf_hash_v2(salt, subject_id, maps)?;
+    let mut sums = BTreeMap::new();
+    for (map_name, amounts) in maps {
+        for (asset, amount) in amounts {
+            sums.insert(qualified(map_name, asset), *amount);
+        }
+    }
+    Ok(Node { hash, sums })
+}
 
 /// Per-user salt the server can re-derive on demand: HMAC(master, user_id).
 /// The master salt rotates per snapshot day and never leaves the server;
@@ -369,6 +452,133 @@ mod tests {
     fn prove_rejects_out_of_range_index() {
         let tree = SumTree::build(five_leaves()).unwrap();
         assert!(tree.prove(5).is_err());
+    }
+}
+
+#[cfg(test)]
+mod leaf_v2 {
+    use super::*;
+
+    fn maps(entries: &[(&str, &[(&str, u128)])]) -> BTreeMap<String, BTreeMap<String, u128>> {
+        entries
+            .iter()
+            .map(|(name, amounts)| {
+                (
+                    name.to_string(),
+                    amounts.iter().map(|(a, v)| (a.to_string(), *v)).collect(),
+                )
+            })
+            .collect()
+    }
+
+    fn repo_leg() -> BTreeMap<String, BTreeMap<String, u128>> {
+        maps(&[
+            ("collateral", &[("USDA", 110 * SCALE)]),
+            ("exposure", &[("USDA", 100 * SCALE)]),
+        ])
+    }
+
+    const SALT: [u8; 32] = [9u8; 32];
+
+    #[test]
+    fn a_v2_leaf_sums_every_map_under_a_qualified_key() {
+        let node = leaf_node_v2(&SALT, "trade-1", &repo_leg()).unwrap();
+        assert_eq!(node.sums["collateral/USDA"], 110 * SCALE);
+        assert_eq!(node.sums["exposure/USDA"], 100 * SCALE);
+        assert_eq!(node.sums.len(), 2);
+    }
+
+    #[test]
+    fn the_hash_is_deterministic_and_independent_of_insertion_order() {
+        let a = leaf_hash_v2(&SALT, "trade-1", &repo_leg()).unwrap();
+        let reordered = maps(&[
+            ("exposure", &[("USDA", 100 * SCALE)]),
+            ("collateral", &[("USDA", 110 * SCALE)]),
+        ]);
+        assert_eq!(a, leaf_hash_v2(&SALT, "trade-1", &reordered).unwrap());
+    }
+
+    #[test]
+    fn the_hash_changes_with_salt_subject_map_name_asset_or_amount() {
+        let base = leaf_hash_v2(&SALT, "trade-1", &repo_leg()).unwrap();
+        assert_ne!(
+            base,
+            leaf_hash_v2(&[8u8; 32], "trade-1", &repo_leg()).unwrap()
+        );
+        assert_ne!(base, leaf_hash_v2(&SALT, "trade-2", &repo_leg()).unwrap());
+
+        let renamed = maps(&[
+            ("collateral", &[("USDA", 110 * SCALE)]),
+            ("margin", &[("USDA", 100 * SCALE)]),
+        ]);
+        assert_ne!(base, leaf_hash_v2(&SALT, "trade-1", &renamed).unwrap());
+
+        let other_asset = maps(&[
+            ("collateral", &[("CBTC", 110 * SCALE)]),
+            ("exposure", &[("USDA", 100 * SCALE)]),
+        ]);
+        assert_ne!(base, leaf_hash_v2(&SALT, "trade-1", &other_asset).unwrap());
+
+        let other_amount = maps(&[
+            ("collateral", &[("USDA", 111 * SCALE)]),
+            ("exposure", &[("USDA", 100 * SCALE)]),
+        ]);
+        assert_ne!(base, leaf_hash_v2(&SALT, "trade-1", &other_amount).unwrap());
+    }
+
+    /// Domain separation: a v1 and a v2 leaf over the same single map must
+    /// not collide, or a v2 leaf could be presented as a v1 one.
+    #[test]
+    fn a_v1_and_a_v2_leaf_over_the_same_data_hash_differently() {
+        let single = maps(&[("balances", &[("USDA", 5 * SCALE)])]);
+        let v2 = leaf_hash_v2(&SALT, "u1", &single).unwrap();
+        let v1 = leaf_hash(&SALT, "u1", &[("USDA".to_string(), 5 * SCALE)]).unwrap();
+        assert_ne!(v1, v2);
+    }
+
+    /// The forgery the character restriction exists to stop: a qualified key
+    /// must not be able to imitate a second entry in the node join.
+    #[test]
+    fn names_that_could_forge_a_node_boundary_are_rejected() {
+        for bad in ["x|collateral/USDA", "a:b", "with/slash", "", "sp ace"] {
+            let m = maps(&[("collateral", &[(bad, 1)])]);
+            assert!(
+                leaf_hash_v2(&SALT, "t", &m).is_err(),
+                "asset {bad:?} should be rejected"
+            );
+            let m2 = maps(&[(bad, &[("USDA", 1)])]);
+            assert!(
+                leaf_hash_v2(&SALT, "t", &m2).is_err(),
+                "map name {bad:?} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_names_are_accepted() {
+        for good in ["USDA", "C-BTC", "fund.nav", "a_b", "X1"] {
+            let m = maps(&[("collateral", &[(good, 1)])]);
+            assert!(leaf_hash_v2(&SALT, "t", &m).is_ok(), "{good:?} rejected");
+        }
+    }
+
+    #[test]
+    fn v2_leaves_build_a_tree_whose_root_totals_each_map() {
+        let leaves: Vec<Node> = (1..=3)
+            .map(|i| {
+                let m = maps(&[
+                    ("collateral", &[("USDA", i * 10 * SCALE)]),
+                    ("exposure", &[("USDA", i * SCALE)]),
+                ]);
+                leaf_node_v2(&SALT, &format!("trade-{i}"), &m).unwrap()
+            })
+            .collect();
+        let tree = SumTree::build(leaves.clone()).unwrap();
+        assert_eq!(tree.root().sums["collateral/USDA"], 60 * SCALE);
+        assert_eq!(tree.root().sums["exposure/USDA"], 6 * SCALE);
+        for (i, leaf) in leaves.iter().enumerate() {
+            assert!(verify_proof(leaf, &tree.prove(i).unwrap(), tree.root()));
+        }
     }
 }
 

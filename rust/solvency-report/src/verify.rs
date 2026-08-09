@@ -153,6 +153,41 @@ pub fn verify(
     )
 }
 
+/// Verifies a v2 inclusion proof (SPEC §9.2) against a signed report whose
+/// profile commits to v2 leaves.
+pub fn verify_v2(
+    signed: &SignedReport,
+    proof: &crate::document::ProofDocumentV2,
+    trusted_public_key_hex: &str,
+) -> Result<(), VerificationFailure> {
+    let report = &signed.report;
+    check_report_version_and_manifest(report)?;
+    expect_leaf_kind(report, crate::profile::LeafKind::RepoLeg)?;
+    expect_version(
+        "proof.format_version",
+        &proof.format_version,
+        crate::document::PROOF_FORMAT_VERSION_V2,
+    )?;
+    expect_version(
+        "signature.algorithm",
+        &signed.signature.algorithm,
+        SIGNATURE_ALGORITHM,
+    )?;
+
+    let salt = hash32(&proof.leaf.salt, "leaf salt")?;
+    let leaf =
+        canton_solvency_merkle::leaf_node_v2(&salt, &proof.leaf.subject_id, &proof.leaf.maps)
+            .map_err(|e| F::Malformed(e.to_string()))?;
+
+    verify_against_report(
+        signed,
+        leaf,
+        &proof.steps,
+        &proof.report_digest,
+        trusted_public_key_hex,
+    )
+}
+
 /// Validates the declared profile and requires the tree's leaves to be what
 /// the caller is about to present a proof for.
 pub(crate) fn expect_leaf_kind(
@@ -571,9 +606,7 @@ mod tests {
 
     #[test]
     fn an_unregistered_profile_is_rejected() {
-        let pubn = restate(publication(5), |r| {
-            r.profile = "collateral.repo".to_string()
-        });
+        let pubn = restate(publication(5), |r| r.profile = "settlement.dvp".to_string());
         match check(&pubn, 0) {
             Err(VerificationFailure::Profile { detail }) => {
                 assert!(detail.contains("registry"), "got {detail}");
@@ -640,6 +673,143 @@ mod tests {
         let pubn = publication(1);
         assert!(pubn.proofs[0].steps.is_empty());
         assert_eq!(check(&pubn, 0), Ok(()));
+    }
+
+    /// Leaf v2 and the first profile a v1 leaf could not express.
+    mod repo {
+        use super::*;
+        use crate::produce::{publish_v2, LeafInputV2, PublicationV2};
+        use std::collections::BTreeMap;
+
+        fn maps(collateral: u128, exposure: u128) -> BTreeMap<String, BTreeMap<String, u128>> {
+            [("collateral", collateral), ("exposure", exposure)]
+                .into_iter()
+                .map(|(name, v)| {
+                    (
+                        name.to_string(),
+                        [("USDA".to_string(), v)].into_iter().collect(),
+                    )
+                })
+                .collect()
+        }
+
+        fn repo_meta() -> ReportMetadata {
+            ReportMetadata {
+                profile: "collateral.repo".to_string(),
+                ..metadata()
+            }
+        }
+
+        fn publish_legs(legs: &[(u128, u128)]) -> PublicationV2 {
+            let leaves: Vec<LeafInputV2> = legs
+                .iter()
+                .enumerate()
+                .map(|(i, (c, e))| LeafInputV2 {
+                    salt: [i as u8; 32],
+                    subject_id: format!("trade-{i}"),
+                    maps: maps(*c, *e),
+                })
+                .collect();
+            publish_v2(&leaves, &repo_meta(), &signer()).unwrap()
+        }
+
+        fn check(p: &PublicationV2, i: usize) -> Result<(), VerificationFailure> {
+            verify_v2(&p.signed_report, &p.proofs[i], &signer().public_key_hex())
+        }
+
+        #[test]
+        fn every_leg_verifies_and_the_root_totals_both_maps() {
+            let p = publish_legs(&[(110, 100), (220, 200), (330, 300)]);
+            assert_eq!(p.signed_report.report.root_sums["collateral/USDA"], 660);
+            assert_eq!(p.signed_report.report.root_sums["exposure/USDA"], 600);
+            for i in 0..3 {
+                assert_eq!(check(&p, i), Ok(()), "leg {i}");
+            }
+        }
+
+        /// The whole point of the profile: an under-collateralised book is
+        /// rejected at the root, not merely visible to someone who adds it up.
+        #[test]
+        fn an_under_collateralised_book_is_rejected() {
+            let p = publish_legs(&[(50, 100)]);
+            match check(&p, 0) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("does not cover"), "got {detail}")
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn a_tampered_leg_no_longer_folds_to_the_root() {
+            let mut p = publish_legs(&[(110, 100), (220, 200)]);
+            p.proofs[0]
+                .leaf
+                .maps
+                .get_mut("collateral")
+                .unwrap()
+                .insert("USDA".to_string(), 999);
+            assert_eq!(check(&p, 0), Err(VerificationFailure::RootHashMismatch));
+        }
+
+        /// A v1 proof does not belong to a tree of repo legs, and the failure
+        /// should say so rather than surface as a hash mismatch.
+        #[test]
+        fn a_v1_proof_is_refused_against_a_repo_report() {
+            let repo = publish_legs(&[(110, 100)]);
+            let customer = publication(2);
+            match verify(
+                &repo.signed_report,
+                &customer.proofs[0],
+                &signer().public_key_hex(),
+            ) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("RepoLeg"), "got {detail}")
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn a_v2_proof_is_refused_against_a_customer_report() {
+            let repo = publish_legs(&[(110, 100)]);
+            let customer = publication(2);
+            match verify_v2(
+                &customer.signed_report,
+                &repo.proofs[0],
+                &signer().public_key_hex(),
+            ) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("Customer"), "got {detail}")
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
+        }
+
+        #[test]
+        fn v2_proof_documents_round_trip_through_json() {
+            let p = publish_legs(&[(110, 100)]);
+            let text = serde_json::to_string(&p.proofs[0]).unwrap();
+            let back: crate::document::ProofDocumentV2 = serde_json::from_str(&text).unwrap();
+            assert_eq!(back, p.proofs[0]);
+        }
+
+        #[test]
+        fn an_unsafe_asset_name_is_refused_at_publication() {
+            let leaves = vec![LeafInputV2 {
+                salt: [0u8; 32],
+                subject_id: "t".to_string(),
+                maps: [(
+                    "collateral".to_string(),
+                    [("x|exposure/USDA".to_string(), 1u128)]
+                        .into_iter()
+                        .collect(),
+                )]
+                .into_iter()
+                .collect(),
+            }];
+            assert!(publish_v2(&leaves, &repo_meta(), &signer()).is_err());
+        }
     }
 
     mod v2 {

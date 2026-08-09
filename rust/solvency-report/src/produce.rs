@@ -19,6 +19,14 @@ pub struct LeafInput {
     pub balances: BTreeMap<String, u128>,
 }
 
+/// One subject's committed position under a v2 leaf (SPEC §3.1).
+#[derive(Clone, Debug)]
+pub struct LeafInputV2 {
+    pub salt: [u8; 32],
+    pub subject_id: String,
+    pub maps: BTreeMap<String, BTreeMap<String, u128>>,
+}
+
 /// Everything about a report that the tree does not determine.
 #[derive(Clone, Debug)]
 pub struct ReportMetadata {
@@ -105,6 +113,87 @@ pub fn publish(
         .collect::<Result<Vec<_>>>()?;
 
     Ok(Publication {
+        signed_report: SignedReport {
+            signature: SignatureBlock {
+                algorithm: SIGNATURE_ALGORITHM.to_string(),
+                public_key: signer.public_key_hex(),
+                value: signer.sign_digest(&digest),
+            },
+            report,
+        },
+        proofs,
+    })
+}
+
+/// A signed report over v2 leaves, and the per-subject proofs.
+#[derive(Clone, Debug)]
+pub struct PublicationV2 {
+    pub signed_report: SignedReport,
+    pub proofs: Vec<crate::document::ProofDocumentV2>,
+}
+
+pub fn publish_v2(
+    leaves: &[LeafInputV2],
+    meta: &ReportMetadata,
+    signer: &ReportSigner,
+) -> Result<PublicationV2> {
+    use crate::document::{LeafPreimageV2, ProofDocumentV2, PROOF_FORMAT_VERSION_V2};
+    anyhow::ensure!(!leaves.is_empty(), "cannot publish a report with no leaves");
+
+    let nodes: Vec<Node> = leaves
+        .iter()
+        .map(|l| canton_solvency_merkle::leaf_node_v2(&l.salt, &l.subject_id, &l.maps))
+        .collect::<Result<_>>()?;
+    let tree = SumTree::build(nodes)?;
+
+    let report = Report {
+        format_version: if meta.manifest.is_some() {
+            crate::document::REPORT_FORMAT_VERSION_V2.to_string()
+        } else {
+            REPORT_FORMAT_VERSION.to_string()
+        },
+        profile: meta.profile.clone(),
+        publisher: meta.publisher.clone(),
+        snapshot_time: meta.snapshot_time.clone(),
+        ledger_offset: meta.ledger_offset.clone(),
+        root_hash: hex::encode(tree.root().hash),
+        leaf_count: leaves.len() as u64,
+        root_sums: tree.root().sums.clone(),
+        mark_prices: meta.mark_prices.clone(),
+        disclosures: meta.disclosures.clone(),
+        manifest: meta.manifest.clone(),
+    };
+
+    let digest = report_digest(&report);
+    let digest_hex = hex::encode(digest);
+
+    let proofs = leaves
+        .iter()
+        .enumerate()
+        .map(|(i, leaf)| {
+            let proof = tree.prove(i)?;
+            Ok(ProofDocumentV2 {
+                format_version: PROOF_FORMAT_VERSION_V2.to_string(),
+                report_digest: digest_hex.clone(),
+                leaf: LeafPreimageV2 {
+                    salt: hex::encode(leaf.salt),
+                    subject_id: leaf.subject_id.clone(),
+                    maps: leaf.maps.clone(),
+                },
+                steps: proof
+                    .steps
+                    .iter()
+                    .map(|step| ProofStepDocument {
+                        sibling_hash: hex::encode(step.sibling.hash),
+                        sibling_sums: step.sibling.sums.clone(),
+                        sibling_on_left: step.sibling_on_left,
+                    })
+                    .collect(),
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(PublicationV2 {
         signed_report: SignedReport {
             signature: SignatureBlock {
                 algorithm: SIGNATURE_ALGORITHM.to_string(),

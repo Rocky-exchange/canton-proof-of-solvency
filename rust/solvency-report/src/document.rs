@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 pub const REPORT_FORMAT_VERSION: &str = "canton-solvency-report-v1";
 pub const REPORT_FORMAT_VERSION_V2: &str = "canton-solvency-report-v2";
 pub const PROOF_FORMAT_VERSION: &str = "canton-solvency-proof-v1";
+pub const PROOF_FORMAT_VERSION_V2: &str = "canton-solvency-proof-v2";
 pub const SIGNATURE_ALGORITHM: &str = "ed25519";
 
 /// serde codec mapping decimal strings to/from 18dp fixed point.
@@ -108,6 +109,54 @@ pub struct ProofStepDocument {
     #[serde(with = "amount_map")]
     pub sibling_sums: BTreeMap<String, u128>,
     pub sibling_on_left: bool,
+}
+
+/// A v2 leaf preimage: several named amount maps rather than one balance
+/// set. `subject_id` rather than `user_id` because a leaf is no longer
+/// necessarily a customer — for `collateral.repo` it is a trade leg.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LeafPreimageV2 {
+    pub salt: String,
+    pub subject_id: String,
+    #[serde(with = "amount_map_of_maps")]
+    pub maps: BTreeMap<String, BTreeMap<String, u128>>,
+}
+
+/// serde codec for `{map: {asset: amount}}`.
+mod amount_map_of_maps {
+    use super::amount_map;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::collections::BTreeMap;
+
+    #[derive(Serialize, Deserialize)]
+    struct Inner(#[serde(with = "amount_map")] BTreeMap<String, u128>);
+
+    pub fn serialize<S: Serializer>(
+        m: &BTreeMap<String, BTreeMap<String, u128>>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        let wrapped: BTreeMap<&String, Inner> =
+            m.iter().map(|(k, v)| (k, Inner(v.clone()))).collect();
+        wrapped.serialize(s)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<BTreeMap<String, BTreeMap<String, u128>>, D::Error> {
+        let raw = BTreeMap::<String, Inner>::deserialize(d)?;
+        Ok(raw.into_iter().map(|(k, Inner(v))| (k, v)).collect())
+    }
+}
+
+/// A v2 inclusion proof (SPEC §9.2).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProofDocumentV2 {
+    pub format_version: String,
+    pub report_digest: String,
+    pub leaf: LeafPreimageV2,
+    pub steps: Vec<ProofStepDocument>,
 }
 
 /// One user's inclusion proof, bound to the report it belongs to by

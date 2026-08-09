@@ -221,7 +221,13 @@
   var REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
   var PROFILE_REGISTRY = [
     { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
-    { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] }
+    { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
+    {
+      name: "collateral.repo",
+      leaf: "repoleg",
+      requiredAggregates: ["collateral/*", "exposure/*"],
+      coverage: { covering: "collateral", covered: "exposure" }
+    }
   ];
   function lookupProfile(name) {
     return PROFILE_REGISTRY.find((p) => p.name === name);
@@ -389,12 +395,26 @@
       return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
     }
     for (const aggregate of rules.requiredAggregates) {
-      const present = aggregate === "root_sums" ? Object.keys(report.root_sums).length > 0 : Object.keys(report.mark_prices).length > 0;
+      const present = aggregate.endsWith("/*") ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? Object.keys(report.root_sums).length > 0 : Object.keys(report.mark_prices).length > 0;
       if (!present) {
         return fail({
           kind: "profile",
           detail: `profile ${rules.name}: ${aggregate} is required by this profile but the report carries none, so the statement would be vacuous`
         });
+      }
+    }
+    if (rules.coverage) {
+      const { covering, covered } = rules.coverage;
+      for (const [key, value] of Object.entries(report.root_sums)) {
+        if (!key.startsWith(`${covered}/`)) continue;
+        const asset = key.slice(covered.length + 1);
+        const held = report.root_sums[`${covering}/${asset}`];
+        if (parseAmount18dp(held ?? "0") < parseAmount18dp(value)) {
+          return fail({
+            kind: "profile",
+            detail: `profile ${rules.name}: ${covering} of ${formatAmount18dp(parseAmount18dp(held ?? "0"))} does not cover ${covered} of ${formatAmount18dp(parseAmount18dp(value))} for ${asset}`
+          });
+        }
       }
     }
     if (rules.leaf !== wanted) {
@@ -409,13 +429,26 @@
     const { report } = signed;
     const versionFailure = checkReportVersionAndManifest(report) ?? expectLeafKind(report, "customer") ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
     if (versionFailure) return versionFailure;
+    let leaf;
+    try {
+      leaf = {
+        hashHex: await leafHashHex(proof.leaf.salt, proof.leaf.user_id, proof.leaf.balances),
+        sums: parseSums(proof.leaf.balances)
+      };
+    } catch (e) {
+      return fail({ kind: "malformed", detail: String(e) });
+    }
+    return foldAgainstReport(signed, leaf, proof.steps, proof.report_digest, trustedPublicKeyHex);
+  }
+  async function foldAgainstReport(signed, leaf, steps, expectedDigest, trustedPublicKeyHex) {
+    const { report } = signed;
     let digest;
     try {
       digest = await reportDigestHex(report);
     } catch (e) {
       return fail({ kind: "malformed", detail: String(e) });
     }
-    if (digest !== proof.report_digest) return fail({ kind: "digest_mismatch" });
+    if (digest !== expectedDigest) return fail({ kind: "digest_mismatch" });
     if (signed.signature.public_key !== trustedPublicKeyHex) return fail({ kind: "unknown_signer" });
     let signatureValid;
     try {
@@ -425,13 +458,9 @@
       return fail({ kind: "malformed", detail: String(e) });
     }
     if (!signatureValid) return fail({ kind: "bad_signature" });
-    let current;
+    let current = leaf;
     try {
-      current = {
-        hashHex: await leafHashHex(proof.leaf.salt, proof.leaf.user_id, proof.leaf.balances),
-        sums: parseSums(proof.leaf.balances)
-      };
-      for (const step of proof.steps) {
+      for (const step of steps) {
         const sibling = {
           // Rejects a malformed sibling hash before it reaches the hasher.
           hashHex: bytesToHex2(hexToBytes2(step.sibling_hash)),

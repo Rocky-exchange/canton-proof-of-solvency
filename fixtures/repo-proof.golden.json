@@ -1,0 +1,34 @@
+{
+  "format_version": "canton-solvency-proof-v2",
+  "report_digest": "210c70446f6a5eae020fcabfce19f733b60b9d5fa804fa0323e5d855591b4501",
+  "leaf": {
+    "salt": "6c02d7408b67912a17c007389ddda29334d0daeaffa2b2d93539662e170e87c5",
+    "subject_id": "repo-leg-1",
+    "maps": {
+      "collateral": {
+        "USDA": "110.000000000000000000"
+      },
+      "exposure": {
+        "USDA": "100.000000000000000000"
+      }
+    }
+  },
+  "steps": [
+    {
+      "sibling_hash": "d8312dc4cc049a5e8c1650eeea48927946aa47e3048ae63bebb59a8d05175718",
+      "sibling_sums": {
+        "collateral/USDA": "55.000000000000000000",
+        "exposure/USDA": "50.000000000000000000"
+      },
+      "sibling_on_left": false
+    },
+    {
+      "sibling_hash": "e732117732a9e6da82748e4c7b80aec282144956ddb029d1469672ef05ec3c31",
+      "sibling_sums": {
+        "collateral/USDA": "22.000000000000000000",
+        "exposure/USDA": "20.000000000000000000"
+      },
+      "sibling_on_left": false
+    }
+  ]
+}

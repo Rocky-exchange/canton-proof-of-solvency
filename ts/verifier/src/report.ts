@@ -9,6 +9,7 @@
 
 import {
   combineNodes,
+  leafNodeV2,
   formatAmount18dp,
   leafHashHex,
   parseAmount18dp,
@@ -18,6 +19,7 @@ import {
 export const REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
 export const REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
 export const PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
+export const PROOF_FORMAT_VERSION_V2 = "canton-solvency-proof-v2";
 export const SIGNATURE_ALGORITHM = "ed25519";
 const REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
 const REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
@@ -27,12 +29,23 @@ export type Disclosure = "published" | "committed" | "withheld";
 export type Manifest = { audience: string; fields: Record<string, Disclosure> };
 
 /** SPEC §14: what a leaf of the committed tree stands for. */
-export type LeafKind = "customer" | "entity";
-export type ProfileRules = { name: string; leaf: LeafKind; requiredAggregates: string[] };
+export type LeafKind = "customer" | "entity" | "repoleg";
+export type ProfileRules = {
+  name: string;
+  leaf: LeafKind;
+  requiredAggregates: string[];
+  coverage?: { covering: string; covered: string };
+};
 
 export const PROFILE_REGISTRY: ProfileRules[] = [
   { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
   { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
+  {
+    name: "collateral.repo",
+    leaf: "repoleg",
+    requiredAggregates: ["collateral/*", "exposure/*"],
+    coverage: { covering: "collateral", covered: "exposure" },
+  },
 ];
 
 export function lookupProfile(name: string): ProfileRules | undefined {
@@ -75,6 +88,13 @@ export type Report = {
 export type SignedReport = {
   report: Report;
   signature: { algorithm: string; public_key: string; value: string };
+};
+
+export type ProofDocumentV2 = {
+  format_version: string;
+  report_digest: string;
+  leaf: { salt: string; subject_id: string; maps: Record<string, AmountMap> };
+  steps: { sibling_hash: string; sibling_sums: AmountMap; sibling_on_left: boolean }[];
 };
 
 export type ProofDocument = {
@@ -292,8 +312,9 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
     return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
   }
   for (const aggregate of rules.requiredAggregates) {
-    const present =
-      aggregate === "root_sums"
+    const present = aggregate.endsWith("/*")
+      ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1)))
+      : aggregate === "root_sums"
         ? Object.keys(report.root_sums).length > 0
         : Object.keys(report.mark_prices).length > 0;
     if (!present) {
@@ -303,6 +324,21 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
       });
     }
   }
+  if (rules.coverage) {
+    // Per asset: a surplus in one asset does not excuse a shortfall in another.
+    const { covering, covered } = rules.coverage;
+    for (const [key, value] of Object.entries(report.root_sums)) {
+      if (!key.startsWith(`${covered}/`)) continue;
+      const asset = key.slice(covered.length + 1);
+      const held = report.root_sums[`${covering}/${asset}`];
+      if (parseAmount18dp(held ?? "0") < parseAmount18dp(value)) {
+        return fail({
+          kind: "profile",
+          detail: `profile ${rules.name}: ${covering} of ${formatAmount18dp(parseAmount18dp(held ?? "0"))} does not cover ${covered} of ${formatAmount18dp(parseAmount18dp(value))} for ${asset}`,
+        });
+      }
+    }
+  }
   if (rules.leaf !== wanted) {
     return fail({
       kind: "profile",
@@ -310,6 +346,29 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
     });
   }
   return null;
+}
+
+/** Verifies a v2 inclusion proof (SPEC §9.2). */
+export async function verifyReportV2(
+  signed: SignedReport,
+  proof: ProofDocumentV2,
+  trustedPublicKeyHex: string
+): Promise<VerificationResult> {
+  const { report } = signed;
+  const failure =
+    checkReportVersionAndManifest(report) ??
+    expectLeafKind(report, "repoleg") ??
+    checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION_V2) ??
+    checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
+  if (failure) return failure;
+
+  let leaf: SolvencyNode;
+  try {
+    leaf = await leafNodeV2(proof.leaf.salt, proof.leaf.subject_id, proof.leaf.maps);
+  } catch (e) {
+    return fail({ kind: "malformed", detail: String(e) });
+  }
+  return foldAgainstReport(signed, leaf, proof.steps, proof.report_digest, trustedPublicKeyHex);
 }
 
 /** Recompute the leaf, fold the path, compare hash *and* per-asset totals. */
@@ -326,13 +385,37 @@ export async function verifyReport(
     checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
   if (versionFailure) return versionFailure;
 
+  let leaf: SolvencyNode;
+  try {
+    leaf = {
+      hashHex: await leafHashHex(proof.leaf.salt, proof.leaf.user_id, proof.leaf.balances),
+      sums: parseSums(proof.leaf.balances),
+    };
+  } catch (e) {
+    return fail({ kind: "malformed", detail: String(e) });
+  }
+  return foldAgainstReport(signed, leaf, proof.steps, proof.report_digest, trustedPublicKeyHex);
+}
+
+/**
+ * The tail shared by v1 and v2 proofs: bind to the report by digest, check the
+ * signature, fold the path, and compare the hash *and* the per-asset totals.
+ */
+async function foldAgainstReport(
+  signed: SignedReport,
+  leaf: SolvencyNode,
+  steps: { sibling_hash: string; sibling_sums: AmountMap; sibling_on_left: boolean }[],
+  expectedDigest: string,
+  trustedPublicKeyHex: string
+): Promise<VerificationResult> {
+  const { report } = signed;
   let digest: string;
   try {
     digest = await reportDigestHex(report);
   } catch (e) {
     return fail({ kind: "malformed", detail: String(e) });
   }
-  if (digest !== proof.report_digest) return fail({ kind: "digest_mismatch" });
+  if (digest !== expectedDigest) return fail({ kind: "digest_mismatch" });
 
   // The embedded public key is display metadata; trust comes from the caller.
   if (signed.signature.public_key !== trustedPublicKeyHex) return fail({ kind: "unknown_signer" });
@@ -346,13 +429,9 @@ export async function verifyReport(
   }
   if (!signatureValid) return fail({ kind: "bad_signature" });
 
-  let current: SolvencyNode;
+  let current = leaf;
   try {
-    current = {
-      hashHex: await leafHashHex(proof.leaf.salt, proof.leaf.user_id, proof.leaf.balances),
-      sums: parseSums(proof.leaf.balances),
-    };
-    for (const step of proof.steps) {
+    for (const step of steps) {
       const sibling: SolvencyNode = {
         // Rejects a malformed sibling hash before it reaches the hasher.
         hashHex: bytesToHex(hexToBytes(step.sibling_hash)),

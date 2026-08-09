@@ -106,6 +106,46 @@ pub fn fixture_v2() -> (SignedReport, ProofDocument) {
     (published.signed_report, proof)
 }
 
+/// The SPEC §3.1 repo fixture: three legs under leaf v2, each collateralised
+/// above its exposure.
+pub fn repo_fixture() -> (SignedReport, crate::document::ProofDocumentV2) {
+    use crate::produce::{publish_v2, LeafInputV2};
+    let leaves: Vec<LeafInputV2> = [
+        ("repo-leg-1", 110u128, 100u128),
+        ("repo-leg-2", 55, 50),
+        ("repo-leg-3", 22, 20),
+    ]
+    .into_iter()
+    .map(|(id, collateral, exposure)| LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, id),
+        subject_id: id.to_string(),
+        maps: [("collateral", collateral), ("exposure", exposure)]
+            .into_iter()
+            .map(|(name, v)| {
+                (
+                    name.to_string(),
+                    amounts(&[("USDA", v * 1_000_000_000_000_000_000)]),
+                )
+            })
+            .collect(),
+    })
+    .collect();
+
+    let published = publish_v2(
+        &leaves,
+        &ReportMetadata {
+            profile: "collateral.repo".to_string(),
+            mark_prices: BTreeMap::new(),
+            disclosures: Default::default(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+    let proof = published.proofs[0].clone();
+    (published.signed_report, proof)
+}
+
 /// The SPEC §13 group fixture: the §10 report as one entity, plus a second
 /// entity with fixed values, consolidated under one group report.
 pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) {
@@ -234,6 +274,58 @@ mod tests {
         let signed: SignedReport = serde_json::from_str(REPORT_V2_JSON).unwrap();
         let proof: ProofDocument = serde_json::from_str(PROOF_V2_JSON).unwrap();
         assert_eq!(verify(&signed, &proof, &signer().public_key_hex()), Ok(()));
+    }
+
+    const REPO_REPORT_JSON: &str = include_str!("../../../fixtures/repo-report.golden.json");
+    const REPO_PROOF_JSON: &str = include_str!("../../../fixtures/repo-proof.golden.json");
+
+    #[test]
+    fn golden_vectors_pin_the_repo_profile() {
+        let (signed, proof) = repo_fixture();
+        assert_eq!(signed.report.profile, "collateral.repo");
+        assert_eq!(
+            signed.report.root_hash,
+            "5c018ba640db02fdd645b6a1318d2fa71ed083813bb366dddd28e683d3b8d458"
+        );
+        assert_eq!(
+            proof.report_digest,
+            "210c70446f6a5eae020fcabfce19f733b60b9d5fa804fa0323e5d855591b4501"
+        );
+        // Coverage holds at the root, checkable by hand: 110+55+22 vs 100+50+20.
+        assert_eq!(
+            canton_solvency_merkle::format_amount_18dp(signed.report.root_sums["collateral/USDA"]),
+            "187.000000000000000000"
+        );
+        assert_eq!(
+            canton_solvency_merkle::format_amount_18dp(signed.report.root_sums["exposure/USDA"]),
+            "170.000000000000000000"
+        );
+    }
+
+    #[test]
+    fn repo_fixture_files_match_what_the_producer_emits() {
+        let (signed, proof) = repo_fixture();
+        assert_eq!(
+            serde_json::to_string_pretty(&signed).unwrap(),
+            REPO_REPORT_JSON.trim_end(),
+            "fixtures/repo-report.golden.json is stale"
+        );
+        assert_eq!(
+            serde_json::to_string_pretty(&proof).unwrap(),
+            REPO_PROOF_JSON.trim_end(),
+            "fixtures/repo-proof.golden.json is stale"
+        );
+    }
+
+    #[test]
+    fn the_repo_fixture_verifies_when_read_back_from_disk() {
+        let signed: SignedReport = serde_json::from_str(REPO_REPORT_JSON).unwrap();
+        let proof: crate::document::ProofDocumentV2 =
+            serde_json::from_str(REPO_PROOF_JSON).unwrap();
+        assert_eq!(
+            crate::verify::verify_v2(&signed, &proof, &signer().public_key_hex()),
+            Ok(())
+        );
     }
 
     const GROUP_REPORT_JSON: &str = include_str!("../../../fixtures/group-report.golden.json");

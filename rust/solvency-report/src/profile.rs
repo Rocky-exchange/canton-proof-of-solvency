@@ -18,6 +18,15 @@ pub enum LeafKind {
     Customer,
     /// One subsidiary's root, in a group tree (SPEC §13.1).
     Entity,
+    /// One open repo leg, carrying collateral and exposure (SPEC §3.1).
+    RepoLeg,
+}
+
+/// A profile rule requiring one map to cover another, per asset.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Coverage {
+    pub covering: &'static str,
+    pub covered: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,8 +35,13 @@ pub struct ProfileRules {
     /// What a verifier learns when a proof against this root succeeds.
     pub statement: &'static str,
     pub leaf: LeafKind,
-    /// Report fields that must carry data, or the statement is vacuous.
+    /// Report fields that must carry data, or the statement is vacuous. A
+    /// name ending in `/*` requires at least one qualified sum with that
+    /// prefix, as produced by a v2 leaf.
     pub required_aggregates: &'static [&'static str],
+    /// Enforced at the root: the covering map must be at least the covered
+    /// one for every asset.
+    pub coverage: Option<Coverage>,
 }
 
 pub const SOLVENCY_LIABILITIES: ProfileRules = ProfileRules {
@@ -35,6 +49,7 @@ pub const SOLVENCY_LIABILITIES: ProfileRules = ProfileRules {
     statement: "every customer balance is committed, and the root's totals are the liabilities",
     leaf: LeafKind::Customer,
     required_aggregates: &["root_sums"],
+    coverage: None,
 };
 
 pub const SOLVENCY_GROUP: ProfileRules = ProfileRules {
@@ -43,9 +58,24 @@ pub const SOLVENCY_GROUP: ProfileRules = ProfileRules {
         "every entity's root is committed, and the root's totals are the consolidated liabilities",
     leaf: LeafKind::Entity,
     required_aggregates: &["root_sums"],
+    coverage: None,
 };
 
-pub const REGISTRY: &[ProfileRules] = &[SOLVENCY_LIABILITIES, SOLVENCY_GROUP];
+/// The first profile a v1 leaf could not express: comparing two amount maps
+/// is the entire statement.
+pub const COLLATERAL_REPO: ProfileRules = ProfileRules {
+    name: "collateral.repo",
+    statement:
+        "every open repo leg is committed, and the root totals are aggregate collateral and exposure",
+    leaf: LeafKind::RepoLeg,
+    required_aggregates: &["collateral/*", "exposure/*"],
+    coverage: Some(Coverage {
+        covering: "collateral",
+        covered: "exposure",
+    }),
+};
+
+pub const REGISTRY: &[ProfileRules] = &[SOLVENCY_LIABILITIES, SOLVENCY_GROUP, COLLATERAL_REPO];
 
 pub fn lookup(name: &str) -> Option<&'static ProfileRules> {
     REGISTRY.iter().find(|rules| rules.name == name)
@@ -62,6 +92,10 @@ pub fn validate(report: &Report) -> Result<&'static ProfileRules, ProfileError> 
         let present = match *aggregate {
             "root_sums" => !report.root_sums.is_empty(),
             "mark_prices" => !report.mark_prices.is_empty(),
+            qualified if qualified.ends_with("/*") => {
+                let prefix = &qualified[..qualified.len() - 1];
+                report.root_sums.keys().any(|k| k.starts_with(prefix))
+            }
             other => {
                 return Err(ProfileError::Violation {
                     profile: rules.name.to_string(),
@@ -79,6 +113,30 @@ pub fn validate(report: &Report) -> Result<&'static ProfileRules, ProfileError> 
                      so the statement would be vacuous"
                 ),
             });
+        }
+    }
+    if let Some(Coverage { covering, covered }) = rules.coverage {
+        // Per asset: a surplus in one asset does not excuse a shortfall in
+        // another, which is the same rule the coverage report will use.
+        for (key, required) in &report.root_sums {
+            let Some(asset) = key.strip_prefix(&format!("{covered}/")) else {
+                continue;
+            };
+            let held = report
+                .root_sums
+                .get(&format!("{covering}/{asset}"))
+                .copied()
+                .unwrap_or(0);
+            if held < *required {
+                return Err(ProfileError::Violation {
+                    profile: rules.name.to_string(),
+                    detail: format!(
+                        "{covering} of {} does not cover {covered} of {} for {asset}",
+                        canton_solvency_merkle::format_amount_18dp(held),
+                        canton_solvency_merkle::format_amount_18dp(*required)
+                    ),
+                });
+            }
         }
     }
     Ok(rules)
@@ -99,7 +157,8 @@ mod tests {
     fn the_registry_resolves_known_profiles_and_rejects_others() {
         assert_eq!(lookup("solvency.liabilities"), Some(&SOLVENCY_LIABILITIES));
         assert_eq!(lookup("solvency.group"), Some(&SOLVENCY_GROUP));
-        assert_eq!(lookup("collateral.repo"), None);
+        assert_eq!(lookup("collateral.repo"), Some(&COLLATERAL_REPO));
+        assert_eq!(lookup("fund.nav"), None, "not yet designed");
         assert_eq!(lookup(""), None);
     }
 
@@ -131,13 +190,81 @@ mod tests {
     #[test]
     fn an_unregistered_profile_is_rejected_rather_than_waved_through() {
         let (mut signed, _) = golden::fixture();
-        signed.report.profile = "collateral.repo".to_string();
+        signed.report.profile = "settlement.dvp".to_string();
         assert_eq!(
             validate(&signed.report),
             Err(ProfileError::Unknown {
-                found: "collateral.repo".to_string()
+                found: "settlement.dvp".to_string()
             })
         );
+    }
+
+    fn repo_report(sums: &[(&str, u128)]) -> Report {
+        let (mut signed, _) = golden::fixture();
+        signed.report.profile = "collateral.repo".to_string();
+        signed.report.root_sums = sums.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        signed.report
+    }
+
+    #[test]
+    fn a_repo_report_covering_its_exposure_is_accepted() {
+        let report = repo_report(&[("collateral/USDA", 110), ("exposure/USDA", 100)]);
+        assert_eq!(validate(&report), Ok(&COLLATERAL_REPO));
+    }
+
+    #[test]
+    fn exactly_covering_the_exposure_is_enough() {
+        let report = repo_report(&[("collateral/USDA", 100), ("exposure/USDA", 100)]);
+        assert!(validate(&report).is_ok());
+    }
+
+    /// The statement the profile exists to make, checked rather than asserted.
+    #[test]
+    fn a_repo_report_short_of_its_exposure_is_rejected() {
+        let report = repo_report(&[("collateral/USDA", 99), ("exposure/USDA", 100)]);
+        match validate(&report) {
+            Err(ProfileError::Violation { detail, .. }) => {
+                assert!(detail.contains("does not cover"), "got {detail}");
+                assert!(detail.contains("USDA"), "got {detail}");
+            }
+            other => panic!("expected a violation, got {other:?}"),
+        }
+    }
+
+    /// A surplus in one asset must not excuse a shortfall in another.
+    #[test]
+    fn coverage_is_required_per_asset_not_in_aggregate() {
+        let report = repo_report(&[
+            ("collateral/USDA", 1_000),
+            ("exposure/USDA", 1),
+            ("collateral/CBTC", 1),
+            ("exposure/CBTC", 500),
+        ]);
+        match validate(&report) {
+            Err(ProfileError::Violation { detail, .. }) => {
+                assert!(detail.contains("CBTC"), "got {detail}")
+            }
+            other => panic!("expected a violation, got {other:?}"),
+        }
+    }
+
+    /// Exposure in an asset with no collateral at all is the worst case, and
+    /// an absent key must not read as "no requirement".
+    #[test]
+    fn exposure_with_no_collateral_entry_is_rejected() {
+        let report = repo_report(&[("collateral/USDA", 100), ("exposure/CBTC", 1)]);
+        assert!(validate(&report).is_err());
+    }
+
+    #[test]
+    fn a_repo_report_missing_a_required_map_is_rejected() {
+        let report = repo_report(&[("collateral/USDA", 100)]);
+        match validate(&report) {
+            Err(ProfileError::Violation { detail, .. }) => {
+                assert!(detail.contains("exposure"), "got {detail}")
+            }
+            other => panic!("expected a violation, got {other:?}"),
+        }
     }
 
     /// A liabilities report with no totals asserts nothing at all.

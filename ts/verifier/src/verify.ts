@@ -8,6 +8,7 @@
  */
 
 const LEAF_DOMAIN = "rocky-solvency-leaf-v1";
+const LEAF_DOMAIN_V2 = "rocky-solvency-leaf-v2";
 const NODE_DOMAIN = "rocky-solvency-node-v1";
 const SCALE = 10n ** 18n;
 const FRACTION_DIGITS = 18;
@@ -104,6 +105,86 @@ export async function leafHashHex(
     encoder.encode(canonicalBalances(balances))
   );
   return bytesToHex(digest);
+}
+
+/**
+ * v2 leaves carry several named amount maps, so a statement can compare them
+ * (SPEC §3.1). Names are restricted because the §4 node hash still joins sums
+ * with `:` and `|`, and an unconstrained qualified key could forge a boundary.
+ */
+const SAFE_NAME = /^[A-Za-z0-9._-]+$/;
+
+function u64le(n: number): Uint8Array {
+  const out = new Uint8Array(8);
+  new DataView(out.buffer).setBigUint64(0, BigInt(n), true);
+  return out;
+}
+
+function lpBytes(s: string): Uint8Array {
+  const bytes = encoder.encode(s);
+  const out = new Uint8Array(8 + bytes.length);
+  out.set(u64le(bytes.length));
+  out.set(bytes, 8);
+  return out;
+}
+
+function lpmapBytes(m: Record<string, string>): Uint8Array {
+  const assets = Object.keys(m).sort();
+  const parts: Uint8Array[] = [u64le(assets.length)];
+  for (const asset of assets) {
+    parts.push(lpBytes(asset), lpBytes(formatAmount18dp(parseAmount18dp(m[asset]))));
+  }
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let off = 0;
+  for (const p of parts) {
+    out.set(p, off);
+    off += p.length;
+  }
+  return out;
+}
+
+export function qualified(mapName: string, asset: string): string {
+  return `${mapName}/${asset}`;
+}
+
+/** H(domain ‖ salt ‖ H(subject) ‖ count ‖ (lp(map) ‖ lpmap(amounts))*) */
+export async function leafHashV2Hex(
+  saltHex: string,
+  subjectId: string,
+  maps: Record<string, Record<string, string>>
+): Promise<string> {
+  const names = Object.keys(maps).sort();
+  for (const name of names) {
+    if (!SAFE_NAME.test(name)) throw new Error(`unsafe map name: ${name}`);
+    for (const asset of Object.keys(maps[name])) {
+      if (!SAFE_NAME.test(asset)) throw new Error(`unsafe asset name: ${asset}`);
+    }
+  }
+  const parts: Uint8Array[] = [
+    encoder.encode(LEAF_DOMAIN_V2),
+    hexToBytes(saltHex),
+    await sha256(encoder.encode(subjectId)),
+    u64le(names.length),
+  ];
+  for (const name of names) {
+    parts.push(lpBytes(name), lpmapBytes(maps[name]));
+  }
+  return bytesToHex(await sha256(...parts));
+}
+
+/** A v2 leaf node: every map flattened under `<map>/<asset>` keys. */
+export async function leafNodeV2(
+  saltHex: string,
+  subjectId: string,
+  maps: Record<string, Record<string, string>>
+): Promise<SolvencyNode> {
+  const sums: Record<string, bigint> = {};
+  for (const [name, amounts] of Object.entries(maps)) {
+    for (const [asset, v] of Object.entries(amounts)) {
+      sums[qualified(name, asset)] = parseAmount18dp(v);
+    }
+  }
+  return { hashHex: await leafHashV2Hex(saltHex, subjectId, maps), sums };
 }
 
 function addSums(a: Record<string, bigint>, b: Record<string, bigint>): Record<string, bigint> {
