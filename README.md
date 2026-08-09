@@ -458,7 +458,7 @@ checkable by everyone else.
 | 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
 | 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted |
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
-| 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — not just exchanges |
+| 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
 | 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
@@ -545,7 +545,7 @@ family of statements institutions on Canton actually need to make.
 
 **Deliverables**
 
-- **Profile registry** (new SPEC §13) — each profile pins a leaf schema, the
+- **Profile registry** (new SPEC §14) — each profile pins a leaf schema, the
   statement its root asserts, the aggregates that must be published, and a
   default audience matrix. Profiles ship with golden vectors, like the core
   format.
@@ -556,9 +556,12 @@ family of statements institutions on Canton actually need to make.
 - **Disclosure manifest** — machine-readable per-field
   published / committed / withheld declaration, bound into the signed report
   and diffable between reports, so reducing disclosure is itself on the record.
-- **Hierarchical commitments** — entity roots as the leaves of a group tree, so
-  a subsidiary proves its subtree to its own regulator without exposing
-  siblings while the group root still sums to the consolidated total.
+- ~~**Hierarchical commitments**~~ — **delivered**, [SPEC.md](SPEC.md) §13.
+  Entity roots are the leaves of a group tree, so a subsidiary proves its
+  position to its own regulator without exposing siblings while the group root
+  still sums to the consolidated total. A customer can verify their own balance
+  all the way up to a group's consolidated liabilities. Needed no wire-format
+  break: a group tree is an ordinary §4 sum tree whose leaves are entities.
 - **Audience-scoped packaging** — one commitment, several packaged views, each
   carrying only what its audience is entitled to and all reducing to the same
   root.
@@ -654,7 +657,8 @@ Turns one implementation into something the network can rely on.
   interop shown in both directions: their reports verify under this toolkit,
   ours verify under theirs.
 - **Public specification v1.1** — SPEC.md extended with §11 coverage, §12
-  anchoring, and §13 profiles, frozen against the conformance suite.
+  anchoring, and §14 profiles (§13 hierarchy is already normative), frozen
+  against the conformance suite.
 - **Third-party security review** — external review of the commitment core,
   salt derivation, and verifier; findings and remediations published in-repo.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
