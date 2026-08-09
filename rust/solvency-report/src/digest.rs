@@ -51,6 +51,12 @@ pub fn lpmap(m: &BTreeMap<String, u128>) -> Vec<u8> {
     out
 }
 
+/// Hex rendering of [`report_digest`], the form that appears in proof
+/// documents and on the wire.
+pub fn report_digest_hex(report: &Report) -> String {
+    hex::encode(report_digest(report))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,6 +189,16 @@ mod tests {
         let mut b = sample();
         b.root_sums = map(&[("A", 1), ("B", 1)]);
         assert_ne!(report_digest(&a), report_digest(&b));
+    }
+
+    #[test]
+    fn report_digest_hex_is_the_lowercase_hex_of_the_digest() {
+        let report = sample();
+        assert_eq!(
+            report_digest_hex(&report),
+            hex::encode(report_digest(&report))
+        );
+        assert_eq!(report_digest_hex(&report).len(), 64);
     }
 
     #[test]

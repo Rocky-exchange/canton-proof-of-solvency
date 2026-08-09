@@ -305,7 +305,7 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | Signed report + proof documents (Rust) |
 | Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema |
 | `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
-| `canton-solvency-verify` | *planned — [M5](#milestone-5--independent-verification-toolkit)* | Auditor CLI, batch verification |
+| `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | Auditor CLI, batch verification |
 
 ## 🖥️ Disclosure Console
 
@@ -366,6 +366,24 @@ TypeScript — run the verifier against the same golden vectors:
 ```bash
 cd ts/verifier
 npm install && npm test
+```
+
+Verify a published report from the command line — no server, no network:
+
+```bash
+# Produce a signed report and per-user proofs from a CSV
+cargo run --manifest-path rust/solvency-report/Cargo.toml \
+  --example publish_report -- balances.csv my-master-salt ./out
+
+# Check every proof against it (exit 0 all verified, 1 a proof failed, 2 I/O)
+cargo run --manifest-path rust/solvency-cli/Cargo.toml -- \
+  verify --report ./out/report.json --proof-dir ./out --key <publisher-key-hex>
+```
+
+```text
+report digest : 1a10a9f2748eddebe1a684106da043c165e6ba0ed01ad131d01dd646396a3987
+FAILED ./out/proof-alice.json (alice): proof does not fold to the published root
+2 of 3 proofs verified — FAILED
 ```
 
 Embed verification in a web page:
@@ -433,7 +451,7 @@ checkable by everyone else.
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — not just exchanges |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
-| 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software |
+| 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
 | 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
 
 *Sequencing: 0 is a prerequisite for everything — 1, 2, 3 and 5 all read or
@@ -576,15 +594,27 @@ walkthrough is validated with participants who are not Canton engineers.
 
 Takes the publisher out of the verification path entirely.
 
-**Deliverables**
+**Delivered so far**
 
-- **`canton-solvency-verify` CLI** (crates.io + prebuilt binaries) — verify a
-  single proof, batch-verify a directory, recompute a root from a full leaf
-  dump, check a coverage report (M1), walk an anchor chain (M2), and validate a
-  disclosure manifest against its profile (M3), with CI-friendly exit codes.
-- **Machine-readable formats** — versioned JSON Schema for the report, proof,
-  coverage, manifest, and profile documents, so third-party tooling parses them
-  instead of reverse-engineering them.
+- **`canton-solvency-verify` CLI** — [`rust/solvency-cli`](rust/solvency-cli).
+  Verifies a single proof or sweeps a directory, prints a report digest, emits
+  `--json` for pipelines, and separates exit code `1` (a verification failed)
+  from `2` (usage or I/O), so a mistyped path is never mistaken for evidence of
+  insolvency. A trusted key is mandatory — there is no mode that checks a
+  report against the key embedded in itself.
+- **JSON Schema** for the report and proof documents, in
+  [`schemas/`](schemas), validated against the golden fixtures in CI.
+
+**Still to come**
+
+- CLI verbs for coverage reports (M1), anchor chains (M2), and disclosure
+  manifests (M3) — deliberately absent until those documents exist, because a
+  verifier that silently skips a check is worse than one that does not offer
+  it.
+- Recomputing a root from a full leaf dump — needs a dump format nothing
+  emits yet.
+- Schemas for the coverage, manifest, and profile documents.
+- crates.io release and prebuilt binaries.
 - **Standalone browser verifier** — a single self-contained HTML file, no
   build step and no network calls, that a user can save and run offline
   against a downloaded proof; the venue's own page stops being part of the

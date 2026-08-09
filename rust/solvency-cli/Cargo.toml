@@ -1,0 +1,25 @@
+[package]
+name = "canton-solvency-verify"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+description = "Offline CLI for verifying Canton proof-of-solvency reports and inclusion proofs"
+repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
+keywords = ["canton", "proof-of-solvency", "audit", "cli"]
+categories = ["command-line-utilities", "cryptography"]
+
+# Deliberately few dependencies: this is a tool whose users may need to read
+# its dependency tree before trusting it. Arguments are parsed by hand.
+[dependencies]
+canton-solvency-report = { path = "../solvency-report", version = "0.1.0" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[[bin]]
+name = "canton-solvency-verify"
+path = "src/main.rs"
