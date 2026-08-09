@@ -26,6 +26,13 @@ pub enum VerificationFailure {
     RootSumsMismatch {
         asset: String,
     },
+    /// A group membership describes a different root than the entity's own
+    /// report publishes — the two documents are not about the same book.
+    EntityRootMismatch,
+    /// Same, for the entity's totals.
+    EntitySumsMismatch {
+        asset: String,
+    },
     Malformed(String),
 }
 
@@ -45,6 +52,14 @@ impl std::fmt::Display for VerificationFailure {
                     "published total for {asset} disagrees with the committed leaves"
                 )
             }
+            Self::EntityRootMismatch => write!(
+                f,
+                "the group membership and the entity report describe different roots"
+            ),
+            Self::EntitySumsMismatch { asset } => write!(
+                f,
+                "the group membership and the entity report disagree on the {asset} total"
+            ),
             Self::Malformed(what) => write!(f, "malformed document: {what}"),
         }
     }
@@ -56,14 +71,18 @@ use canton_solvency_merkle::{leaf_node, Node, Proof, ProofStep};
 use std::collections::BTreeMap;
 use VerificationFailure as F;
 
-fn hash32(hex_str: &str, what: &str) -> Result<[u8; 32], VerificationFailure> {
+pub(crate) fn hash32(hex_str: &str, what: &str) -> Result<[u8; 32], VerificationFailure> {
     hex::decode(hex_str)
         .ok()
         .and_then(|b| <[u8; 32]>::try_from(b).ok())
         .ok_or_else(|| F::Malformed(format!("{what} is not 32 bytes of hex")))
 }
 
-fn expect_version(field: &'static str, found: &str, want: &str) -> Result<(), VerificationFailure> {
+pub(crate) fn expect_version(
+    field: &'static str,
+    found: &str,
+    want: &str,
+) -> Result<(), VerificationFailure> {
     if found == want {
         Ok(())
     } else {
@@ -98,8 +117,32 @@ pub fn verify(
         SIGNATURE_ALGORITHM,
     )?;
 
+    let salt = hash32(&proof.leaf.salt, "leaf salt")?;
+    let balances: Vec<(String, u128)> = proof.leaf.balances.clone().into_iter().collect();
+    let leaf = leaf_node(&salt, &proof.leaf.user_id, &balances)
+        .map_err(|e| F::Malformed(e.to_string()))?;
+
+    verify_against_report(
+        signed,
+        leaf,
+        &proof.steps,
+        &proof.report_digest,
+        trusted_public_key_hex,
+    )
+}
+
+/// The tail shared by customer proofs (§9.1) and group memberships (§13):
+/// bind to the report, check the signature, fold, compare hash *and* sums.
+pub(crate) fn verify_against_report(
+    signed: &SignedReport,
+    leaf: Node,
+    steps: &[crate::document::ProofStepDocument],
+    expected_digest_hex: &str,
+    trusted_public_key_hex: &str,
+) -> Result<(), VerificationFailure> {
+    let report = &signed.report;
     let digest = report_digest(report);
-    if hex::encode(digest) != proof.report_digest {
+    if hex::encode(digest) != expected_digest_hex {
         return Err(F::DigestMismatch);
     }
 
@@ -113,13 +156,7 @@ pub fn verify(
             other => F::Malformed(other.to_string()),
         })?;
 
-    let salt = hash32(&proof.leaf.salt, "leaf salt")?;
-    let balances: Vec<(String, u128)> = proof.leaf.balances.clone().into_iter().collect();
-    let leaf = leaf_node(&salt, &proof.leaf.user_id, &balances)
-        .map_err(|e| F::Malformed(e.to_string()))?;
-
-    let steps = proof
-        .steps
+    let steps = steps
         .iter()
         .map(|step| {
             Ok(ProofStep {

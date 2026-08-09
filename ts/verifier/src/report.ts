@@ -59,6 +59,8 @@ export type VerificationFailure =
   | { kind: "bad_signature" }
   | { kind: "root_hash_mismatch" }
   | { kind: "root_sums_mismatch"; asset: string }
+  | { kind: "entity_root_mismatch" }
+  | { kind: "entity_sums_mismatch"; asset: string }
   | { kind: "malformed"; detail: string };
 
 export type VerificationResult = { ok: true } | { ok: false; failure: VerificationFailure };
@@ -131,7 +133,7 @@ export async function reportDigestHex(report: Report): Promise<string> {
  * Ed25519 landed in WebCrypto relatively recently. Fail with a message that
  * names the requirement rather than surfacing an opaque DOMException.
  */
-async function verifyEd25519(
+export async function verifyEd25519(
   publicKeyHex: string,
   messageHex: string,
   signatureHex: string

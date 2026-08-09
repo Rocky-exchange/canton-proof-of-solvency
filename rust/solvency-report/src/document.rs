@@ -13,7 +13,7 @@ pub const PROOF_FORMAT_VERSION: &str = "canton-solvency-proof-v1";
 pub const SIGNATURE_ALGORITHM: &str = "ed25519";
 
 /// serde codec mapping decimal strings to/from 18dp fixed point.
-mod amount_map {
+pub(crate) mod amount_map {
     use canton_solvency_merkle::{format_amount_18dp, parse_amount_18dp};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::collections::BTreeMap;

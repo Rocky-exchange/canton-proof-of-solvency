@@ -272,7 +272,99 @@ the second user, exercising a two-step path whose first sibling is on the
 left. Both reference implementations assert these files byte for byte, and
 regenerate them with `cargo run --example print_golden`.
 
-## 11–13. Reserved
+## 11–12. Reserved
 
-`§11` coverage reports, `§12` on-ledger anchoring, and `§13` disclosure
-profiles are reserved for the milestones of the same name; see the README.
+`§11` coverage reports and `§12` on-ledger anchoring are reserved for the
+milestones of the same name; see the README.
+
+## 13. Hierarchical commitments
+
+A group is not one book. This section lets a subsidiary prove its position to
+its own regulator without exposing its siblings, while the group root still
+sums to the consolidated total.
+
+No new envelope is needed: the group tree is an ordinary §4 Merkle sum tree
+whose leaves are entities rather than customers, and a group report is an
+ordinary §8 report with `profile` = `solvency.group`.
+
+### 13.1 Entity leaf
+
+```
+entity_leaf_hash = SHA-256( "rocky-solvency-entity-v1"
+                          ‖ lp(entity_id)
+                          ‖ entity_root_hash        (32 raw bytes)
+                          ‖ lpmap(entity_root_sums) )
+entity_leaf_node = (entity_leaf_hash, entity_root_sums)
+```
+
+`entity_id` is bound into the hash deliberately. Using an entity's root node
+directly as a group leaf would be simpler, but would let a group substitute
+one subsidiary's subtree for another of equal total undetected.
+
+Nesting is **one level**: a group over entities. Each additional level is
+another verification surface, and nothing observed requires deeper.
+
+### 13.2 Group report
+
+An §8 report where `root_hash` is the group root, `root_sums` are the
+consolidated totals, `leaf_count` is the number of entities, and `profile` is
+`solvency.group`. Producers **MUST** set that profile: a group report states a
+different thing from a customer-level one and must not be mistaken for it.
+
+### 13.3 Membership document
+
+```json
+{
+  "format_version": "canton-solvency-group-membership-v1",
+  "group_report_digest": "<hex32>",
+  "entity": { "entity_id": "…", "root_hash": "<hex32>", "root_sums": { … } },
+  "steps": [ { "sibling_hash": "<hex32>", "sibling_sums": { … }, "sibling_on_left": true } ]
+}
+```
+
+Verification follows §9.1 with the §13.1 leaf in place of a customer leaf:
+bind to the report by digest, check the signature against the caller-supplied
+trusted key, fold, and compare **both** the hash and the sums against the
+group root.
+
+### 13.4 Chain verification
+
+To verify a customer against a group's consolidated total, all three hold:
+
+1. The customer's proof verifies against the entity's report (§9.1).
+2. The entity's membership verifies against the group report (§13.3).
+3. The membership's `entity.root_hash` and `entity.root_sums` **equal** the
+   entity report's own `root_hash` and `root_sums`.
+
+Step 3 is not optional. Without it the first two are independently valid and
+jointly meaningless: a group could present entity A's membership beside entity
+B's report.
+
+### 13.5 What a sibling learns
+
+A subsidiary's regulator sees the entity's own report plus sibling leaf hashes
+and subtotals. Sibling *identities* are not revealed — an entity leaf hash
+discloses nothing about which entity it is — but sibling **subtotals are
+visible**, exactly as for customer leaves in §5. This is the same trade-off,
+stated rather than hidden.
+
+### 13.6 Golden vectors
+
+The §10 report as `golden-entity-a`, plus `golden-entity-b` with root
+`0x11…11` and `USDA: 42`, under the §10 metadata and signing seed:
+
+```
+group_root    = f672eceb0b675040260bbc6062362c7701bddf8daaba128cae1bcaef80c5fb66
+group_digest  = e2eb5175a25f845acf0059ec85a8594e2e5587d412ed3498a872c83057a93fc8
+consolidated  = CBTC: 0.250000000000000000 | USDA: 143.500000000000000001
+```
+
+`143.500000000000000001` is `101.500000000000000001 + 42`, so the consolidated
+total is checkable by hand against the §10 vector. Complete documents:
+[`fixtures/group-report.golden.json`](fixtures/group-report.golden.json) and
+[`fixtures/group-membership.golden.json`](fixtures/group-membership.golden.json),
+asserted byte for byte by both implementations.
+
+## 14. Reserved
+
+`§14` disclosure profiles is reserved for the milestone of the same name.

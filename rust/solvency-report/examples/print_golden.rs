@@ -12,4 +12,10 @@ fn main() {
     println!("{}", serde_json::to_string_pretty(&signed).unwrap());
     println!("--- proof.json ---");
     println!("{}", serde_json::to_string_pretty(&proof).unwrap());
+
+    let (group, membership) = golden::group_fixture();
+    println!("--- group-report.json ---");
+    println!("{}", serde_json::to_string_pretty(&group).unwrap());
+    println!("--- group-membership.json ---");
+    println!("{}", serde_json::to_string_pretty(&membership).unwrap());
 }

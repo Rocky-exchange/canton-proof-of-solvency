@@ -70,6 +70,28 @@ pub fn fixture() -> (SignedReport, ProofDocument) {
     (published.signed_report, proof)
 }
 
+/// The SPEC §13 group fixture: the §10 report as one entity, plus a second
+/// entity with fixed values, consolidated under one group report.
+pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) {
+    use crate::group::{publish_group, EntityInput};
+    let (entity_report, _) = fixture();
+    let entities = vec![
+        EntityInput {
+            entity_id: "golden-entity-a".to_string(),
+            root_hash: crate::verify::hash32(&entity_report.report.root_hash, "root").unwrap(),
+            root_sums: entity_report.report.root_sums.clone(),
+        },
+        EntityInput {
+            entity_id: "golden-entity-b".to_string(),
+            root_hash: [0x11; 32],
+            root_sums: amounts(&[("USDA", 42_000_000_000_000_000_000)]),
+        },
+    ];
+    let published = publish_group(&entities, &metadata(), &signer()).unwrap();
+    let membership = published.memberships[0].clone();
+    (published.signed_report, membership)
+}
+
 /// Cross-implementation wire-format pin (SPEC §10). The TypeScript verifier
 /// asserts these same bytes against the same fixture files. Changing any value
 /// here is a format version bump, not a refactor.
@@ -125,6 +147,59 @@ mod tests {
             serde_json::to_string_pretty(&proof).unwrap(),
             PROOF_JSON.trim_end(),
             "fixtures/proof.golden.json is stale"
+        );
+    }
+
+    const GROUP_REPORT_JSON: &str = include_str!("../../../fixtures/group-report.golden.json");
+    const GROUP_MEMBERSHIP_JSON: &str =
+        include_str!("../../../fixtures/group-membership.golden.json");
+
+    #[test]
+    fn golden_vectors_pin_the_group_format() {
+        let (group, membership) = group_fixture();
+        assert_eq!(
+            group.report.root_hash,
+            "f672eceb0b675040260bbc6062362c7701bddf8daaba128cae1bcaef80c5fb66"
+        );
+        assert_eq!(
+            hex::encode(report_digest(&group.report)),
+            "e2eb5175a25f845acf0059ec85a8594e2e5587d412ed3498a872c83057a93fc8"
+        );
+        // The consolidated total is the sum of the entity totals.
+        assert_eq!(
+            crate::document::REPORT_FORMAT_VERSION,
+            group.report.format_version
+        );
+        assert_eq!(
+            canton_solvency_merkle::format_amount_18dp(group.report.root_sums["USDA"]),
+            "143.500000000000000001"
+        );
+        assert_eq!(membership.entity.entity_id, "golden-entity-a");
+    }
+
+    #[test]
+    fn group_fixture_files_match_what_the_producer_emits() {
+        let (group, membership) = group_fixture();
+        assert_eq!(
+            serde_json::to_string_pretty(&group).unwrap(),
+            GROUP_REPORT_JSON.trim_end(),
+            "fixtures/group-report.golden.json is stale"
+        );
+        assert_eq!(
+            serde_json::to_string_pretty(&membership).unwrap(),
+            GROUP_MEMBERSHIP_JSON.trim_end(),
+            "fixtures/group-membership.golden.json is stale"
+        );
+    }
+
+    #[test]
+    fn the_group_fixture_verifies_when_read_back_from_disk() {
+        let group: SignedReport = serde_json::from_str(GROUP_REPORT_JSON).unwrap();
+        let membership: crate::group::GroupMembershipDocument =
+            serde_json::from_str(GROUP_MEMBERSHIP_JSON).unwrap();
+        assert_eq!(
+            crate::group::verify_membership(&group, &membership, &signer().public_key_hex()),
+            Ok(())
         );
     }
 
