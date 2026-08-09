@@ -234,8 +234,8 @@ asserts, which aggregates are published, and who is entitled to which view.
 | `solvency.coverage` | Custody holdings ≥ liabilities, asset by asset | one custody position | M1 |
 | `collateral.repo` | Every open leg is committed, and aggregate collateral covers aggregate exposure per asset | one open repo leg, with `collateral` and `exposure` maps | **shipped** |
 | `fund.nav` | Every holder's units and entitlement are committed; root totals are units outstanding and total entitlement | one shareholder, with `units` and `entitlement` maps | **shipped** |
-| `settlement.dvp` | Across this window, no leg settled without its counter-leg | one settled trade | M3 |
-| `eligibility.holder` | Every holder satisfied rule R at issuance | one holder's attested attributes | M3 |
+| `settlement.dvp` | Every settled trade is committed, and no leg settled without its counter-leg | one settled trade, with `delivered` and `paid` maps | **shipped** |
+| `eligibility.holder` | Every committed holder satisfied each attested rule at issuance | one holder's attested attributes | **shipped** |
 
 **The disclosure manifest.** Each report carries a machine-readable manifest
 declaring, field by field, what is *published* (visible to that audience),

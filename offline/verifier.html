@@ -232,6 +232,19 @@
       name: "fund.nav",
       leaf: "shareholder",
       requiredAggregates: ["units/*", "entitlement/*"]
+    },
+    {
+      name: "settlement.dvp",
+      leaf: "settledtrade",
+      requiredAggregates: ["delivered/*", "paid/*"],
+      requiredLeafMaps: ["delivered", "paid"]
+    },
+    {
+      name: "eligibility.holder",
+      leaf: "attestedholder",
+      requiredAggregates: ["attested/*"],
+      requiredLeafMaps: ["attested"],
+      unanimousMaps: ["attested"]
     }
   ];
   function lookupProfile(name) {
@@ -418,6 +431,19 @@
           return fail({
             kind: "profile",
             detail: `profile ${rules.name}: ${covering} of ${formatAmount18dp(parseAmount18dp(held ?? "0"))} does not cover ${covered} of ${formatAmount18dp(parseAmount18dp(value))} for ${asset}`
+          });
+        }
+      }
+    }
+    for (const mapName of rules.unanimousMaps ?? []) {
+      for (const [key, total] of Object.entries(report.root_sums)) {
+        if (!key.startsWith(`${mapName}/`)) continue;
+        const rule = key.slice(mapName.length + 1);
+        const expected = BigInt(report.leaf_count) * 10n ** 18n;
+        if (parseAmount18dp(total) !== expected) {
+          return fail({
+            kind: "profile",
+            detail: `profile ${rules.name}: ${key} totals ${formatAmount18dp(parseAmount18dp(total))} across ${report.leaf_count} leaves; the profile asserts every leaf satisfies ${rule}, which requires ${formatAmount18dp(expected)}`
           });
         }
       }

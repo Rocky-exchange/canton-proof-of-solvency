@@ -504,6 +504,23 @@ mean anything.
 
 | `fund.nav` | one holder of a tokenized fund (§3.1) | every holder's units and entitlement are committed, and the root totals are units outstanding and total entitlement | `units/*`, `entitlement/*` |
 
+| `settlement.dvp` | one settled trade, carrying both legs (§3.1) | every settled trade in this window is committed, and no leg settled without its counter-leg | `delivered/*`, `paid/*`, and both maps in every leaf |
+| `eligibility.holder` | one holder's attested attributes (§3.1) | every committed holder satisfied each attested rule at issuance | `attested/*`, and each rule's total equal to `leaf_count` |
+
+**Why a `settlement.dvp` leaf is a trade, not a leg.** If a leaf were a single
+leg, a tree could hold a delivered leg with no matching payment and nothing
+would notice — precisely the failure delivery-versus-payment exists to
+prevent. Making the leaf the trade puts atomicity in the structure: a
+committed trade missing a leg is rejected when its own proof is checked.
+
+**Why `eligibility.holder` sums an indicator.** Each attested rule carries the
+value `1` in every leaf, so `attested/R` totalling exactly `leaf_count` proves
+every committed holder satisfied R. That is provable from a published report,
+where an eligibility claim otherwise requires the full holder register — the
+thing an issuer cannot disclose. Inflating one holder's indicator to fake
+unanimity fails too: the tree commits to the leaves, so the padded total no
+longer matches the fold.
+
 **Why a `fund.nav` leaf is a shareholder, not a holding line item.** A
 holdings tree would prove what the fund owns, but no investor could find
 themselves in it, and being able to find yourself is the pattern this whole
@@ -542,12 +559,18 @@ Verifiers **MUST**:
 
 ### 14.2 Adding a profile
 
-`settlement.dvp` and `eligibility.holder` use the same §3.1 mechanism but each
-still needs its own decision about what a leaf is and what the root must
-assert — for DvP, whether a leaf is a trade or a leg; for eligibility, what a
-root can assert about holders it deliberately does not name. Neither is
-registered until designed: an unregistered profile is rejected outright
-(§14.1), so a half-considered entry would be worse than none.
+All six profiles the format set out to cover are registered. A seventh needs
+the same treatment: a decision about what a leaf is, what the root asserts,
+and which rules are checked rather than asserted. An unregistered profile is
+rejected outright (§14.1), so a half-considered entry is worse than none.
+
+Two kinds of rule beyond required aggregates are available, and both exist
+because a total alone cannot express the statement:
+
+- **per-leaf** (`required_leaf_maps`) — checked when a proof is verified, for
+  statements about each subject, such as a trade carrying both legs;
+- **unanimity** (`unanimous_maps`) — checked against `leaf_count`, for
+  statements about *every* subject without naming any of them.
 
 A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
 separate two v2 profiles from each other. A fund proof presented against a
