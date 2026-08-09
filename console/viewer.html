@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canton solvency — disclosure console</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #16181d; --muted: #5c6370; --line: #d9dde3;
+    --panel: #f6f7f9; --ok: #0f7b45; --okbg: #e7f5ed;
+    --bad: #b3261e; --badbg: #fdecea; --warn: #7a5b00; --warnbg: #fdf5e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318; --fg: #e6e8ec; --muted: #9aa3b2; --line: #2a2f38;
+      --panel: #171a20; --ok: #5cd196; --okbg: #102a1e;
+      --bad: #ff8a80; --badbg: #2c1512; --warn: #e5c15c; --warnbg: #2a2210;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 46rem; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .35rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .6rem; }
+  .flow { list-style: none; padding: 0; margin: 0; font-size: .9rem; }
+  .flow li { padding: .3rem 0 .3rem .8rem; border-left: 2px solid var(--line); }
+  .badge.short { background: var(--bad); color: var(--bg); }
+  .lede { color: var(--muted); margin: 0 0 1.75rem; }
+  fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.25rem; margin: 0 0 1.25rem; }
+  legend { padding: 0 .4rem; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; }
+  label { display: block; margin: .9rem 0 .3rem; font-weight: 600; font-size: .92rem; }
+  label:first-of-type { margin-top: 0; }
+  .hint { color: var(--muted); font-weight: 400; font-size: .85rem; }
+  input[type=file], input[type=text] {
+    width: 100%; padding: .55rem .6rem; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--bg); color: var(--fg); font: inherit;
+  }
+  input[type=text] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; }
+  button {
+    margin-top: 1.25rem; padding: .65rem 1.4rem; font: inherit; font-weight: 600;
+    border: 0; border-radius: 7px; background: var(--fg); color: var(--bg); cursor: pointer;
+  }
+  .result { border: 1px solid var(--line); border-left-width: 5px; border-radius: 10px; padding: 1.1rem 1.25rem; background: var(--panel); }
+  .result.verified { border-left-color: var(--ok); background: var(--okbg); }
+  .result.failed { border-left-color: var(--bad); background: var(--badbg); }
+  .result.error { border-left-color: var(--warn); background: var(--warnbg); }
+  #headline { margin: 0 0 .4rem; font-size: 1.15rem; }
+  .result.verified #headline { color: var(--ok); }
+  .result.failed #headline { color: var(--bad); }
+  .result.error #headline { color: var(--warn); }
+  #detail { margin: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1.1rem; font-size: .9rem; }
+  th, td { text-align: left; padding: .45rem .5rem; border-top: 1px solid var(--line); vertical-align: top; }
+  th[scope=row] { font-weight: 600; white-space: nowrap; width: 12rem; }
+  td.value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; word-break: break-all; }
+  .badge { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 700; white-space: nowrap; }
+  .badge.verified { background: var(--ok); color: var(--bg); }
+  .badge.disclosed { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  footer { margin-top: 2rem; color: var(--muted); font-size: .85rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Canton solvency — disclosure console</h1>
+  <p class="lede">
+    Read a venue's published disclosure and see where every figure comes from.
+    Everything happens in this page — it makes no network requests. Publishing
+    is not here: that needs a live participant node, which a page loaded from a
+    file cannot have.
+  </p>
+
+  <fieldset>
+    <legend>What you need</legend>
+
+    <label for="report">Report file <span class="hint">— the venue's <code>report.json</code></span></label>
+    <input type="file" id="report" accept=".json,application/json" data-what="report file">
+
+    <label for="proof">Your proof file <span class="hint">— the <code>proof.json</code> issued to you</span></label>
+    <input type="file" id="proof" accept=".json,application/json" data-what="proof file">
+
+    <label for="key">Publisher key <span class="hint">— 64 hex characters, obtained from somewhere other than the venue's own page</span></label>
+    <input type="text" id="key" spellcheck="false" autocomplete="off" placeholder="8a88e3dd…">
+
+    <label for="custody">Custody report <span class="hint">— optional; adds the asset side</span></label>
+    <input type="file" id="custody" accept=".json,application/json" data-what="custody report">
+
+    <label for="history">Anchor history <span class="hint">— optional; a JSON array of anchors, oldest first</span></label>
+    <input type="file" id="history" accept=".json,application/json" data-what="anchor history">
+
+    <button type="button" id="check">Check</button>
+  </fieldset>
+
+  <div class="result" id="result" hidden>
+    <p id="headline"></p>
+    <p id="detail"></p>
+    <table id="facts-table" hidden>
+      <tbody id="facts"></tbody>
+    </table>
+  </div>
+
+  <section id="flow-section" hidden>
+    <h2>Where these figures come from</h2>
+    <ul id="flow" class="flow"></ul>
+  </section>
+
+  <section id="coverage-section" hidden>
+    <h2>Assets against liabilities</h2>
+    <table>
+      <thead><tr><th>Asset</th><th>Held</th><th>Owed</th><th></th></tr></thead>
+      <tbody id="coverage"></tbody>
+    </table>
+  </section>
+
+  <section id="history-section" hidden>
+    <h2>Published history</h2>
+    <table>
+      <thead><tr><th>#</th><th>Snapshot</th><th>Report</th><th></th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+  </section>
+
+  <footer>
+    <p>
+      <strong>“recomputed here”</strong> means this page derived the value from the
+      commitment itself. <strong>“publisher says”</strong> means the value is signed
+      but cannot be proven by one inclusion proof — a single proof shows your entry
+      is in the tree, not that every other customer is.
+    </p>
+    <p>
+      Getting the publisher key from the same place you got the report proves nothing.
+      Obtain it independently.
+    </p>
+  </footer>
+</main>
+<script>
+"use strict";
+(() => {
+  // src/anchor.ts
+  var ANCHOR_DIGEST_DOMAIN = "rocky-solvency-anchor-v1";
+  var encoder = new TextEncoder();
+  function u64le(n) {
+    const out = new Uint8Array(8);
+    new DataView(out.buffer).setBigUint64(0, BigInt(n), true);
+    return out;
+  }
+  function lp(s) {
+    const bytes = encoder.encode(s);
+    const out = new Uint8Array(8 + bytes.length);
+    out.set(u64le(bytes.length));
+    out.set(bytes, 8);
+    return out;
+  }
+  function concat(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  }
+  async function anchorDigestHex(anchor) {
+    const parts = [
+      encoder.encode(ANCHOR_DIGEST_DOMAIN),
+      lp(anchor.format_version),
+      lp(anchor.report_digest),
+      lp(anchor.root_hash),
+      lp(anchor.snapshot_time),
+      lp(anchor.ledger_offset),
+      lp(anchor.publisher)
+    ];
+    parts.push(
+      anchor.prev_anchor === void 0 ? new Uint8Array([0]) : concat([new Uint8Array([1]), lp(anchor.prev_anchor)])
+    );
+    const digest = await crypto.subtle.digest("SHA-256", concat(parts));
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  // src/verify.ts
+  var LEAF_DOMAIN = "rocky-solvency-leaf-v1";
+  var NODE_DOMAIN = "rocky-solvency-node-v1";
+  var SCALE = 10n ** 18n;
+  var FRACTION_DIGITS = 18;
+  function parseAmount18dp(s) {
+    const dot = s.indexOf(".");
+    const intPart = dot === -1 ? s : s.slice(0, dot);
+    const fracPart = dot === -1 ? "" : s.slice(dot + 1);
+    if (intPart === "" || dot !== -1 && fracPart === "") {
+      throw new Error(`malformed amount: ${s}`);
+    }
+    if (fracPart.length > FRACTION_DIGITS) {
+      throw new Error(`amount exceeds 18 decimal places: ${s}`);
+    }
+    if (!/^[0-9]+$/.test(intPart) || fracPart !== "" && !/^[0-9]+$/.test(fracPart)) {
+      throw new Error(`amount is not a non-negative decimal: ${s}`);
+    }
+    return BigInt(intPart) * SCALE + BigInt(fracPart.padEnd(FRACTION_DIGITS, "0") || "0");
+  }
+  function formatAmount18dp(v) {
+    if (v < 0n) throw new Error("negative amount");
+    return `${v / SCALE}.${(v % SCALE).toString().padStart(FRACTION_DIGITS, "0")}`;
+  }
+  function sumBalances(balances) {
+    return Object.fromEntries(
+      Object.entries(balances).map(([asset, v]) => [asset, parseAmount18dp(v)])
+    );
+  }
+  function canonicalBalances(balances) {
+    return canonicalSums(sumBalances(balances));
+  }
+  function canonicalSums(sums) {
+    return Object.keys(sums).sort().map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
+  }
+  var encoder2 = new TextEncoder();
+  function hexToBytes(hex) {
+    if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
+      throw new Error("invalid hex");
+    }
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) {
+      out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    }
+    return out;
+  }
+  function bytesToHex(bytes) {
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function sha256(...parts) {
+    const total = parts.reduce((n, p) => n + p.length, 0);
+    const buf = new Uint8Array(total);
+    let off = 0;
+    for (const p of parts) {
+      buf.set(p, off);
+      off += p.length;
+    }
+    return new Uint8Array(await crypto.subtle.digest("SHA-256", buf));
+  }
+  async function leafHashHex(saltHex, userId, balances) {
+    const userIdHash = await sha256(encoder2.encode(userId));
+    const digest = await sha256(
+      encoder2.encode(LEAF_DOMAIN),
+      hexToBytes(saltHex),
+      userIdHash,
+      encoder2.encode(canonicalBalances(balances))
+    );
+    return bytesToHex(digest);
+  }
+  function addSums(a, b) {
+    const out = { ...a };
+    for (const [asset, v] of Object.entries(b)) {
+      out[asset] = (out[asset] ?? 0n) + v;
+    }
+    return out;
+  }
+  async function combineNodes(left, right) {
+    const sums = addSums(left.sums, right.sums);
+    const digest = await sha256(
+      encoder2.encode(NODE_DOMAIN),
+      hexToBytes(left.hashHex),
+      hexToBytes(right.hashHex),
+      encoder2.encode(canonicalSums(sums))
+    );
+    return { hashHex: bytesToHex(digest), sums };
+  }
+
+  // src/report.ts
+  var REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
+  var REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
+  var PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
+  var SIGNATURE_ALGORITHM = "ed25519";
+  var REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
+  var REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
+  var PROFILE_REGISTRY = [
+    { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
+    { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
+    {
+      name: "collateral.repo",
+      leaf: "repoleg",
+      requiredAggregates: ["collateral/*", "exposure/*"],
+      coverage: { covering: "collateral", covered: "exposure" }
+    },
+    {
+      name: "fund.nav",
+      leaf: "shareholder",
+      requiredAggregates: ["units/*", "entitlement/*"]
+    },
+    {
+      name: "settlement.dvp",
+      leaf: "settledtrade",
+      requiredAggregates: ["delivered/*", "paid/*"],
+      requiredLeafMaps: ["delivered", "paid"]
+    },
+    {
+      name: "eligibility.holder",
+      leaf: "attestedholder",
+      requiredAggregates: ["attested/*"],
+      requiredLeafMaps: ["attested"],
+      unanimousMaps: ["attested"]
+    }
+  ];
+  function lookupProfile(name) {
+    return PROFILE_REGISTRY.find((p) => p.name === name);
+  }
+  var KNOWN_FIELDS = [
+    "root_sums",
+    "mark_prices",
+    "disclosures.bad_debt",
+    "disclosures.excluded_house_accounts",
+    "disclosures.excluded_house_totals",
+    "customer_balances",
+    "customer_identities"
+  ];
+  var REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
+  var encoder3 = new TextEncoder();
+  function concat2(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  }
+  function u64le2(n) {
+    const out = new Uint8Array(8);
+    new DataView(out.buffer).setBigUint64(0, BigInt(n), true);
+    return out;
+  }
+  function lp2(s) {
+    const bytes = encoder3.encode(s);
+    return concat2([u64le2(bytes.length), bytes]);
+  }
+  function lpmap(m) {
+    const assets = Object.keys(m).sort();
+    const parts = [u64le2(assets.length)];
+    for (const asset of assets) {
+      parts.push(lp2(asset), lp2(formatAmount18dp(parseAmount18dp(m[asset]))));
+    }
+    return concat2(parts);
+  }
+  function hexToBytes2(hex) {
+    if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) throw new Error("invalid hex");
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+  function bytesToHex2(bytes) {
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function reportDigestHex(report) {
+    const v2 = report.format_version === REPORT_FORMAT_VERSION_V2;
+    const manifestParts = [];
+    if (v2 && report.manifest) {
+      manifestParts.push(lp2(report.manifest.audience));
+      const paths = Object.keys(report.manifest.fields).sort();
+      manifestParts.push(u64le2(paths.length));
+      for (const path of paths) {
+        manifestParts.push(lp2(path), lp2(report.manifest.fields[path]));
+      }
+    }
+    const preimage = concat2([
+      encoder3.encode(v2 ? REPORT_DIGEST_DOMAIN_V2 : REPORT_DIGEST_DOMAIN),
+      lp2(report.format_version),
+      lp2(report.profile),
+      lp2(report.publisher),
+      lp2(report.snapshot_time),
+      lp2(report.ledger_offset),
+      lp2(report.root_hash),
+      u64le2(report.leaf_count),
+      lpmap(report.root_sums),
+      lpmap(report.mark_prices),
+      lpmap(report.disclosures.bad_debt),
+      u64le2(report.disclosures.excluded_house_accounts),
+      lpmap(report.disclosures.excluded_house_totals),
+      ...manifestParts
+    ]);
+    return bytesToHex2(new Uint8Array(await crypto.subtle.digest("SHA-256", preimage)));
+  }
+  async function verifyEd25519(publicKeyHex, messageHex, signatureHex) {
+    let key;
+    try {
+      key = await crypto.subtle.importKey(
+        "raw",
+        hexToBytes2(publicKeyHex),
+        { name: "Ed25519" },
+        false,
+        ["verify"]
+      );
+    } catch (cause) {
+      throw new Error(
+        "Ed25519 is unavailable in this WebCrypto implementation; report verification needs Chrome 137+, Safari 17+, Firefox 129+, or Node 18.4+",
+        { cause }
+      );
+    }
+    return crypto.subtle.verify("Ed25519", key, hexToBytes2(signatureHex), hexToBytes2(messageHex));
+  }
+  function parseSums(sums) {
+    return Object.fromEntries(Object.entries(sums).map(([a, v]) => [a, parseAmount18dp(v)]));
+  }
+  function fail(failure) {
+    return { ok: false, failure };
+  }
+  function checkVersion(field, found, want) {
+    return found === want ? null : fail({ kind: "unsupported_version", field, found });
+  }
+  function checkReportVersionAndManifest(report) {
+    if (report.format_version === REPORT_FORMAT_VERSION) {
+      return report.manifest ? fail({
+        kind: "manifest_presence",
+        detail: "a v1 report cannot carry a manifest; the v1 digest does not cover it"
+      }) : null;
+    }
+    if (report.format_version !== REPORT_FORMAT_VERSION_V2) {
+      return fail({
+        kind: "unsupported_version",
+        field: "report.format_version",
+        found: report.format_version
+      });
+    }
+    const manifest = report.manifest;
+    if (!manifest) {
+      return fail({
+        kind: "manifest_presence",
+        detail: "a v2 report must carry a disclosure manifest"
+      });
+    }
+    const carriesData = {
+      root_sums: Object.keys(report.root_sums).length > 0,
+      mark_prices: Object.keys(report.mark_prices).length > 0,
+      "disclosures.bad_debt": Object.keys(report.disclosures.bad_debt).length > 0,
+      "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
+      "disclosures.excluded_house_totals": Object.keys(report.disclosures.excluded_house_totals).length > 0
+    };
+    for (const path of Object.keys(manifest.fields).sort()) {
+      const state = manifest.fields[path];
+      if (!KNOWN_FIELDS.includes(path)) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: "not a field this format defines"
+        });
+      }
+      if (!REPORT_RESIDENT_FIELDS.includes(path)) continue;
+      if (state === "published" && !carriesData[path]) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: "declared published but the report carries no data for it"
+        });
+      }
+      if (state !== "published" && carriesData[path]) {
+        return fail({
+          kind: "manifest_inconsistent",
+          path,
+          detail: `declared ${state} but the report publishes it anyway`
+        });
+      }
+    }
+    return null;
+  }
+  function expectLeafKind(report, wanted) {
+    const rules = lookupProfile(report.profile);
+    if (!rules) {
+      return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
+    }
+    for (const aggregate of rules.requiredAggregates) {
+      const present = aggregate.endsWith("/*") ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? Object.keys(report.root_sums).length > 0 : Object.keys(report.mark_prices).length > 0;
+      if (!present) {
+        return fail({
+          kind: "profile",
+          detail: `profile ${rules.name}: ${aggregate} is required by this profile but the report carries none, so the statement would be vacuous`
+        });
+      }
+    }
+    if (rules.coverage) {
+      const { covering, covered } = rules.coverage;
+      for (const [key, value] of Object.entries(report.root_sums)) {
+        if (!key.startsWith(`${covered}/`)) continue;
+        const asset = key.slice(covered.length + 1);
+        const held = report.root_sums[`${covering}/${asset}`];
+        if (parseAmount18dp(held ?? "0") < parseAmount18dp(value)) {
+          return fail({
+            kind: "profile",
+            detail: `profile ${rules.name}: ${covering} of ${formatAmount18dp(parseAmount18dp(held ?? "0"))} does not cover ${covered} of ${formatAmount18dp(parseAmount18dp(value))} for ${asset}`
+          });
+        }
+      }
+    }
+    for (const mapName of rules.unanimousMaps ?? []) {
+      for (const [key, total] of Object.entries(report.root_sums)) {
+        if (!key.startsWith(`${mapName}/`)) continue;
+        const rule = key.slice(mapName.length + 1);
+        const expected = BigInt(report.leaf_count) * 10n ** 18n;
+        if (parseAmount18dp(total) !== expected) {
+          return fail({
+            kind: "profile",
+            detail: `profile ${rules.name}: ${key} totals ${formatAmount18dp(parseAmount18dp(total))} across ${report.leaf_count} leaves; the profile asserts every leaf satisfies ${rule}, which requires ${formatAmount18dp(expected)}`
+          });
+        }
+      }
+    }
+    if (rules.leaf !== wanted) {
+      return fail({
+        kind: "profile",
+        detail: `profile ${rules.name} commits to ${rules.leaf} leaves; this proof is for ${wanted} leaves`
+      });
+    }
+    return null;
+  }
+  async function verifyReport(signed, proof, trustedPublicKeyHex) {
+    const { report } = signed;
+    const versionFailure = checkReportVersionAndManifest(report) ?? expectLeafKind(report, "customer") ?? checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION) ?? checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
+    if (versionFailure) return versionFailure;
+    let leaf;
+    try {
+      leaf = {
+        hashHex: await leafHashHex(proof.leaf.salt, proof.leaf.user_id, proof.leaf.balances),
+        sums: parseSums(proof.leaf.balances)
+      };
+    } catch (e) {
+      return fail({ kind: "malformed", detail: String(e) });
+    }
+    return foldAgainstReport(signed, leaf, proof.steps, proof.report_digest, trustedPublicKeyHex);
+  }
+  async function foldAgainstReport(signed, leaf, steps, expectedDigest, trustedPublicKeyHex) {
+    const { report } = signed;
+    let digest;
+    try {
+      digest = await reportDigestHex(report);
+    } catch (e) {
+      return fail({ kind: "malformed", detail: String(e) });
+    }
+    if (digest !== expectedDigest) return fail({ kind: "digest_mismatch" });
+    if (signed.signature.public_key !== trustedPublicKeyHex) return fail({ kind: "unknown_signer" });
+    let signatureValid;
+    try {
+      signatureValid = await verifyEd25519(trustedPublicKeyHex, digest, signed.signature.value);
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("Ed25519 is unavailable")) throw e;
+      return fail({ kind: "malformed", detail: String(e) });
+    }
+    if (!signatureValid) return fail({ kind: "bad_signature" });
+    let current = leaf;
+    try {
+      for (const step of steps) {
+        const sibling = {
+          // Rejects a malformed sibling hash before it reaches the hasher.
+          hashHex: bytesToHex2(hexToBytes2(step.sibling_hash)),
+          sums: parseSums(step.sibling_sums)
+        };
+        current = step.sibling_on_left ? await combineNodes(sibling, current) : await combineNodes(current, sibling);
+      }
+    } catch (e) {
+      return fail({ kind: "malformed", detail: String(e) });
+    }
+    if (current.hashHex !== report.root_hash) return fail({ kind: "root_hash_mismatch" });
+    const published = parseSums(report.root_sums);
+    for (const asset of /* @__PURE__ */ new Set([...Object.keys(current.sums), ...Object.keys(published)])) {
+      if ((current.sums[asset] ?? 0n) !== (published[asset] ?? 0n)) {
+        return fail({ kind: "root_sums_mismatch", asset });
+      }
+    }
+    return { ok: true };
+  }
+
+  // src/group.ts
+  var GROUP_MEMBERSHIP_FORMAT_VERSION = "canton-solvency-group-membership-v1";
+  var ENTITY_DOMAIN = "rocky-solvency-entity-v1";
+  var encoder4 = new TextEncoder();
+  function concat3(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  }
+  function hexToBytes3(hex) {
+    if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) throw new Error("invalid hex");
+    const out = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < out.length; i++) out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    return out;
+  }
+  function bytesToHex3(bytes) {
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function parseSums2(sums) {
+    return Object.fromEntries(Object.entries(sums).map(([a, v]) => [a, parseAmount18dp(v)]));
+  }
+  async function entityLeafNode(entity) {
+    const preimage = concat3([
+      encoder4.encode(ENTITY_DOMAIN),
+      lp2(entity.entity_id),
+      hexToBytes3(entity.root_hash),
+      lpmap(entity.root_sums)
+    ]);
+    return {
+      hashHex: bytesToHex3(new Uint8Array(await crypto.subtle.digest("SHA-256", preimage))),
+      sums: parseSums2(entity.root_sums)
+    };
+  }
+  function fail2(failure) {
+    return { ok: false, failure };
+  }
+  async function verifyMembership(groupSigned, membership, trustedPublicKeyHex) {
+    if (membership.format_version !== GROUP_MEMBERSHIP_FORMAT_VERSION) {
+      return fail2({
+        kind: "unsupported_version",
+        field: "membership.format_version",
+        found: membership.format_version
+      });
+    }
+    const { report } = groupSigned;
+    const profileFailure = expectLeafKind(report, "entity");
+    if (profileFailure) return profileFailure;
+    let digest;
+    let current;
+    try {
+      digest = await reportDigestHex(report);
+      current = await entityLeafNode(membership.entity);
+    } catch (e) {
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (digest !== membership.group_report_digest) return fail2({ kind: "digest_mismatch" });
+    if (groupSigned.signature.public_key !== trustedPublicKeyHex) {
+      return fail2({ kind: "unknown_signer" });
+    }
+    let signatureValid;
+    try {
+      signatureValid = await verifyEd25519(
+        trustedPublicKeyHex,
+        digest,
+        groupSigned.signature.value
+      );
+    } catch (e) {
+      if (e instanceof Error && e.message.startsWith("Ed25519 is unavailable")) throw e;
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (!signatureValid) return fail2({ kind: "bad_signature" });
+    try {
+      for (const step of membership.steps) {
+        const sibling = {
+          hashHex: bytesToHex3(hexToBytes3(step.sibling_hash)),
+          sums: parseSums2(step.sibling_sums)
+        };
+        current = step.sibling_on_left ? await combineNodes(sibling, current) : await combineNodes(current, sibling);
+      }
+    } catch (e) {
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
+    if (current.hashHex !== report.root_hash) return fail2({ kind: "root_hash_mismatch" });
+    const published = parseSums2(report.root_sums);
+    for (const asset of /* @__PURE__ */ new Set([...Object.keys(current.sums), ...Object.keys(published)])) {
+      if ((current.sums[asset] ?? 0n) !== (published[asset] ?? 0n)) {
+        return fail2({ kind: "root_sums_mismatch", asset });
+      }
+    }
+    return { ok: true };
+  }
+  async function verifyChain(groupSigned, membership, entitySigned, proof, groupTrustedKey, entityTrustedKey) {
+    const inEntity = await verifyReport(entitySigned, proof, entityTrustedKey);
+    if (!inEntity.ok) return inEntity;
+    const inGroup = await verifyMembership(groupSigned, membership, groupTrustedKey);
+    if (!inGroup.ok) return inGroup;
+    if (membership.entity.root_hash !== entitySigned.report.root_hash) {
+      return fail2({ kind: "entity_root_mismatch" });
+    }
+    const claimed = parseSums2(membership.entity.root_sums);
+    const published = parseSums2(entitySigned.report.root_sums);
+    for (const asset of /* @__PURE__ */ new Set([...Object.keys(claimed), ...Object.keys(published)])) {
+      if ((claimed[asset] ?? 0n) !== (published[asset] ?? 0n)) {
+        return fail2({ kind: "entity_sums_mismatch", asset });
+      }
+    }
+    return { ok: true };
+  }
+
+  // src/offline.ts
+  var FAILURE_TEXT = {
+    entity_root_mismatch: "The group document and this venue's report describe different books. They may be for different subsidiaries.",
+    entity_sums_mismatch: "The group document and this venue's report disagree on the venue's totals.",
+    digest_mismatch: "This proof belongs to a different report. It may be from another day \u2014 ask for the proof issued with this report.",
+    unknown_signer: "This report is not signed by the trusted key you supplied. Either the key is wrong, or this report did not come from who you think.",
+    bad_signature: "The signature on this report does not verify. The report has been altered.",
+    root_hash_mismatch: "Your entry does not fold to the published root. The balance shown to you is not the one that was committed.",
+    root_sums_mismatch: "The published totals disagree with what the committed entries actually add up to."
+  };
+  function amountList(amounts) {
+    const entries = Object.entries(amounts);
+    if (entries.length === 0) return "(none)";
+    return entries.map(([asset, v]) => `${asset} ${formatAmount18dp(parseAmount18dp(v))}`).join(", ");
+  }
+  function error(detail) {
+    return {
+      status: "error",
+      headline: "Could not check this",
+      detail,
+      facts: []
+    };
+  }
+  async function verifyFromText(reportText, proofText, trustedKeyHex, group) {
+    const key = trustedKeyHex.trim();
+    if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+      return error("The publisher key must be 64 hex characters (32 bytes).");
+    }
+    let signed;
+    let proof;
+    try {
+      signed = JSON.parse(reportText);
+      proof = JSON.parse(proofText);
+    } catch {
+      return error("One of these files is not valid JSON.");
+    }
+    if (!signed?.report || !proof?.leaf) {
+      return error("Expected one report file and one proof file \u2014 they may be swapped.");
+    }
+    let groupSigned;
+    let membership;
+    let groupKey = key;
+    if (group) {
+      if (group.keyHex !== void 0) {
+        const gk = group.keyHex.trim();
+        if (!/^[0-9a-fA-F]{64}$/.test(gk)) {
+          return error("The group publisher key must be 64 hex characters (32 bytes).");
+        }
+        groupKey = gk;
+      }
+      try {
+        groupSigned = JSON.parse(group.reportText);
+        membership = JSON.parse(group.membershipText);
+      } catch {
+        return error("One of the group files is not valid JSON.");
+      }
+      if (!groupSigned?.report || !membership?.entity) {
+        return error("Expected one group report and one membership file \u2014 they may be swapped.");
+      }
+    }
+    let result;
+    try {
+      result = groupSigned && membership ? await verifyChain(groupSigned, membership, signed, proof, groupKey, key) : await verifyReport(signed, proof, key);
+    } catch (e) {
+      return error(e instanceof Error ? e.message : String(e));
+    }
+    const { report } = signed;
+    const facts = [
+      { label: "Your balance", value: amountList(proof.leaf.balances), provenance: "verified" },
+      { label: "Published totals", value: amountList(report.root_sums), provenance: "verified" },
+      { label: "Root", value: report.root_hash, provenance: "verified" },
+      { label: "Publisher", value: report.publisher, provenance: "disclosed" },
+      { label: "Snapshot time", value: report.snapshot_time, provenance: "disclosed" },
+      { label: "Ledger offset", value: report.ledger_offset, provenance: "disclosed" },
+      { label: "Entries committed", value: String(report.leaf_count), provenance: "disclosed" },
+      {
+        label: "Bad debt disclosed",
+        value: amountList(report.disclosures.bad_debt),
+        provenance: "disclosed"
+      },
+      {
+        label: "House accounts excluded",
+        value: String(report.disclosures.excluded_house_accounts),
+        provenance: "disclosed"
+      }
+    ];
+    const manifest = report.manifest;
+    if (manifest) {
+      const byState = (want) => Object.keys(manifest.fields).filter((path) => manifest.fields[path] === want).sort().join(", ") || "(none)";
+      facts.push(
+        {
+          label: "Withheld from this audience",
+          value: byState("withheld"),
+          provenance: "disclosed"
+        },
+        {
+          label: "Proven but not shown",
+          value: byState("committed"),
+          provenance: "disclosed"
+        }
+      );
+    }
+    if (groupSigned && membership) {
+      const provenance = result.ok ? "verified" : "disclosed";
+      facts.unshift(
+        {
+          label: "Your entity",
+          value: membership.entity.entity_id,
+          provenance
+        },
+        {
+          label: "Group consolidated totals",
+          value: amountList(groupSigned.report.root_sums),
+          provenance
+        },
+        {
+          label: "Group publisher",
+          value: groupSigned.report.publisher,
+          provenance: "disclosed"
+        }
+      );
+    }
+    if (result.ok) {
+      return {
+        status: "verified",
+        headline: groupSigned ? "Verified \u2014 your balance is inside the group's consolidated total" : "Verified \u2014 your balance is in the published totals",
+        detail: groupSigned ? "Your entry was recomputed in this browser, folds to the root your venue publishes, and that venue is committed inside the group's consolidated total." : "Your entry was recomputed in this browser and folds to the root this report publishes, and the totals match what the committed entries add up to.",
+        facts
+      };
+    }
+    const { failure } = result;
+    const detail = FAILURE_TEXT[failure.kind] ?? (failure.kind === "unsupported_version" ? `This file uses an unsupported format version (${failure.found}).` : failure.kind === "malformed" ? `The document is malformed: ${failure.detail}` : failure.kind);
+    return {
+      status: "failed",
+      headline: "Not verified",
+      detail: failure.kind === "root_sums_mismatch" ? `${detail} (asset ${failure.asset})` : detail,
+      facts
+    };
+  }
+
+  // src/console.ts
+  function amountRow(asset, held, owed) {
+    return {
+      asset,
+      held: formatAmount18dp(parseAmount18dp(held)),
+      owed: formatAmount18dp(parseAmount18dp(owed)),
+      covered: parseAmount18dp(held) >= parseAmount18dp(owed)
+    };
+  }
+  function coverageRows(custody, liabilities) {
+    return Object.entries(liabilities.root_sums).map(([asset, owed]) => amountRow(asset, custody.root_sums[`held/${asset}`] ?? "0", owed)).sort((a, b) => a.asset.localeCompare(b.asset));
+  }
+  async function historyRows(anchors) {
+    const rows = [];
+    for (const [index, anchor] of anchors.entries()) {
+      const linked = index === 0 ? anchor.prev_anchor === void 0 : anchor.prev_anchor === await anchorDigestHex(anchors[index - 1]);
+      rows.push({
+        index,
+        snapshotTime: anchor.snapshot_time,
+        reportDigest: anchor.report_digest,
+        linked
+      });
+    }
+    return rows;
+  }
+  function flowOf(report) {
+    const profile = lookupProfile(report.profile);
+    const nodes = [
+      {
+        id: "root",
+        label: `${report.profile} root`,
+        detail: `${report.root_hash.slice(0, 16)}\u2026 over ${report.leaf_count} committed entries`,
+        depth: 0
+      }
+    ];
+    for (const [key, total] of Object.entries(report.root_sums).sort()) {
+      nodes.push({
+        id: `total:${key}`,
+        label: key,
+        detail: `${formatAmount18dp(parseAmount18dp(total))} \u2014 summed from every committed entry`,
+        depth: 1
+      });
+    }
+    nodes.push({
+      id: "leaf",
+      label: profile ? `${profile.leaf} entries` : "entries",
+      detail: `${report.leaf_count} of them, committed but not published. Each holder can prove their own without revealing the others.`,
+      depth: 2
+    });
+    nodes.push({
+      id: "snapshot",
+      label: "ledger offset",
+      detail: `${report.ledger_offset} \u2014 the point in the publisher's event history this is "as of"`,
+      depth: 3
+    });
+    return nodes;
+  }
+  async function buildConsole(input) {
+    const verification = await verifyFromText(
+      input.reportText,
+      input.proofText,
+      input.trustedKeyHex,
+      input.group
+    );
+    let report = null;
+    try {
+      report = JSON.parse(input.reportText).report;
+    } catch {
+      report = null;
+    }
+    let coverage = null;
+    if (report && input.custodyText) {
+      try {
+        const custody = JSON.parse(input.custodyText).report;
+        coverage = coverageRows(custody, report);
+      } catch {
+        coverage = null;
+      }
+    }
+    let history = null;
+    if (input.historyText) {
+      try {
+        history = await historyRows(JSON.parse(input.historyText));
+      } catch {
+        history = null;
+      }
+    }
+    return {
+      verification,
+      statement: report ? lookupProfile(report.profile)?.name ?? null : null,
+      coverage,
+      history,
+      flow: report ? flowOf(report) : []
+    };
+  }
+
+  // src/console-entry.ts
+  var $ = (id) => {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`missing element #${id}`);
+    return el;
+  };
+  async function required(input) {
+    const file = input.files?.[0];
+    if (!file) throw new Error(`Choose a ${input.dataset.what ?? "file"} first.`);
+    return file.text();
+  }
+  async function optional(input) {
+    return input.files?.[0] ? input.files[0].text() : void 0;
+  }
+  function section(id, show) {
+    const el = $(id);
+    el.hidden = !show;
+    return el;
+  }
+  function render(model) {
+    const { verification } = model;
+    const result = section("result", true);
+    result.className = `result ${verification.status}`;
+    $("headline").textContent = verification.headline;
+    $("detail").textContent = verification.detail;
+    const facts = $("facts");
+    facts.innerHTML = "";
+    for (const f of verification.facts) {
+      const row = document.createElement("tr");
+      const label = document.createElement("th");
+      label.scope = "row";
+      label.textContent = f.label;
+      const value = document.createElement("td");
+      value.className = "value";
+      value.textContent = f.value;
+      const badge = document.createElement("span");
+      badge.className = `badge ${f.provenance}`;
+      badge.textContent = f.provenance === "verified" ? "recomputed here" : "publisher says";
+      const prov = document.createElement("td");
+      prov.appendChild(badge);
+      row.append(label, value, prov);
+      facts.appendChild(row);
+    }
+    const flow = section("flow-section", model.flow.length > 0);
+    const flowList = $("flow");
+    flowList.innerHTML = "";
+    for (const node of model.flow) {
+      const li = document.createElement("li");
+      li.style.marginLeft = `${node.depth * 1.4}rem`;
+      const name = document.createElement("strong");
+      name.textContent = node.label;
+      const detail = document.createElement("span");
+      detail.className = "hint";
+      detail.textContent = ` \u2014 ${node.detail}`;
+      li.append(name, detail);
+      flowList.appendChild(li);
+    }
+    flow.hidden = model.flow.length === 0;
+    section("coverage-section", model.coverage !== null);
+    const coverage = $("coverage");
+    coverage.innerHTML = "";
+    for (const row of model.coverage ?? []) {
+      const tr = document.createElement("tr");
+      for (const [text, cls] of [
+        [row.asset, ""],
+        [row.held, "value"],
+        [row.owed, "value"]
+      ]) {
+        const td = document.createElement("td");
+        td.className = cls;
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+      const verdict = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = `badge ${row.covered ? "verified" : "short"}`;
+      badge.textContent = row.covered ? "covered" : "SHORT";
+      verdict.appendChild(badge);
+      tr.appendChild(verdict);
+      coverage.appendChild(tr);
+    }
+    section("history-section", model.history !== null);
+    const history = $("history");
+    history.innerHTML = "";
+    for (const row of model.history ?? []) {
+      const tr = document.createElement("tr");
+      for (const text of [String(row.index), row.snapshotTime, `${row.reportDigest.slice(0, 16)}\u2026`]) {
+        const td = document.createElement("td");
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+      const verdict = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = `badge ${row.linked ? "verified" : "short"}`;
+      badge.textContent = row.linked ? "linked" : "BREAK";
+      verdict.appendChild(badge);
+      tr.appendChild(verdict);
+      history.appendChild(tr);
+    }
+  }
+  async function onCheck() {
+    try {
+      const [reportText, proofText, custodyText, historyText] = await Promise.all([
+        required($("report")),
+        required($("proof")),
+        optional($("custody")),
+        optional($("history"))
+      ]);
+      render(
+        await buildConsole({
+          reportText,
+          proofText,
+          trustedKeyHex: $("key").value,
+          custodyText,
+          historyText
+        })
+      );
+    } catch (e) {
+      render({
+        verification: {
+          status: "error",
+          headline: "Could not check this",
+          detail: e instanceof Error ? e.message : String(e),
+          facts: []
+        },
+        statement: null,
+        coverage: null,
+        history: null,
+        flow: []
+      });
+    }
+  }
+  $("check").addEventListener("click", () => {
+    void onCheck();
+  });
+})();
+
+</script>
+</body>
+</html>

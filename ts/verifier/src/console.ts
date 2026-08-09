@@ -1,0 +1,184 @@
+/**
+ * View logic for the disclosure console's viewer half.
+ *
+ * The console's job is not to say "verified". It is to show *what* was
+ * verified, *what* was merely asserted, and where each number came from —
+ * for a reader who did not write the format.
+ *
+ * Publisher-side workflows (connecting a participant node, designing a
+ * disclosure, publishing) are not here: they need a live ledger connection,
+ * which a page loaded from a file cannot have.
+ */
+
+import { anchorDigestHex, type Anchor } from "./anchor";
+import { verifyFromText, type Fact, type ViewModel } from "./offline";
+import { lookupProfile, type Report, type SignedReport } from "./report";
+import { formatAmount18dp, parseAmount18dp } from "./verify";
+
+export type CoverageRow = {
+  asset: string;
+  held: string;
+  owed: string;
+  covered: boolean;
+};
+
+export type HistoryRow = {
+  index: number;
+  snapshotTime: string;
+  reportDigest: string;
+  linked: boolean;
+};
+
+/** A node in the data-flow view: where a published figure came from. */
+export type FlowNode = {
+  id: string;
+  label: string;
+  detail: string;
+  /** Depth from the published root, so the view can lay it out. */
+  depth: number;
+};
+
+export type ConsoleModel = {
+  verification: ViewModel;
+  /** What the report's profile asserts, in the format's own words. */
+  statement: string | null;
+  coverage: CoverageRow[] | null;
+  history: HistoryRow[] | null;
+  flow: FlowNode[];
+};
+
+function amountRow(asset: string, held: string, owed: string): CoverageRow {
+  return {
+    asset,
+    held: formatAmount18dp(parseAmount18dp(held)),
+    owed: formatAmount18dp(parseAmount18dp(owed)),
+    covered: parseAmount18dp(held) >= parseAmount18dp(owed),
+  };
+}
+
+/**
+ * Coverage is driven by what is owed. An asset held but not owed is not a
+ * coverage question; an asset owed and held nowhere is the worst case.
+ */
+export function coverageRows(custody: Report, liabilities: Report): CoverageRow[] {
+  return Object.entries(liabilities.root_sums)
+    .map(([asset, owed]) => amountRow(asset, custody.root_sums[`held/${asset}`] ?? "0", owed))
+    .sort((a, b) => a.asset.localeCompare(b.asset));
+}
+
+/** Each row says whether it links to the one before it, so a break is visible. */
+export async function historyRows(anchors: Anchor[]): Promise<HistoryRow[]> {
+  const rows: HistoryRow[] = [];
+  for (const [index, anchor] of anchors.entries()) {
+    const linked =
+      index === 0
+        ? anchor.prev_anchor === undefined
+        : anchor.prev_anchor === (await anchorDigestHex(anchors[index - 1]));
+    rows.push({
+      index,
+      snapshotTime: anchor.snapshot_time,
+      reportDigest: anchor.report_digest,
+      linked,
+    });
+  }
+  return rows;
+}
+
+/**
+ * Where a published figure came from, as a shallow tree. Aimed at readers new
+ * to Canton who need to see that a number is an aggregate of things, not a
+ * figure someone typed.
+ */
+export function flowOf(report: Report): FlowNode[] {
+  const profile = lookupProfile(report.profile);
+  const nodes: FlowNode[] = [
+    {
+      id: "root",
+      label: `${report.profile} root`,
+      detail: `${report.root_hash.slice(0, 16)}… over ${report.leaf_count} committed entries`,
+      depth: 0,
+    },
+  ];
+
+  for (const [key, total] of Object.entries(report.root_sums).sort()) {
+    nodes.push({
+      id: `total:${key}`,
+      label: key,
+      detail: `${formatAmount18dp(parseAmount18dp(total))} — summed from every committed entry`,
+      depth: 1,
+    });
+  }
+
+  nodes.push({
+    id: "leaf",
+    label: profile ? `${profile.leaf} entries` : "entries",
+    detail:
+      `${report.leaf_count} of them, committed but not published. ` +
+      "Each holder can prove their own without revealing the others.",
+    depth: 2,
+  });
+
+  nodes.push({
+    id: "snapshot",
+    label: "ledger offset",
+    detail: `${report.ledger_offset} — the point in the publisher's event history this is "as of"`,
+    depth: 3,
+  });
+
+  return nodes;
+}
+
+export type ConsoleInput = {
+  reportText: string;
+  proofText: string;
+  trustedKeyHex: string;
+  group?: { reportText: string; membershipText: string; keyHex?: string };
+  custodyText?: string;
+  historyText?: string;
+};
+
+export async function buildConsole(input: ConsoleInput): Promise<ConsoleModel> {
+  const verification = await verifyFromText(
+    input.reportText,
+    input.proofText,
+    input.trustedKeyHex,
+    input.group
+  );
+
+  let report: Report | null = null;
+  try {
+    report = (JSON.parse(input.reportText) as SignedReport).report;
+  } catch {
+    report = null;
+  }
+
+  let coverage: CoverageRow[] | null = null;
+  if (report && input.custodyText) {
+    try {
+      const custody = (JSON.parse(input.custodyText) as SignedReport).report;
+      coverage = coverageRows(custody, report);
+    } catch {
+      coverage = null;
+    }
+  }
+
+  let history: HistoryRow[] | null = null;
+  if (input.historyText) {
+    try {
+      history = await historyRows(JSON.parse(input.historyText) as Anchor[]);
+    } catch {
+      history = null;
+    }
+  }
+
+  return {
+    verification,
+    statement: report ? (lookupProfile(report.profile)?.name ?? null) : null,
+    coverage,
+    history,
+    flow: report ? flowOf(report) : [],
+  };
+}
+
+/** Re-exported so the page can render provenance without importing two modules. */
+export type { Fact };

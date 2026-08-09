@@ -310,10 +310,12 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 
 ## 🖥️ Disclosure Console
 
-> **Status: planned — [Milestone 4](#milestone-4--disclosure-console).** Today
-> the reference deployment publishes with the Rust producer and verifies with
-> the TypeScript library. The console is the layer that makes both usable by
-> people who do not run scripts.
+> **Status: viewer shipped, publisher not started.** The viewer is
+> [`console/viewer.html`](console/viewer.html) — one self-contained file, no
+> build step and no network calls. The publisher half is genuinely blocked:
+> connecting a participant node, designing a disclosure against live data and
+> publishing all need a ledger connection, which a page loaded from a file
+> cannot have and which this repository has never had access to.
 
 A commitment nobody can operate is not transparency infrastructure. The console
 is two surfaces over one format.
@@ -474,7 +476,7 @@ checkable by everyone else.
 | 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format shipped* |
 | 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly — *chain shipped* |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
-| 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
+| 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code — *viewer shipped* |
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
 | 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard — *conformance suite shipped* |
 
