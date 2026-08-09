@@ -223,6 +223,53 @@ fn verify_chain_exits_one_when_the_customer_proof_is_tampered() {
 }
 
 #[test]
+fn manifest_diff_exits_one_when_disclosure_was_reduced() {
+    let dir = tempfile::tempdir().unwrap();
+    let prev = dir.path().join("prev.json");
+    let curr = dir.path().join("curr.json");
+    let base = fixture("report-v2.golden.json");
+    std::fs::write(&prev, &base).unwrap();
+    std::fs::write(
+        &curr,
+        base.replace(
+            r#""mark_prices": "published""#,
+            r#""mark_prices": "withheld""#,
+        ),
+    )
+    .unwrap();
+
+    let out = run(&[
+        "manifest-diff",
+        "--previous",
+        prev.to_str().unwrap(),
+        "--current",
+        curr.to_str().unwrap(),
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(1), "stdout: {stdout}");
+    assert!(stdout.contains("REDUCED"), "got {stdout}");
+}
+
+#[test]
+fn manifest_diff_exits_zero_when_nothing_was_reduced() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("r.json");
+    std::fs::write(&path, fixture("report-v2.golden.json")).unwrap();
+    let out = run(&[
+        "manifest-diff",
+        "--previous",
+        path.to_str().unwrap(),
+        "--current",
+        path.to_str().unwrap(),
+        "--json",
+    ]);
+    assert_eq!(out.status.code(), Some(0));
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(parsed["ok"], true);
+    assert_eq!(parsed["reductions"], 0);
+}
+
+#[test]
 fn help_exits_zero_and_documents_the_exit_codes() {
     let out = run(&["--help"]);
     assert_eq!(out.status.code(), Some(0));

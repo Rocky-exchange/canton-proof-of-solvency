@@ -620,6 +620,22 @@
         provenance: "disclosed"
       }
     ];
+    const manifest = report.manifest;
+    if (manifest) {
+      const byState = (want) => Object.keys(manifest.fields).filter((path) => manifest.fields[path] === want).sort().join(", ") || "(none)";
+      facts.push(
+        {
+          label: "Withheld from this audience",
+          value: byState("withheld"),
+          provenance: "disclosed"
+        },
+        {
+          label: "Proven but not shown",
+          value: byState("committed"),
+          provenance: "disclosed"
+        }
+      );
+    }
     if (groupSigned && membership) {
       const provenance = result.ok ? "verified" : "disclosed";
       facts.unshift(

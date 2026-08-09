@@ -1,6 +1,65 @@
 //! Rendering a [`Summary`] for humans and for pipelines.
 
+use crate::diff::DiffSummary;
 use crate::run::Summary;
+use canton_solvency_report::manifest::ManifestChange;
+
+fn describe(change: &ManifestChange) -> String {
+    match change {
+        ManifestChange::Added { path, state } => {
+            format!("+ {path}: now {}", state.as_str())
+        }
+        ManifestChange::Removed { path, was } => {
+            format!("- {path}: was {}, no longer declared", was.as_str())
+        }
+        ManifestChange::Changed { path, from, to } => {
+            format!("~ {path}: {} -> {}", from.as_str(), to.as_str())
+        }
+    }
+}
+
+/// Reductions are called out separately: an expansion of disclosure is not
+/// the thing anyone is scanning this output for.
+pub fn render_diff_text(summary: &DiffSummary) -> String {
+    if summary.changes.is_empty() {
+        return "no change to the disclosure manifest\n".to_string();
+    }
+    let mut out = String::new();
+    for change in &summary.changes {
+        let marker = if change.is_reduction() {
+            "  REDUCED "
+        } else {
+            "          "
+        };
+        out.push_str(&format!("{marker}{}\n", describe(change)));
+    }
+    let reductions = summary.reductions().len();
+    out.push_str(&format!(
+        "{} change(s), {reductions} reducing disclosure\n",
+        summary.changes.len()
+    ));
+    out
+}
+
+pub fn render_diff_json(summary: &DiffSummary) -> String {
+    let changes: Vec<serde_json::Value> = summary
+        .changes
+        .iter()
+        .map(|c| {
+            serde_json::json!({
+                "path": c.path(),
+                "description": describe(c),
+                "reduction": c.is_reduction(),
+            })
+        })
+        .collect();
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": !summary.has_reductions(),
+        "changes": changes,
+        "reductions": summary.reductions().len(),
+    }))
+    .expect("summary is always serializable")
+}
 
 /// Failures are listed individually; successes are counted. Someone sweeping
 /// ten thousand proofs needs the one that broke, not ten thousand OK lines.
@@ -131,6 +190,71 @@ mod tests {
             "proof does not fold to the published root"
         );
         assert_eq!(parsed["proofs"][0]["failure"], serde_json::Value::Null);
+    }
+
+    mod manifest_diff {
+        use super::*;
+        use canton_solvency_report::manifest::Disclosure;
+
+        fn changed(from: Disclosure, to: Disclosure) -> ManifestChange {
+            ManifestChange::Changed {
+                path: "mark_prices".to_string(),
+                from,
+                to,
+            }
+        }
+
+        #[test]
+        fn no_changes_says_so_plainly() {
+            let text = render_diff_text(&DiffSummary { changes: vec![] });
+            assert!(text.contains("no change"), "got {text}");
+        }
+
+        #[test]
+        fn a_reduction_is_marked_in_the_text_output() {
+            let text = render_diff_text(&DiffSummary {
+                changes: vec![changed(Disclosure::Published, Disclosure::Withheld)],
+            });
+            assert!(text.contains("REDUCED"), "got {text}");
+            assert!(text.contains("published -> withheld"), "got {text}");
+            assert!(text.contains("1 reducing"), "got {text}");
+        }
+
+        #[test]
+        fn an_expansion_is_listed_but_not_marked_as_a_reduction() {
+            let text = render_diff_text(&DiffSummary {
+                changes: vec![changed(Disclosure::Withheld, Disclosure::Published)],
+            });
+            assert!(!text.contains("REDUCED"), "got {text}");
+            assert!(text.contains("0 reducing"), "got {text}");
+        }
+
+        #[test]
+        fn json_output_flags_each_change_and_the_overall_verdict() {
+            let json = render_diff_json(&DiffSummary {
+                changes: vec![
+                    changed(Disclosure::Published, Disclosure::Withheld),
+                    ManifestChange::Added {
+                        path: "root_sums".to_string(),
+                        state: Disclosure::Published,
+                    },
+                ],
+            });
+            let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed["ok"], false);
+            assert_eq!(parsed["reductions"], 1);
+            assert_eq!(parsed["changes"][0]["reduction"], true);
+            assert_eq!(parsed["changes"][1]["reduction"], false);
+        }
+
+        #[test]
+        fn json_output_is_ok_when_nothing_was_reduced() {
+            let json = render_diff_json(&DiffSummary {
+                changes: vec![changed(Disclosure::Withheld, Disclosure::Published)],
+            });
+            let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed["ok"], true);
+        }
     }
 
     #[test]

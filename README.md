@@ -635,6 +635,11 @@ Takes the publisher out of the verification path entirely.
   report against the key embedded in itself.
 - **JSON Schema** for the report and proof documents, in
   [`schemas/`](schemas), validated against the golden fixtures in CI.
+- **`manifest-diff`** — compares two reports' disclosure manifests and exits
+  `1` if disclosure was *reduced* (any move away from `published`, or a
+  published field dropped), so a CI job can fail when a venue quietly starts
+  disclosing less. It takes no key: it verifies no signature, and demanding
+  one for an operation that checks nothing would be theatre.
 - **Group verbs** — `verify-group` checks entity memberships against a group
   report, and `verify-chain` checks a customer all the way to a group's
   consolidated total ([SPEC.md](SPEC.md) §13). `--group-key` accepts a separate

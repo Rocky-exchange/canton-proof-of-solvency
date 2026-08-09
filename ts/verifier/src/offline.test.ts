@@ -139,4 +139,40 @@ describe("offline verifier", () => {
       expect(vm.status).toBe("error");
     });
   });
+
+  describe("with a v2 disclosure manifest", () => {
+    const v2Report = () => fixture("report-v2.golden.json");
+    const v2Proof = () => fixture("proof-v2.golden.json");
+
+    it("verifies a v2 publication", async () => {
+      const vm = await verifyFromText(v2Report(), v2Proof(), KEY);
+      expect(vm.status).toBe("verified");
+    });
+
+    it("tells the reader what the publisher withheld", async () => {
+      const vm = await verifyFromText(v2Report(), v2Proof(), KEY);
+      const withheld = fact(vm.facts, "withheld");
+      expect(withheld?.value).toContain("customer_identities");
+    });
+
+    /**
+     * The manifest is signed and consistency-checked, but nothing in it is
+     * recomputed from the commitment, so it must not claim to be.
+     */
+    it("labels the manifest as the publisher's statement, not a recomputation", async () => {
+      const vm = await verifyFromText(v2Report(), v2Proof(), KEY);
+      expect(fact(vm.facts, "withheld")?.provenance).toBe("disclosed");
+      expect(fact(vm.facts, "proven but not shown")?.provenance).toBe("disclosed");
+    });
+
+    it("names the fields proven but not shown", async () => {
+      const vm = await verifyFromText(v2Report(), v2Proof(), KEY);
+      expect(fact(vm.facts, "proven but not shown")?.value).toContain("customer_balances");
+    });
+
+    it("says nothing about a manifest for a v1 report", async () => {
+      const vm = await verifyFromText(report(), proof(), KEY);
+      expect(fact(vm.facts, "withheld")).toBeUndefined();
+    });
+  });
 });
