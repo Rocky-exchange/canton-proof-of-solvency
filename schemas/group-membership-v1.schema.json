@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/group-membership-v1.schema.json",
+  "title": "Canton solvency group membership v1",
+  "description": "Proves one entity is committed in a group's consolidated total (SPEC.md \u00a713.3).",
+  "type": "object",
+  "required": [
+    "format_version",
+    "group_report_digest",
+    "entity",
+    "steps"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": "canton-solvency-group-membership-v1"
+    },
+    "group_report_digest": {
+      "$ref": "#/$defs/hash256"
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "entity_id",
+        "root_hash",
+        "root_sums"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Bound into the leaf hash, so a group cannot swap one subsidiary for another of equal total."
+        },
+        "root_hash": {
+          "$ref": "#/$defs/hash256"
+        },
+        "root_sums": {
+          "$ref": "#/$defs/amountMap"
+        }
+      }
+    },
+    "steps": {
+      "$ref": "#/$defs/steps"
+    }
+  },
+  "$defs": {
+    "amount": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]{1,18})?$"
+    },
+    "amountMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/amount"
+      }
+    },
+    "hash256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Leaf level upward. Levels where the node was promoted without a sibling contribute no step.",
+      "items": {
+        "type": "object",
+        "required": [
+          "sibling_hash",
+          "sibling_sums",
+          "sibling_on_left"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sibling_hash": {
+            "$ref": "#/$defs/hash256"
+          },
+          "sibling_sums": {
+            "$ref": "#/$defs/amountMap"
+          },
+          "sibling_on_left": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

@@ -233,7 +233,7 @@ asserts, which aggregates are published, and who is entitled to which view.
 | `solvency.liabilities` | Every customer balance is committed, and the root's totals are the liabilities | one customer's per-asset equity | **shipped** |
 | `solvency.coverage` | Custody holdings ≥ liabilities, asset by asset | one custody position | M1 |
 | `collateral.repo` | Every open leg is committed, and aggregate collateral covers aggregate exposure per asset | one open repo leg, with `collateral` and `exposure` maps | **shipped** |
-| `fund.nav` | NAV per share is backed by committed holdings at published marks | one holding line item / one shareholder | M3 |
+| `fund.nav` | Every holder's units and entitlement are committed; root totals are units outstanding and total entitlement | one shareholder, with `units` and `entitlement` maps | **shipped** |
 | `settlement.dvp` | Across this window, no leg settled without its counter-leg | one settled trade | M3 |
 | `eligibility.holder` | Every holder satisfied rule R at issuance | one holder's attested attributes | M3 |
 
@@ -303,7 +303,7 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 | Wire format | [`SPEC.md`](SPEC.md) | Byte-level format v1 + golden vectors |
 | Example | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → root, totals, verified proof |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | Signed report + proof documents (Rust) |
-| Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema |
+| Fixtures & schemas | [`fixtures`](fixtures) · [`schemas`](schemas) | Golden documents + JSON Schema for every one of them |
 | Offline verifier | [`offline/verifier.html`](offline/verifier.html) | Self-contained page, no build step, no network |
 | `canton-disclosure-console` | *planned — [M4](#milestone-4--disclosure-console)* | Publisher + viewer web console |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | Auditor CLI, batch verification |

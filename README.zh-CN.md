@@ -194,7 +194,7 @@ offset、发布方、签名)、锚定链,以及验证端本身。
 | `solvency.liabilities` | 每一位客户的余额都被承诺,树根总额即负债 | 一位客户的逐资产权益 | **已交付** |
 | `solvency.coverage` | 托管持仓 ≥ 负债,逐资产成立 | 一笔托管持仓 | M1 |
 | `collateral.repo` | 每条未平仓腿都被承诺,且逐资产的抵押品总额覆盖敞口总额 | 一条未平仓回购腿,含 `collateral` 与 `exposure` 两张表 | **已交付** |
-| `fund.nav` | 每份额 NAV 由已承诺的持仓按公布标记价格支撑 | 一条持仓明细 / 一位份额持有人 | M3 |
+| `fund.nav` | 每位持有人的份额与权益都被承诺;树根总额即流通份额与权益总额 | 一位份额持有人,含 `units` 与 `entitlement` 两张表 | **已交付** |
 | `settlement.dvp` | 在本时间窗内,没有任何一条腿在对手腿之外单独结清 | 一笔已结算交易 | M3 |
 | `eligibility.holder` | 每一位持有人在发行时都满足规则 R | 一位持有人的已核验属性 | M3 |
 
@@ -255,7 +255,7 @@ offset、发布方、签名)、锚定链,以及验证端本身。
 | 线格式规范 | [`SPEC.md`](SPEC.md) | 字节级格式 v1 + 黄金测试向量 |
 | 示例 | [`examples/csv_report.rs`](rust/solvency-merkle/examples/csv_report.rs) | CSV → 树根、总额、已验证证明 |
 | `canton-solvency-report` | [`rust/solvency-report`](rust/solvency-report) | 签名报告与证明文档(Rust) |
-| 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档 + JSON Schema |
+| 夹具与 Schema | [`fixtures`](fixtures) · [`schemas`](schemas) | 黄金文档,以及覆盖其中每一份的 JSON Schema |
 | 离线验证页 | [`offline/verifier.html`](offline/verifier.html) | 自包含页面,无构建步骤、无网络请求 |
 | `canton-disclosure-console` | *规划中 —— [M4](#milestone-4--披露控制台)* | 发布端 + 查看端 Web 控制台 |
 | `canton-solvency-verify` | [`rust/solvency-cli`](rust/solvency-cli) | 审计 CLI,批量验证 |

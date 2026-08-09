@@ -227,6 +227,11 @@
       leaf: "repoleg",
       requiredAggregates: ["collateral/*", "exposure/*"],
       coverage: { covering: "collateral", covered: "exposure" }
+    },
+    {
+      name: "fund.nav",
+      leaf: "shareholder",
+      requiredAggregates: ["units/*", "entitlement/*"]
     }
   ];
   function lookupProfile(name) {

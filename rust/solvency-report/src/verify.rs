@@ -162,7 +162,7 @@ pub fn verify_v2(
 ) -> Result<(), VerificationFailure> {
     let report = &signed.report;
     check_report_version_and_manifest(report)?;
-    expect_leaf_kind(report, crate::profile::LeafKind::RepoLeg)?;
+    expect_leaf_v2(report)?;
     expect_version(
         "proof.format_version",
         &proof.format_version,
@@ -188,13 +188,25 @@ pub fn verify_v2(
     )
 }
 
-/// Validates the declared profile and requires the tree's leaves to be what
-/// the caller is about to present a proof for.
-pub(crate) fn expect_leaf_kind(
+/// A v2 proof belongs to any profile committed with v2 leaves, not to one
+/// particular profile.
+pub(crate) fn expect_leaf_v2(report: &crate::document::Report) -> Result<(), VerificationFailure> {
+    let rules = validated_profile(report)?;
+    if !rules.leaf.uses_leaf_v2() {
+        return Err(F::Profile {
+            detail: format!(
+                "profile {} commits to {:?} leaves; this is a v2 leaf proof",
+                rules.name, rules.leaf
+            ),
+        });
+    }
+    Ok(())
+}
+
+fn validated_profile(
     report: &crate::document::Report,
-    wanted: crate::profile::LeafKind,
-) -> Result<(), VerificationFailure> {
-    let rules = crate::profile::validate(report).map_err(|e| F::Profile {
+) -> Result<&'static crate::profile::ProfileRules, VerificationFailure> {
+    crate::profile::validate(report).map_err(|e| F::Profile {
         detail: match e {
             crate::profile::ProfileError::Unknown { found } => {
                 format!("profile {found:?} is not in the registry")
@@ -203,7 +215,16 @@ pub(crate) fn expect_leaf_kind(
                 format!("profile {profile}: {detail}")
             }
         },
-    })?;
+    })
+}
+
+/// Validates the declared profile and requires the tree's leaves to be what
+/// the caller is about to present a proof for.
+pub(crate) fn expect_leaf_kind(
+    report: &crate::document::Report,
+    wanted: crate::profile::LeafKind,
+) -> Result<(), VerificationFailure> {
+    let rules = validated_profile(report)?;
     if rules.leaf != wanted {
         return Err(F::Profile {
             detail: format!(
@@ -809,6 +830,136 @@ mod tests {
                 .collect(),
             }];
             assert!(publish_v2(&leaves, &repo_meta(), &signer()).is_err());
+        }
+    }
+
+    /// A tokenized fund, proving each holder's units and entitlement.
+    mod fund {
+        use super::*;
+        use crate::produce::{publish_v2, LeafInputV2, PublicationV2};
+        use std::collections::BTreeMap;
+
+        fn holder(i: u128) -> LeafInputV2 {
+            let named = |k: &str, asset: &str, v: u128| {
+                (
+                    k.to_string(),
+                    [(asset.to_string(), v)]
+                        .into_iter()
+                        .collect::<BTreeMap<_, _>>(),
+                )
+            };
+            LeafInputV2 {
+                salt: [i as u8; 32],
+                subject_id: format!("holder-{i}"),
+                maps: [
+                    named("units", "CLASS_A", i * 100),
+                    named("entitlement", "USDA", i * 250),
+                ]
+                .into_iter()
+                .collect(),
+            }
+        }
+
+        fn publish_fund(n: u128) -> PublicationV2 {
+            let leaves: Vec<LeafInputV2> = (1..=n).map(holder).collect();
+            publish_v2(
+                &leaves,
+                &ReportMetadata {
+                    profile: "fund.nav".to_string(),
+                    ..metadata()
+                },
+                &signer(),
+            )
+            .unwrap()
+        }
+
+        #[test]
+        fn every_holder_verifies_and_nav_per_share_is_derivable_from_the_root() {
+            let p = publish_fund(4);
+            let sums = &p.signed_report.report.root_sums;
+            // 100+200+300+400 units against 250+500+750+1000 entitlement.
+            assert_eq!(sums["units/CLASS_A"], 1_000);
+            assert_eq!(sums["entitlement/USDA"], 2_500);
+            for i in 0..4 {
+                assert_eq!(
+                    verify_v2(&p.signed_report, &p.proofs[i], &signer().public_key_hex()),
+                    Ok(()),
+                    "holder {i}"
+                );
+            }
+        }
+
+        #[test]
+        fn a_holder_whose_units_were_altered_no_longer_folds_to_the_root() {
+            let mut p = publish_fund(3);
+            p.proofs[0]
+                .leaf
+                .maps
+                .get_mut("units")
+                .unwrap()
+                .insert("CLASS_A".to_string(), 9_999);
+            assert_eq!(
+                verify_v2(&p.signed_report, &p.proofs[0], &signer().public_key_hex()),
+                Err(VerificationFailure::RootHashMismatch)
+            );
+        }
+
+        /// Both v2 profiles share one proof format, so a fund proof must not
+        /// verify against a repo report even though both use v2 leaves.
+        #[test]
+        fn a_fund_proof_does_not_verify_against_a_repo_report() {
+            let fund = publish_fund(2);
+            let repo = publish_v2(
+                &[LeafInputV2 {
+                    salt: [7u8; 32],
+                    subject_id: "trade-1".to_string(),
+                    maps: [
+                        (
+                            "collateral".to_string(),
+                            [("USDA".to_string(), 110u128)].into_iter().collect(),
+                        ),
+                        (
+                            "exposure".to_string(),
+                            [("USDA".to_string(), 100u128)].into_iter().collect(),
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                }],
+                &ReportMetadata {
+                    profile: "collateral.repo".to_string(),
+                    ..metadata()
+                },
+                &signer(),
+            )
+            .unwrap();
+
+            // Both are v2-leaf profiles, so this passes the leaf-kind gate and
+            // must be caught by the commitment itself.
+            assert_eq!(
+                verify_v2(
+                    &repo.signed_report,
+                    &fund.proofs[0],
+                    &signer().public_key_hex()
+                ),
+                Err(VerificationFailure::DigestMismatch)
+            );
+        }
+
+        #[test]
+        fn a_v1_customer_proof_is_refused_against_a_fund_report() {
+            let fund = publish_fund(2);
+            let customer = publication(2);
+            match verify(
+                &fund.signed_report,
+                &customer.proofs[0],
+                &signer().public_key_hex(),
+            ) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("Shareholder"), "got {detail}")
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
         }
     }
 

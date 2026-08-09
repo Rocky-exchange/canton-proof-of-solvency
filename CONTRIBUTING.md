@@ -43,11 +43,21 @@ npm install && npm test
 
 All of these must pass locally before you open a PR — CI runs exactly these.
 
-The golden fixtures in `fixtures/` are asserted byte for byte by both
-implementations. If a deliberate format change makes them stale, regenerate
-with `cargo run --manifest-path rust/solvency-report/Cargo.toml --example
-print_golden` and update [SPEC.md](SPEC.md) §10 in the same commit — never
-edit a fixture by hand to make a test pass.
+Everything in `fixtures/` is asserted byte for byte by both implementations —
+the v1 and v2 reports, the v1 and v2 proofs, and the group report and
+membership. If a deliberate format change makes them stale, regenerate with:
+
+```bash
+cargo run --manifest-path rust/solvency-report/Cargo.toml --example print_golden
+```
+
+and update the matching SPEC section in the same commit (§10 for the report
+and proof, §13.6 for the group, §14 for a profile). **Never edit a fixture by
+hand to make a test pass.**
+
+Every fixture must also have a JSON Schema in `schemas/` that accepts it; a
+test enumerates the directory and fails if a new document format ships without
+one.
 
 ## Pull Request Guidelines
 

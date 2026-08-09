@@ -20,6 +20,16 @@ pub enum LeafKind {
     Entity,
     /// One open repo leg, carrying collateral and exposure (SPEC §3.1).
     RepoLeg,
+    /// One holder of a tokenized fund, carrying units and entitlement.
+    Shareholder,
+}
+
+impl LeafKind {
+    /// Whether this kind is committed with a v2 leaf (SPEC §3.1). A v2 proof
+    /// belongs to any v2-leaf profile, not to one specific profile.
+    pub fn uses_leaf_v2(&self) -> bool {
+        matches!(self, Self::RepoLeg | Self::Shareholder)
+    }
 }
 
 /// A profile rule requiring one map to cover another, per asset.
@@ -75,7 +85,31 @@ pub const COLLATERAL_REPO: ProfileRules = ProfileRules {
     }),
 };
 
-pub const REGISTRY: &[ProfileRules] = &[SOLVENCY_LIABILITIES, SOLVENCY_GROUP, COLLATERAL_REPO];
+/// A leaf is one **shareholder**, not one holding line item.
+///
+/// A holdings tree would prove what the fund owns, but no investor could find
+/// themselves in it, and being able to find yourself is the whole pattern of
+/// this project. Whether the fund actually holds enough to back those
+/// entitlements is an asset-side question, which is what a coverage report
+/// answers — not something a liabilities tree can prove about itself.
+///
+/// `units` is keyed by share class and `entitlement` by currency, so NAV per
+/// share is derivable from the published root by anyone.
+pub const FUND_NAV: ProfileRules = ProfileRules {
+    name: "fund.nav",
+    statement:
+        "every holder's units and entitlement are committed, and the root totals are units outstanding and total entitlement",
+    leaf: LeafKind::Shareholder,
+    required_aggregates: &["units/*", "entitlement/*"],
+    coverage: None,
+};
+
+pub const REGISTRY: &[ProfileRules] = &[
+    SOLVENCY_LIABILITIES,
+    SOLVENCY_GROUP,
+    COLLATERAL_REPO,
+    FUND_NAV,
+];
 
 pub fn lookup(name: &str) -> Option<&'static ProfileRules> {
     REGISTRY.iter().find(|rules| rules.name == name)
@@ -158,7 +192,8 @@ mod tests {
         assert_eq!(lookup("solvency.liabilities"), Some(&SOLVENCY_LIABILITIES));
         assert_eq!(lookup("solvency.group"), Some(&SOLVENCY_GROUP));
         assert_eq!(lookup("collateral.repo"), Some(&COLLATERAL_REPO));
-        assert_eq!(lookup("fund.nav"), None, "not yet designed");
+        assert_eq!(lookup("fund.nav"), Some(&FUND_NAV));
+        assert_eq!(lookup("eligibility.holder"), None, "not yet designed");
         assert_eq!(lookup(""), None);
     }
 
@@ -265,6 +300,41 @@ mod tests {
             }
             other => panic!("expected a violation, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_fund_report_publishing_units_and_entitlement_is_accepted() {
+        let (mut signed, _) = golden::fixture();
+        signed.report.profile = "fund.nav".to_string();
+        signed.report.root_sums = [
+            ("units/CLASS_A".to_string(), 1_000u128),
+            ("entitlement/USDA".to_string(), 2_000u128),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(validate(&signed.report), Ok(&FUND_NAV));
+    }
+
+    /// Units with no entitlement, or the reverse, cannot express a NAV.
+    #[test]
+    fn a_fund_report_missing_either_map_is_rejected() {
+        for only in ["units/CLASS_A", "entitlement/USDA"] {
+            let (mut signed, _) = golden::fixture();
+            signed.report.profile = "fund.nav".to_string();
+            signed.report.root_sums = [(only.to_string(), 1u128)].into_iter().collect();
+            assert!(
+                validate(&signed.report).is_err(),
+                "{only} alone was accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn only_v2_leaf_profiles_report_using_leaf_v2() {
+        assert!(COLLATERAL_REPO.leaf.uses_leaf_v2());
+        assert!(FUND_NAV.leaf.uses_leaf_v2());
+        assert!(!SOLVENCY_LIABILITIES.leaf.uses_leaf_v2());
+        assert!(!SOLVENCY_GROUP.leaf.uses_leaf_v2());
     }
 
     /// A liabilities report with no totals asserts nothing at all.
