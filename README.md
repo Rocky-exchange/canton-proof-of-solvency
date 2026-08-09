@@ -476,7 +476,7 @@ checkable by everyone else.
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
-| 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
+| 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard — *conformance suite shipped* |
 
 *Sequencing: 0 is a prerequisite for everything — 1, 2, 3 and 5 all read or
 write the report document. 1 and 2 are then independent and run in parallel; 3
@@ -706,9 +706,7 @@ Turns one implementation into something the network can rely on.
 
 **Deliverables**
 
-- **Conformance suite** — an executable test corpus any implementation runs to
-  claim compatibility, covering the wire format, coverage reports, anchors,
-  profiles, and manifests.
+- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §14.3. Sixteen cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings and anchor chains, each with an expected outcome. Both implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,

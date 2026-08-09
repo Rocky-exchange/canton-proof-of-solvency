@@ -1,0 +1,21 @@
+{
+  "entity": {
+    "entity_id": "golden-entity-z",
+    "root_hash": "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970",
+    "root_sums": {
+      "CBTC": "0.250000000000000000",
+      "USDA": "101.500000000000000001"
+    }
+  },
+  "format_version": "canton-solvency-group-membership-v1",
+  "group_report_digest": "e2eb5175a25f845acf0059ec85a8594e2e5587d412ed3498a872c83057a93fc8",
+  "steps": [
+    {
+      "sibling_hash": "e46abae390d1041ff1168033c20ca9151bf47f12cfb9b9e49f19600fd8326494",
+      "sibling_on_left": false,
+      "sibling_sums": {
+        "USDA": "42.000000000000000000"
+      }
+    }
+  ]
+}

@@ -682,6 +682,25 @@ the same treatment: a decision about what a leaf is, what the root asserts,
 and which rules are checked rather than asserted. An unregistered profile is
 rejected outright (§14.1), so a half-considered entry is worse than none.
 
+### 14.3 Conformance corpus
+
+[`conformance/`](conformance) holds the cases an implementation must agree on
+to claim compatibility. Each is a directory of documents plus an expected
+outcome, listed in `manifest.json`, and the corpus is generated from the
+golden fixtures so it cannot drift from the vectors both implementations
+already assert.
+
+A corpus of only-accepting cases would pass against an implementation that
+accepts everything, and a corpus of only-rejecting cases against one that
+rejects everything, so the runners assert a floor on both. A case whose
+mutation fails to apply is rejected at generation time: a mutation that
+silently no-ops produces a "rejection" case that is really testing acceptance
+of a valid document.
+
+Both reference implementations run the corpus. That is the point — golden
+vectors pin the bytes two implementations produce, and the corpus pins the
+*decisions* they make.
+
 Two kinds of rule beyond required aggregates are available, and both exist
 because a total alone cannot express the statement:
 

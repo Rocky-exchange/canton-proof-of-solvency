@@ -1,0 +1,182 @@
+{
+  "cases": [
+    {
+      "description": "a valid customer proof",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-valid",
+      "kind": "proof"
+    },
+    {
+      "description": "a balance edited after commitment",
+      "expect": "reject",
+      "failure": "root_hash_mismatch",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-tampered-balance",
+      "kind": "proof"
+    },
+    {
+      "description": "an honest root beside understated published totals",
+      "expect": "reject",
+      "failure": "digest_mismatch",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-understated-totals",
+      "kind": "proof"
+    },
+    {
+      "description": "a signature that does not verify",
+      "expect": "reject",
+      "failure": "bad_signature",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-forged-signature",
+      "kind": "proof"
+    },
+    {
+      "description": "a proof bound to a different report",
+      "expect": "reject",
+      "failure": "digest_mismatch",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-stale",
+      "kind": "proof"
+    },
+    {
+      "description": "a v2 report with a consistent manifest",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "report-v2-valid",
+      "kind": "proof"
+    },
+    {
+      "description": "a field declared withheld that the report publishes",
+      "expect": "reject",
+      "failure": "manifest_inconsistent",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "report-v2-manifest-lies",
+      "kind": "proof"
+    },
+    {
+      "description": "a collateralised repo book",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "repo-valid",
+      "kind": "proof-v2"
+    },
+    {
+      "description": "exposure exceeding collateral for an asset",
+      "expect": "reject",
+      "failure": "profile",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "repo-under-collateralised",
+      "kind": "proof-v2"
+    },
+    {
+      "description": "an entity committed in a group",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "group-report.json",
+        "membership.json"
+      ],
+      "id": "group-valid",
+      "kind": "membership"
+    },
+    {
+      "description": "an entity renamed after commitment",
+      "expect": "reject",
+      "failure": "root_hash_mismatch",
+      "files": [
+        "group-report.json",
+        "membership.json"
+      ],
+      "id": "group-relabelled-entity",
+      "kind": "membership"
+    },
+    {
+      "description": "assets covering liabilities",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "custody.json",
+        "liabilities.json",
+        "statement.json"
+      ],
+      "id": "coverage-valid",
+      "kind": "coverage"
+    },
+    {
+      "description": "a statement naming a different custody report",
+      "expect": "reject",
+      "failure": "digest_mismatch",
+      "files": [
+        "custody.json",
+        "liabilities.json",
+        "statement.json"
+      ],
+      "id": "coverage-unbound-statement",
+      "kind": "coverage"
+    },
+    {
+      "description": "a two-anchor history",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-intact",
+      "kind": "anchors"
+    },
+    {
+      "description": "a history that does not start at genesis",
+      "expect": "reject",
+      "failure": "not_genesis",
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-suffix",
+      "kind": "anchors"
+    },
+    {
+      "description": "an anchor not naming its predecessor",
+      "expect": "reject",
+      "failure": "broken",
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-broken-link",
+      "kind": "anchors"
+    }
+  ],
+  "description": "Cases any implementation must agree on to claim compatibility with this format.",
+  "format_version": "canton-solvency-conformance-v1",
+  "trusted_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
+}
