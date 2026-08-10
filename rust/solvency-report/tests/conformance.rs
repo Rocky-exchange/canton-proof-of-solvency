@@ -35,6 +35,7 @@ fn expected_text(failure: &str) -> &'static str {
         "bad_signature" => "signature does not verify",
         "unknown_signer" => "trusted key",
         "manifest_inconsistent" => "manifest disagrees",
+        "manifest_presence" => "manifest",
         "profile" => "profile ",
         "not_genesis" => "names a predecessor",
         "unsupported_version" => "unsupported",

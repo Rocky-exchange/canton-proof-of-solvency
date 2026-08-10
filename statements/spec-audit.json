@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "d9699da9a8157345e299ebe07c27749b879a1bbba99f480010aa25fbd97bc398",
+  "corpus_digest": "6777fe0c9ee3438c29e2d4ae08a5fbf4aee802883f6e8c9bc6b651a097f04f74",
   "results": [
     {
       "id": "proof-valid",
@@ -71,6 +71,21 @@
     },
     {
       "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "report-v2-published-but-absent",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "report-v1-carrying-a-manifest",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "report-v2-without-a-manifest",
       "expected": "reject",
       "outcome": "skip"
     },

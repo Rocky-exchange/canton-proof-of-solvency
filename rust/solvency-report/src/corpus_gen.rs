@@ -45,6 +45,8 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (eligibility_report, eligibility_proof, eligibility_broken, eligibility_broken_proof) =
         golden::eligibility_fixture();
     let (fund_report, fund_proof, fund_partial, fund_partial_proof) = golden::fund_fixture();
+    let (manifest_absent, manifest_absent_proof, v1_with_manifest, v2_without_manifest) =
+        golden::manifest_edge_fixtures();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
@@ -303,6 +305,48 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
                     "0000000000000000",
                 ),
             ),
+        ],
+    )?;
+
+    // --- §8.5 manifest consistency, both directions ---
+    // The corpus checked a field declared withheld that the report publishes.
+    // Consistency is checked both ways and only one way was exercised, and the
+    // presence rule — a v1 report carrying a manifest, or a v2 carrying none —
+    // was not exercised at all.
+    add(
+        "report-v2-published-but-absent",
+        "proof",
+        &["report-v2", "proof-v1", "manifest"],
+        "a field declared published that the report does not carry",
+        "reject",
+        Some("manifest_inconsistent"),
+        vec![
+            ("report.json", serde_json::to_value(&manifest_absent)?),
+            ("proof.json", serde_json::to_value(&manifest_absent_proof)?),
+        ],
+    )?;
+    add(
+        "report-v1-carrying-a-manifest",
+        "proof",
+        &["report-v1", "proof-v1", "manifest"],
+        "a v1 report carrying a manifest it has no envelope for",
+        "reject",
+        Some("manifest_presence"),
+        vec![
+            ("report.json", serde_json::to_value(&v1_with_manifest)?),
+            ("proof.json", proof_j.clone()),
+        ],
+    )?;
+    add(
+        "report-v2-without-a-manifest",
+        "proof",
+        &["report-v2", "proof-v1", "manifest"],
+        "a v2 report with no manifest at all",
+        "reject",
+        Some("manifest_presence"),
+        vec![
+            ("report.json", serde_json::to_value(&v2_without_manifest)?),
+            ("proof.json", proof_v2_j.clone()),
         ],
     )?;
 
