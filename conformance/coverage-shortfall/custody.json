@@ -1,0 +1,31 @@
+{
+  "report": {
+    "disclosures": {
+      "bad_debt": {
+        "USDA": "2.500000000000000000"
+      },
+      "excluded_house_accounts": 1,
+      "excluded_house_totals": {
+        "USDA": "1000.000000000000000000"
+      }
+    },
+    "format_version": "canton-solvency-report-v1",
+    "leaf_count": 1,
+    "ledger_offset": "000000000000000042",
+    "mark_prices": {
+      "CBTC": "50000.000000000000000000"
+    },
+    "profile": "coverage.custody",
+    "publisher": "golden::publisher",
+    "root_hash": "2825204438baab8b1a6cf40fdd30a7cf776e59e892c3b19efc1402214f997a37",
+    "root_sums": {
+      "held/USDA": "120.000000000000000000"
+    },
+    "snapshot_time": "2026-01-01T00:00:00Z"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "value": "f989b0008b1641d8729645be568115bd1414a561bd05d1ef1ebb4c5e718332bcde64c55631829e21d27e9ccd7e0b363ec130b732230daa21dba5ecab6459c808"
+  }
+}

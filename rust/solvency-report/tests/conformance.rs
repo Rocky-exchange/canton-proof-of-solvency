@@ -44,6 +44,8 @@ fn expected_text(failure: &str) -> &'static str {
         "pack_missing" => "which is not present",
         "pack_altered" => "does not match the digest",
         "pack_unlisted" => "does not name it",
+        "unsafe_name" => "not a plain file name",
+        "shortfall" => "shortfall",
         other => panic!("no expected text for declared failure {other:?}"),
     }
 }

@@ -261,6 +261,47 @@ pub fn understated_fixture() -> (SignedReport, ProofDocument) {
 ///
 /// The member bytes are the pretty-printed documents a publisher writes, since
 /// the index pins bytes on disk rather than any re-serialisation of them.
+/// A custody report that does not cover the liabilities, for the case §11
+/// exists to catch.
+///
+/// Holds plenty of USDA and no CBTC at all. §11 is driven by what is owed, so
+/// an asset owed and held nowhere must read as a shortfall rather than as
+/// silence — the failure mode where a missing row looks like nothing required.
+pub fn shortfall_fixture() -> (SignedReport, crate::coverage::CoverageStatement) {
+    use crate::coverage::{CoverageStatement, COVERAGE_FORMAT_VERSION};
+    use crate::digest::report_digest_hex;
+    use crate::produce::{publish_v2, LeafInputV2};
+
+    let leaves: Vec<LeafInputV2> = [(
+        "custody-position-1",
+        "USDA",
+        120_000_000_000_000_000_000u128,
+    )]
+    .into_iter()
+    .map(|(id, asset, amount)| LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, id),
+        subject_id: id.to_string(),
+        maps: [("held".to_string(), amounts(&[(asset, amount)]))]
+            .into_iter()
+            .collect(),
+    })
+    .collect();
+
+    let meta = ReportMetadata {
+        profile: "coverage.custody".to_string(),
+        ..metadata()
+    };
+    let published = publish_v2(&leaves, &meta, &signer()).unwrap();
+    let (liabilities, _) = fixture();
+    let statement = CoverageStatement {
+        format_version: COVERAGE_FORMAT_VERSION.to_string(),
+        custody_report_digest: report_digest_hex(&published.signed_report.report),
+        liabilities_report_digest: report_digest_hex(&liabilities.report),
+        custody_basis: "omnibus custody party golden::custodian".to_string(),
+    };
+    (published.signed_report, statement)
+}
+
 /// The §13.4 chain, and the substitution it exists to refuse.
 ///
 /// Returns the group report, entity A's membership, entity B's membership,
