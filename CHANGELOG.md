@@ -11,6 +11,13 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **The disclosure designer threw on a half-written manifest.** A manifest with
+  no `audience` crashed the screen, because the check for a missing audience
+  read `.trim()` off it — so the most ordinary in-progress document produced a
+  blank page instead of the "no audience named" problem the designer was
+  already prepared to report. Aggregates and field maps that are not maps no
+  longer throw either.
+
 - **An attacker could choose whose balance their own proof disclosed.** A proof
   carries its sibling's sums, and at leaf level the sibling is one other
   customer, so whoever is paired with you learns your exact balances. The
