@@ -202,6 +202,22 @@
       ]
     },
     {
+      "description": "a custody report claiming a key the verifier does not trust",
+      "expect": "reject",
+      "failure": "unknown_signer",
+      "files": [
+        "custody.json",
+        "liabilities.json",
+        "statement.json"
+      ],
+      "id": "coverage-untrusted-signer",
+      "kind": "coverage",
+      "requires": [
+        "report-v1",
+        "coverage-v1"
+      ]
+    },
+    {
       "description": "a valid signature by a key the verifier was not told to trust",
       "expect": "reject",
       "failure": "unknown_signer",

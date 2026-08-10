@@ -310,6 +310,27 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         ],
     )?;
 
+    // A custody report signed by a key the verifier was not told to trust.
+    // The TypeScript coverage path did not verify signatures at all until this
+    // case existed, and nothing noticed, because no case required it to.
+    {
+        let mut untrusted = custody.clone();
+        untrusted.signature.public_key = "ab".repeat(32);
+        add(
+            "coverage-untrusted-signer",
+            "coverage",
+            &["report-v1", "coverage-v1"],
+            "a custody report claiming a key the verifier does not trust",
+            "reject",
+            Some("unknown_signer"),
+            vec![
+                ("custody.json", serde_json::to_value(&untrusted)?),
+                ("liabilities.json", report_j.clone()),
+                ("statement.json", statement_j.clone()),
+            ],
+        )?;
+    }
+
     // --- §8.4 trust comes from the caller ---
     // A verifier that only asked "does this signature verify against the key
     // in the document" passed every case in the corpus. That is the check the

@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "61896e5707e2958581edc2cf6d8de868b37bc18c7f0db2201f2cb19a42c2318c",
+  "corpus_digest": "8f4124abe4535e4505b448e996267d3faaf7fe10bb8d13bc1187558033bdb612",
   "results": [
     {
       "id": "proof-valid",
@@ -71,6 +71,11 @@
     },
     {
       "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "coverage-untrusted-signer",
       "expected": "reject",
       "outcome": "skip"
     },
