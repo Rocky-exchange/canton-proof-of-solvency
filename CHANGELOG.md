@@ -8,6 +8,15 @@ as a format version, never as a fix.
 
 ### Fixed
 
+- **Two customers could share one proof filename, and one proof overwrote the
+  other.** `canton-solvency-publish` replaced every non-alphanumeric character
+  with `_`, so `alice-1`, `alice_1` and `alice 1` are three customers and were
+  one file. The pack index did notice the duplicate, but only after the files
+  were written, reporting it as a problem with the pack rather than with the
+  customer identifiers, and leaving a half-written output directory. Filenames
+  now carry a digest of the full identifier whenever sanitising loses
+  something; identifiers needing no sanitising keep their readable name, and
+  the two forms cannot collide because only the suffixed form contains a `-`.
 - **The browser verifier threw instead of reporting on a malformed document.**
   `verifyFromText` built its display facts before checking whether
   verification had succeeded, so a report whose `root_sums` was not an amount
