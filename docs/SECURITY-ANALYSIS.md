@@ -130,12 +130,43 @@ A deployment that keeps identifier ordering keeps the attack. This is a
 producer obligation rather than a format guarantee, which is why §7 states it
 and §4 does not.
 
-**The v1 node join is ambiguous.** §4 canonicalises sums with a `:`/`|` join.
-An asset name containing those characters could in principle forge a boundary.
-Fixed for v2 leaves by restricting names; **not** fixed for v1, because that
-would change every node hash and invalidate every §6 vector. Deployments
-controlling their own asset naming are unaffected; one accepting arbitrary
-asset names should treat this as live.
+**The v1 node join is ambiguous — demonstrated, and bounded.** §2 and §4
+canonicalise balance maps with a `:`/`|` join. That is not merely a theoretical
+weakness, so here is the collision:
+
+```
+{ "a": 1, "b": 2 }                    ->  a:1.000000000000000000|b:2.000000000000000000
+{ "a:1.000000000000000000|b": 2 }     ->  a:1.000000000000000000|b:2.000000000000000000
+```
+
+Two different books, one canonical string, therefore one leaf hash. And it
+survives aggregation: give the sibling an asset name that shares no key with
+either reading and the two maps merge without interfering, so **every node hash
+above agrees, up to and including the root**. A v1 root hash does not uniquely
+determine the book it commits to. Pinned by
+`the_v1_join_admits_a_leaf_hash_collision` in
+`rust/solvency-merkle/tests/properties.rs`.
+
+Two things bound it, and both are load-bearing:
+
+1. **The report digest is not ambiguous.** §8.1 length-prefixes where §2 joins,
+   so the same two maps that collide above do not collide in `lpmap`. The
+   digest, and therefore the signature and the anchor chain, commit
+   unambiguously to the published totals.
+2. **Verification compares sums as maps.** §9.1 step 5 compares per asset, over
+   the union of both key sets. Comparing the *canonical strings* instead would
+   be a tempting optimisation — the string is already computed for the hash —
+   and would accept the collision. Both reference implementations compare maps;
+   §9.1 now says they must.
+
+We have not found an exploit. What we have is a commitment core that is not
+binding, contained by the envelope around it. A reviewer should push on whether
+that containment is complete, because it is the whole defence.
+
+Still not fixed for v1, for the reason it never was: restricting names would
+change every node hash and invalidate every §6 vector. v2 leaves restrict names
+(§3.1). A deployment that controls its own asset naming is unaffected; one
+accepting arbitrary asset names is relying entirely on the two bounds above.
 
 **Snapshot frequency bounds everything.** A daily report commits to daily
 states. Nothing here says anything about intra-day positions, and a venue

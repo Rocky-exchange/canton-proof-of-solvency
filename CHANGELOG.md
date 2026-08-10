@@ -94,6 +94,16 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
+- A demonstration of the v1 join ambiguity, which SPEC §3.1 had recorded as a
+  weakness that "could in principle" exist. It exists: `{a: 1, b: 2}` and
+  `{"a:1.000000000000000000|b": 2}` share a canonical string, hence a leaf
+  hash, and — with a sibling whose names do not interfere — the same root hash.
+  A v1 root hash does not uniquely determine the book. Two things bound it, and
+  §9.1 now requires the second: the report digest is length-prefixed and
+  unambiguous, and sums must be compared as maps rather than as canonical
+  strings. Both implementations already compared maps; the requirement is
+  written down because reusing the canonical string is a natural optimisation
+  and a wrong one.
 - A measurement of what colluding proof-holders learn, answering a question
   `docs/SECURITY-REVIEW-BRIEF.md` had left open: `k` colluders expose at most
   `k` other customers, exactly `k` when none are already paired, with no

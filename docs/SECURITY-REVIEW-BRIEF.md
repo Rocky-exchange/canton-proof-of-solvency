@@ -54,7 +54,15 @@ would most like an independent view on: an adversary who can influence where
 they land in the leaf ordering, which §4 leaves to the producer. Our numbers
 assume they cannot.
 
-**Domain separation and preimage ambiguity (§2, §3.1, §8.1).** v2 leaves and
+**Domain separation and preimage ambiguity (§2, §3.1, §8.1).** We have since
+constructed the collision rather than leaving it hypothetical — see
+[SECURITY-ANALYSIS.md](SECURITY-ANALYSIS.md). A v1 root hash does not uniquely
+determine the book. Two things bound it: the report digest is length-prefixed
+and unambiguous, and verification compares sums as maps rather than as
+canonical strings. **The question we would most like answered is whether that
+containment is complete**, because it is the entire defence.
+
+Original framing: v2 leaves and
 all digests are length-prefixed. **v1 leaves and §4 node sums still use a
 `:`/`|` delimiter join** over asset names that are attacker-influenced in the
 general case. §3.1 records this as a known limitation and restricts v2 names;

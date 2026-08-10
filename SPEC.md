@@ -418,6 +418,15 @@ comparison of the folded sums against the published ones detects it.
 Absent and zero are the same claim: an asset missing from one side and zero on
 the other is not a mismatch.
 
+**Sums MUST be compared as maps, per asset, over the union of both key sets.**
+Comparing the §2 canonical strings instead is not equivalent, and the
+difference is exploitable. The join is ambiguous: `{a: 1, b: 2}` and
+`{"a:1.000000000000000000|b": 2}` render identically, so they share a leaf
+hash and — given a sibling whose asset names do not interfere — the same root
+hash. The per-asset comparison is what separates them. The canonical string is
+already computed for hashing, which makes reusing it for the comparison a
+natural optimisation and a wrong one.
+
 JSON Schema: [`schemas/proof-v1.schema.json`](schemas/proof-v1.schema.json).
 
 ### 9.2 Proof document v2

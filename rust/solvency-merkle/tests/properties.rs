@@ -241,6 +241,95 @@ fn the_largest_representable_amount_is_the_boundary_both_implementations_use() {
 
 const SCALE_TEST: u128 = 1_000_000_000_000_000_000;
 
+/// The §2 join is ambiguous, demonstrated rather than asserted.
+///
+/// `{a: 1, b: 2}` and `{"a:1.000000000000000000|b": 2}` are different balance
+/// maps with the same canonical string, so they have the same leaf hash — and
+/// because §4 canonicalises node sums the same way, the collision survives all
+/// the way to the root hash. A root hash therefore does not uniquely determine
+/// the book it commits to.
+///
+/// SPEC §3.1 records this as a known limitation of v1 and fixes it for v2 by
+/// restricting names. This test pins what it actually costs, so the security
+/// analysis can describe a demonstrated property rather than a hypothetical.
+#[test]
+fn the_v1_join_admits_a_leaf_hash_collision() {
+    let honest = vec![
+        ("a".to_string(), parse_amount_18dp("1").unwrap()),
+        ("b".to_string(), parse_amount_18dp("2").unwrap()),
+    ];
+    let forged = vec![(
+        "a:1.000000000000000000|b".to_string(),
+        parse_amount_18dp("2").unwrap(),
+    )];
+
+    assert_eq!(
+        canonical_balances(&honest).unwrap(),
+        canonical_balances(&forged).unwrap(),
+        "the join should be ambiguous — if this fails, v1 was fixed and the \
+         security analysis needs updating"
+    );
+
+    let salt = [3u8; 32];
+    assert_eq!(
+        leaf_hash(&salt, "u", &honest).unwrap(),
+        leaf_hash(&salt, "u", &forged).unwrap(),
+        "so the leaf hash collides"
+    );
+
+    // And it reaches the root: a sibling sharing no asset name lets the two
+    // maps merge without interfering, so every node hash above agrees too.
+    let sibling = leaf_node(&[9u8; 32], "other", &[("z".to_string(), 7)]).unwrap();
+    let published = SumTree::build(vec![
+        leaf_node(&salt, "u", &forged).unwrap(),
+        sibling.clone(),
+    ])
+    .unwrap();
+    let recomputed =
+        SumTree::build(vec![leaf_node(&salt, "u", &honest).unwrap(), sibling]).unwrap();
+    assert_eq!(
+        published.root().hash,
+        recomputed.root().hash,
+        "the collision survives aggregation"
+    );
+
+    // What contains it: the sums are compared as maps, and these differ.
+    assert_ne!(
+        published.root().sums,
+        recomputed.root().sums,
+        "an implementation comparing canonical strings instead of maps would \
+         accept this"
+    );
+}
+
+/// The ambiguity stops at the report envelope, which is what the signature
+/// covers. §8.1 length-prefixes where §2 joins, so the same two maps that
+/// collide above do not collide here.
+#[test]
+fn the_length_prefixed_encoding_is_not_ambiguous_where_the_join_is() {
+    let honest: BTreeMap<String, u128> = [
+        ("a".to_string(), parse_amount_18dp("1").unwrap()),
+        ("b".to_string(), parse_amount_18dp("2").unwrap()),
+    ]
+    .into_iter()
+    .collect();
+    let forged: BTreeMap<String, u128> = [(
+        "a:1.000000000000000000|b".to_string(),
+        parse_amount_18dp("2").unwrap(),
+    )]
+    .into_iter()
+    .collect();
+
+    let as_pairs =
+        |m: &BTreeMap<String, u128>| -> Vec<(String, u128)> { m.clone().into_iter().collect() };
+    assert_eq!(
+        canonical_balances(&as_pairs(&honest)).unwrap(),
+        canonical_balances(&as_pairs(&forged)).unwrap(),
+        "§2 collides"
+    );
+    assert_ne!(lpmap(&honest), lpmap(&forged), "§8.1 must not");
+}
+
 /// §8.1: length prefixes exist so that no two distinct inputs share a
 /// preimage. An asset literally named `A|B:0.000…001` must not be able to
 /// imitate two entries.
