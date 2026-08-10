@@ -22,6 +22,15 @@ as a format version, never as a fix.
   `formatAmount18dp`, stated in §1, and pinned at the boundary by tests in both
   implementations.
 
+### Changed
+
+- **`canton-solvency-verify` with no arguments now exits 2 instead of 0.** Exit
+  0 from this tool means "everything verified", and a run with no arguments
+  verified nothing. A pipeline written as
+  `canton-solvency-verify $ARGS && echo solvent` printed `solvent` on the day
+  `$ARGS` expanded to nothing. Usage is still printed; an explicitly requested
+  `--help` still exits 0, because being asked for help is not an error.
+
 ### Added
 
 - Robustness suites for both implementations: truncation at every byte offset,
@@ -30,6 +39,9 @@ as a format version, never as a fix.
   amount strings. Nothing asserts *which* error — only that one is returned.
   Every document these tools read comes from the party being checked, so a
   panic is a crash on demand rather than a wrong answer.
+  The CLI suite runs the real binary across every verb, asserting the exit-code
+  contract a pipeline actually consumes: malformed input is a 2, a failed
+  verification is a 1, and neither is ever the 101 that a panic produces.
 
 ## 0.1.1 — 2026-08-10
 

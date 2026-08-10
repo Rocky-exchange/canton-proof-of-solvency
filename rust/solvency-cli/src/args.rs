@@ -31,6 +31,7 @@ itself proves only internal consistency, never who published it.
 
 EXIT CODES:
   0  everything verified, or no disclosure was reduced
+     (never printed for a run that checked nothing: no arguments is a 2)
   1  a verification failed, or disclosure was reduced between two reports
   2  usage, I/O, or parse error";
 
@@ -123,7 +124,13 @@ fn validate_key(key: &str) -> Result<()> {
 pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     let mut args = argv.into_iter().peekable();
     let Some(first) = args.next() else {
-        return Ok(Command::Help);
+        // Not `Help`. Exit 0 from this tool means "everything verified", and a
+        // run with no arguments verified nothing. A CI line like
+        //   canton-solvency-verify $ARGS && echo solvent
+        // would otherwise print `solvent` on the day $ARGS expands to nothing.
+        // An explicitly requested `--help` still exits 0; being asked for help
+        // is not an error.
+        bail!("no command given\n\n{USAGE}");
     };
 
     match first.as_str() {
@@ -264,6 +271,20 @@ mod tests {
 
     const KEY: &str = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c";
 
+    /// Exit 0 means everything verified. A run with no arguments verified
+    /// nothing, so it must not be able to say 0.
+    #[test]
+    fn no_arguments_is_a_usage_error_not_a_silent_success() {
+        assert!(parse_str("").is_err());
+    }
+
+    #[test]
+    fn asking_for_help_is_not_an_error() {
+        assert_eq!(parse_str("--help").unwrap(), Command::Help);
+        assert_eq!(parse_str("help").unwrap(), Command::Help);
+        assert_eq!(parse_str("-h").unwrap(), Command::Help);
+    }
+
     #[test]
     fn parses_a_pack_verification() {
         assert_eq!(
@@ -322,8 +343,9 @@ mod tests {
             }
         );
         assert_eq!(parse_str("--help").unwrap(), Command::Help);
-        assert_eq!(parse_str("").unwrap(), Command::Help);
         assert_eq!(parse_str("--version").unwrap(), Command::Version);
+        // No arguments is covered by no_arguments_is_a_usage_error_not_a_
+        // silent_success; it used to resolve to Help, which meant exit 0.
     }
 
     #[test]
