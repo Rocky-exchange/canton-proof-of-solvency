@@ -8,6 +8,7 @@ pub mod args;
 pub mod coverage;
 pub mod diff;
 pub mod output;
+pub mod pack;
 pub mod recompute;
 pub mod run;
 

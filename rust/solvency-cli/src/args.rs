@@ -20,6 +20,7 @@ USAGE:
                                 --statement <path> --key <hex64>
                                 [--custody-key <hex64>] [--json]
   canton-solvency-verify recompute --leaves <path> --report <path> [--json]
+  canton-solvency-verify verify-pack --pack-dir <dir> --key <hex64> [--json]
   canton-solvency-verify anchors --chain <dir-or-file> [--json]
   canton-solvency-verify manifest-diff --previous <path> --current <path> [--json]
   canton-solvency-verify digest --report <path>
@@ -72,6 +73,13 @@ pub enum Command {
         report: PathBuf,
         json: bool,
     },
+    /// A whole delivery against its signed index (SPEC §15): the files
+    /// present are exactly the files the publisher committed to sending.
+    VerifyPack {
+        pack_dir: PathBuf,
+        trusted_key: String,
+        json: bool,
+    },
     /// Walk a publisher's anchor history (SPEC §12).
     Anchors {
         chain: PathBuf,
@@ -122,7 +130,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
         "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
-        | "recompute" | "digest" => {}
+        | "recompute" | "digest" | "verify-pack" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -136,7 +144,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
             | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
-            | "--leaves" => {
+            | "--leaves" | "--pack-dir" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -197,6 +205,11 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             report: required_path("--report")?,
             json,
         }),
+        "verify-pack" => Ok(Command::VerifyPack {
+            pack_dir: required_path("--pack-dir")?,
+            trusted_key: key()?,
+            json,
+        }),
         "anchors" => Ok(Command::Anchors {
             chain: required_path("--chain")?,
             json,
@@ -250,6 +263,23 @@ mod tests {
     }
 
     const KEY: &str = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c";
+
+    #[test]
+    fn parses_a_pack_verification() {
+        assert_eq!(
+            parse_str(&format!("verify-pack --pack-dir out --key {KEY}")).unwrap(),
+            Command::VerifyPack {
+                pack_dir: PathBuf::from("out"),
+                trusted_key: KEY.to_string(),
+                json: false,
+            }
+        );
+    }
+
+    #[test]
+    fn a_pack_verification_still_demands_a_key() {
+        assert!(parse_str("verify-pack --pack-dir out").is_err());
+    }
 
     #[test]
     fn parses_a_single_proof_verification() {

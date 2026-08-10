@@ -215,9 +215,18 @@
     return canonicalSums(sumBalances(balances));
   }
   function canonicalSums(sums) {
-    return Object.keys(sums).sort().map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
+    return Object.keys(sums).sort(bytewiseCompare).map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
   }
   var encoder2 = new TextEncoder();
+  function bytewiseCompare(a, b) {
+    const x = encoder2.encode(a);
+    const y = encoder2.encode(b);
+    const n = Math.min(x.length, y.length);
+    for (let i = 0; i < n; i++) {
+      if (x[i] !== y[i]) return x[i] - y[i];
+    }
+    return x.length - y.length;
+  }
   function hexToBytes(hex) {
     if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
       throw new Error("invalid hex");
@@ -338,7 +347,7 @@
     return concat2([u64le2(bytes.length), bytes]);
   }
   function lpmap(m) {
-    const assets = Object.keys(m).sort();
+    const assets = Object.keys(m).sort(bytewiseCompare);
     const parts = [u64le2(assets.length)];
     for (const asset of assets) {
       parts.push(lp2(asset), lp2(formatAmount18dp(parseAmount18dp(m[asset]))));
@@ -359,7 +368,7 @@
     const manifestParts = [];
     if (v2 && report.manifest) {
       manifestParts.push(lp2(report.manifest.audience));
-      const paths = Object.keys(report.manifest.fields).sort();
+      const paths = Object.keys(report.manifest.fields).sort(bytewiseCompare);
       manifestParts.push(u64le2(paths.length));
       for (const path of paths) {
         manifestParts.push(lp2(path), lp2(report.manifest.fields[path]));
@@ -438,7 +447,7 @@
       "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
       "disclosures.excluded_house_totals": Object.keys(report.disclosures.excluded_house_totals).length > 0
     };
-    for (const path of Object.keys(manifest.fields).sort()) {
+    for (const path of Object.keys(manifest.fields).sort(bytewiseCompare)) {
       const state = manifest.fields[path];
       if (!KNOWN_FIELDS.includes(path)) {
         return fail({

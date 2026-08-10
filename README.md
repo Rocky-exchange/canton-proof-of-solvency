@@ -624,8 +624,16 @@ adopted infrastructure.
 - **Verification stays in the client** — the viewer recomputes proofs in the
   browser; the server is a delivery mechanism, never an authority. A hosted
   instance and a self-hostable build ship together.
-- **Evidence pack export** — a signed archive re-verifiable offline by the CLI
-  (M5), with no dependency on the publisher.
+- ~~**Evidence pack export**~~ — **delivered**, [SPEC.md](SPEC.md) §15. Every
+  document here verifies on its own, which is not the same as a *delivery*
+  verifying: hand an auditor a folder with one customer's proof deleted and
+  `verify` reports "2 of 2 proofs verified" and exits 0, because nothing in a
+  proof says what else was meant to be there. A pack is a signed index of the
+  member files and their digests, so the *set* is committed rather than only
+  its elements, and `verify-pack` catches the dropped proof, an altered byte,
+  or a file slipped in. Both implementations run it, and the contrast above is
+  a checked-in test rather than a claim. `canton-solvency-publish` emits
+  `pack.json` alongside the report, so this costs a publisher nothing.
 - **Non-technical onboarding path** — a documented walkthrough from participant
   node to first published report without writing code, plus a demo instance
   loaded with synthetic repo, fund, and settlement data.
@@ -673,12 +681,18 @@ Takes the publisher out of the verification path entirely.
 
 **Still to come**
 
-- CLI verbs for coverage reports (M1), anchor chains (M2), and disclosure
-  manifests (M3) — deliberately absent until those documents exist, because a
-  verifier that silently skips a check is worse than one that does not offer
-  it.
+- ~~CLI verbs for coverage reports (M1), anchor chains (M2), and disclosure
+  manifests (M3)~~ — **delivered**: `coverage`, `anchors`, `manifest-diff`,
+  and `verify-pack`. They were deliberately absent until those documents
+  existed, because a verifier that silently skips a check is worse than one
+  that does not offer it.
 - ~~Recomputing a root from a full leaf dump~~ — **delivered**: the `recompute` verb rebuilds the tree from a dump and compares root *and* totals. An inclusion proof cannot show a tree contains only the entries it should; a dump can, at the cost of all privacy, which is why it is an auditor's tool under engagement rather than something a venue publishes.
-- Schemas for the coverage, manifest, and profile documents.
+- ~~Schemas for the coverage and pack documents~~ — **delivered**,
+  [`schemas/`](schemas): custody report, coverage statement, anchor, group
+  membership, and evidence pack, each validated against the corpus in CI. The
+  disclosure manifest is schema'd inside `report-v2`, where it lives; a
+  profile is a registry entry rather than a document, so it has no schema to
+  publish.
 - crates.io release and prebuilt binaries.
 - **Reference producer integration** — a documented snapshot → equity → tree →
   publish path with a sample dataset, alongside the live Rocky deployment.
@@ -717,14 +731,69 @@ Turns one implementation into something the network can rely on.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,
-  ours verify under theirs.
-- **Public specification v1.1** — SPEC.md extended with §11 coverage, §12
-  anchoring, and §14 profiles (§13 hierarchy is already normative), frozen
-  against the conformance suite.
+  ours verify under theirs. **Needs a counterparty, and everything on our side
+  is ready:** [`docs/INTEGRATORS.md`](docs/INTEGRATORS.md) is the build order,
+  the declarable feature set, and the acceptance criteria; §14.5 defines a
+  **compatibility statement** so two implementations disagree at a *named
+  case* rather than in a prose report, with the three rules that stop a
+  statement being decorative — claim a feature and you may not skip its cases,
+  skip what you do not claim rather than reporting a pass, and bind the whole
+  thing to a corpus digest. `verify_from_spec.py --statement` emits one, and all three of our
+  implementations publish theirs in [`statements/`](statements) — compared by
+  a test that fails at a *named case* when two implementations claiming the
+  same feature disagree. That comparison is what was missing when Rust and
+  TypeScript diverged on key ordering for months with both suites green; a
+  second implementer's statement dropped into that directory is checked by the
+  same test, with no special handling. The reverse direction has a path too:
+  [`interop/`](interop) is a directory a producer drops their reports into, and
+  our CI verifies them under this toolkit on every commit — which turns "send
+  us your reports and we'll check" from a promise into a procedure, and means a
+  later change to our verifier that broke a third party's documents fails *our*
+  build rather than theirs.
+- ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
+  coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
+  and the document is frozen against the conformance corpus: every normative
+  section is exercised by at least one case, and changing one requires a new
+  domain string and a new case. No wire bytes moved — every §6 and §10 vector
+  still verifies.
+- ~~**Specification implementability audit**~~ — **delivered**,
+  [`spec-audit/`](spec-audit). Two implementations by one author agree where
+  the spec is silent because the same person guessed twice, not because the
+  format is pinned. A third verifier written from the specification text alone
+  — dependency-free Python, Ed25519 included — reproduces every published
+  vector, and found two defects the other two could not: the **TypeScript
+  verifier sorted map keys by UTF-16 code units where §2 requires UTF-8
+  bytewise order**, so a report naming an asset outside the BMP verified in
+  Rust and failed in the browser; and a conformance case was passing for the
+  wrong reason, a v1-only verifier "passing" the manifest-lies case by
+  rejecting a version it never implemented. Both fixed, the first pinned by a
+  case that fails under a UTF-16 sort, and cases now declare `requires` so a
+  partial implementation filters by declaration. It runs in CI. It is
+  deliberately **not** counted toward the two independent implementations
+  below: same author, same repository.
 - **Third-party security review** — external review of the commitment core,
   salt derivation, and verifier; findings and remediations published in-repo.
+  **Needs a reviewer; the engagement is scoped:**
+  [`docs/SECURITY-REVIEW-BRIEF.md`](docs/SECURITY-REVIEW-BRIEF.md) states the
+  five claims, ranks where to press hardest (salt derivation, sibling sums as
+  a side channel, the v1 join ambiguity we knowingly did not fix, tree-shape
+  confusion, verification order, and whether our key-distribution framing is
+  overclaimed), and lists the documented non-goals so a reviewer does not
+  spend the engagement rediscovering them. A ready-to-send request with
+  suggested sizing is drafted in
+  [`docs/outreach/`](docs/outreach), alongside one for approaching a second
+  implementer — kept in the repository so the ask stays accurate as the
+  project changes.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
   Proposal process, with the conformance suite as its normative tests.
+
+**Status.** The conformance suite, specification v1.1, the implementability
+audit and the CIP draft are delivered. The two remaining deliverables each
+need a party outside this project — a second implementer and a security
+reviewer — so what is shipped is everything that does not: the corpus, the
+statement format, the integrator guide, and the review brief. We are not
+counting our own third implementation toward the two: same author, same
+repository.
 
 **Done when:** two independent implementations pass the conformance suite; the
 security review and its remediations are public; and the CIP is submitted with

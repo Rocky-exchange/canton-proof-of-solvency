@@ -14,12 +14,14 @@
 //! [`SPEC.md`]: https://github.com/Rocky-exchange/canton-proof-of-solvency/blob/main/SPEC.md
 
 pub mod anchor;
+pub mod compat;
 pub mod coverage;
 pub mod digest;
 pub mod document;
 pub mod golden;
 pub mod group;
 pub mod manifest;
+pub mod pack;
 pub mod produce;
 pub mod profile;
 pub mod sign;

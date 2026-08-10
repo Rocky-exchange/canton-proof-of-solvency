@@ -5,11 +5,6 @@
 //! reference implementation cannot itself satisfy is not a conformance test,
 //! it is a bug report.
 
-use canton_solvency_report::anchor::{verify_chain, Anchor};
-use canton_solvency_report::coverage::{verify_coverage, CoverageStatement};
-use canton_solvency_report::document::{ProofDocument, ProofDocumentV2, SignedReport};
-use canton_solvency_report::group::{verify_membership, GroupMembershipDocument};
-use canton_solvency_report::verify::{verify, verify_v2};
 use std::path::{Path, PathBuf};
 
 fn corpus_dir() -> PathBuf {
@@ -21,43 +16,10 @@ fn load<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
-/// Ok(()) when the case's documents verify, Err(reason) otherwise.
-fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
-    match kind {
-        "proof" => {
-            let report: SignedReport = load(&dir.join("report.json"))?;
-            let proof: ProofDocument = load(&dir.join("proof.json"))?;
-            verify(&report, &proof, key).map_err(|e| e.to_string())
-        }
-        "proof-v2" => {
-            let report: SignedReport = load(&dir.join("report.json"))?;
-            let proof: ProofDocumentV2 = load(&dir.join("proof.json"))?;
-            verify_v2(&report, &proof, key).map_err(|e| e.to_string())
-        }
-        "membership" => {
-            let report: SignedReport = load(&dir.join("group-report.json"))?;
-            let membership: GroupMembershipDocument = load(&dir.join("membership.json"))?;
-            verify_membership(&report, &membership, key).map_err(|e| e.to_string())
-        }
-        "coverage" => {
-            let custody: SignedReport = load(&dir.join("custody.json"))?;
-            let liabilities: SignedReport = load(&dir.join("liabilities.json"))?;
-            let statement: CoverageStatement = load(&dir.join("statement.json"))?;
-            let outcome = verify_coverage(&custody, &liabilities, &statement, key, key)
-                .map_err(|e| e.to_string())?;
-            if outcome.fully_covered() {
-                Ok(())
-            } else {
-                Err("shortfall".to_string())
-            }
-        }
-        "anchors" => {
-            let history: Vec<Anchor> = load(&dir.join("history.json"))?;
-            verify_chain(&history).map_err(|e| e.to_string())
-        }
-        other => panic!("unknown case kind {other}"),
-    }
-}
+/// Delegates to the library runner, which the §14.5 statement builder also
+/// uses: a statement must not be able to report an outcome this test would
+/// not have produced.
+use canton_solvency_report::compat::run_case;
 
 #[test]
 fn every_conformance_case_behaves_as_the_manifest_says() {
@@ -86,6 +48,21 @@ fn every_conformance_case_behaves_as_the_manifest_says() {
             }
             other => panic!("case {id} has unknown expectation {other}"),
         }
+    }
+
+    // Every case must declare what it needs. An implementation supporting a
+    // subset of the format can then skip by declaration instead of by
+    // accident: a report-v1-only verifier that merely rejects the v2 cases
+    // "passes" `report-v2-manifest-lies` without ever testing a manifest.
+    for case in cases {
+        let id = case["id"].as_str().unwrap();
+        let requires = case["requires"]
+            .as_array()
+            .unwrap_or_else(|| panic!("case {id} declares no `requires`"));
+        assert!(
+            !requires.is_empty(),
+            "case {id} declares an empty `requires`, so nothing can filter it"
+        );
     }
 
     // A corpus of only-accepts would pass against an implementation that

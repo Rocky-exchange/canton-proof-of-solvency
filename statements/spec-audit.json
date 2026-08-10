@@ -1,0 +1,118 @@
+{
+  "format_version": "canton-solvency-compat-v1",
+  "implementation": "spec-audit/verify_from_spec.py",
+  "version": "1.1",
+  "supports": [
+    "pack-v1",
+    "proof-v1",
+    "report-v1"
+  ],
+  "corpus_digest": "3b515fef0a6b2801503c3085cfaeaee1dea7ee76ed4dbded27cc60545d44f701",
+  "results": [
+    {
+      "id": "proof-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "proof-tampered-balance",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-understated-totals",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-forged-signature",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-stale",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "report-v2-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "report-v2-manifest-lies",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "repo-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "repo-under-collateralised",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "group-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "group-relabelled-entity",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "coverage-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-intact",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-suffix",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-broken-link",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "proof-astral-assets",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "pack-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "pack-dropped-proof",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "pack-altered-member",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "pack-unlisted-member",
+      "expected": "reject",
+      "outcome": "reject"
+    }
+  ]
+}

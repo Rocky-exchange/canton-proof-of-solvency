@@ -220,6 +220,45 @@ pub fn render_json(summary: &Summary) -> String {
     .expect("summary is always serializable")
 }
 
+pub fn render_pack_text(summary: &crate::pack::PackSummary) -> String {
+    let mut out = format!(
+        "publisher     : {}\nsnapshot      : {}\nreport digest : {}\npack members  : {}\n",
+        summary.publisher, summary.snapshot_time, summary.report_digest, summary.members
+    );
+    match &summary.index_failure {
+        Some(failure) => {
+            out.push_str(&format!("DELIVERY      : {failure}\n"));
+            // Saying this out loud matters: the files that did arrive may all
+            // be perfectly valid, and a reader should not take that as
+            // reassurance when the delivery itself is wrong.
+            out.push_str("contents were not verified: the delivery is not the one signed\n");
+        }
+        None => {
+            out.push_str("delivery      : complete and unaltered\n");
+            if let Some(contents) = &summary.contents {
+                out.push_str(&render_text(contents));
+            }
+        }
+    }
+    out
+}
+
+pub fn render_pack_json(summary: &crate::pack::PackSummary) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": summary.all_passed(),
+        "publisher": summary.publisher,
+        "snapshot_time": summary.snapshot_time,
+        "report_digest": summary.report_digest,
+        "members": summary.members,
+        "delivery_failure": summary.index_failure.as_ref().map(|f| f.to_string()),
+        "contents": summary.contents.as_ref().map(|c| {
+            serde_json::from_str::<serde_json::Value>(&render_json(c))
+                .expect("render_json emits JSON")
+        }),
+    }))
+    .expect("summary is always serializable")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

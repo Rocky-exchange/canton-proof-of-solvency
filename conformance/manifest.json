@@ -9,7 +9,11 @@
         "proof.json"
       ],
       "id": "proof-valid",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
     },
     {
       "description": "a balance edited after commitment",
@@ -20,7 +24,11 @@
         "proof.json"
       ],
       "id": "proof-tampered-balance",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
     },
     {
       "description": "an honest root beside understated published totals",
@@ -31,7 +39,11 @@
         "proof.json"
       ],
       "id": "proof-understated-totals",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
     },
     {
       "description": "a signature that does not verify",
@@ -42,7 +54,11 @@
         "proof.json"
       ],
       "id": "proof-forged-signature",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
     },
     {
       "description": "a proof bound to a different report",
@@ -53,7 +69,11 @@
         "proof.json"
       ],
       "id": "proof-stale",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
     },
     {
       "description": "a v2 report with a consistent manifest",
@@ -64,7 +84,12 @@
         "proof.json"
       ],
       "id": "report-v2-valid",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v2",
+        "proof-v1",
+        "manifest"
+      ]
     },
     {
       "description": "a field declared withheld that the report publishes",
@@ -75,7 +100,12 @@
         "proof.json"
       ],
       "id": "report-v2-manifest-lies",
-      "kind": "proof"
+      "kind": "proof",
+      "requires": [
+        "report-v2",
+        "proof-v1",
+        "manifest"
+      ]
     },
     {
       "description": "a collateralised repo book",
@@ -86,7 +116,12 @@
         "proof.json"
       ],
       "id": "repo-valid",
-      "kind": "proof-v2"
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
     },
     {
       "description": "exposure exceeding collateral for an asset",
@@ -97,7 +132,12 @@
         "proof.json"
       ],
       "id": "repo-under-collateralised",
-      "kind": "proof-v2"
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
     },
     {
       "description": "an entity committed in a group",
@@ -108,7 +148,11 @@
         "membership.json"
       ],
       "id": "group-valid",
-      "kind": "membership"
+      "kind": "membership",
+      "requires": [
+        "report-v1",
+        "group-v1"
+      ]
     },
     {
       "description": "an entity renamed after commitment",
@@ -119,7 +163,11 @@
         "membership.json"
       ],
       "id": "group-relabelled-entity",
-      "kind": "membership"
+      "kind": "membership",
+      "requires": [
+        "report-v1",
+        "group-v1"
+      ]
     },
     {
       "description": "assets covering liabilities",
@@ -131,7 +179,11 @@
         "statement.json"
       ],
       "id": "coverage-valid",
-      "kind": "coverage"
+      "kind": "coverage",
+      "requires": [
+        "report-v1",
+        "coverage-v1"
+      ]
     },
     {
       "description": "a statement naming a different custody report",
@@ -143,7 +195,11 @@
         "statement.json"
       ],
       "id": "coverage-unbound-statement",
-      "kind": "coverage"
+      "kind": "coverage",
+      "requires": [
+        "report-v1",
+        "coverage-v1"
+      ]
     },
     {
       "description": "a two-anchor history",
@@ -153,7 +209,10 @@
         "history.json"
       ],
       "id": "anchors-intact",
-      "kind": "anchors"
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
     },
     {
       "description": "a history that does not start at genesis",
@@ -163,7 +222,10 @@
         "history.json"
       ],
       "id": "anchors-suffix",
-      "kind": "anchors"
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
     },
     {
       "description": "an anchor not naming its predecessor",
@@ -173,7 +235,85 @@
         "history.json"
       ],
       "id": "anchors-broken-link",
-      "kind": "anchors"
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
+    },
+    {
+      "description": "asset names that sort differently under UTF-16 than under UTF-8 bytes",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-astral-assets",
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
+    },
+    {
+      "description": "a complete, unaltered delivery",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json"
+      ],
+      "id": "pack-valid",
+      "kind": "pack",
+      "requires": [
+        "pack-v1"
+      ]
+    },
+    {
+      "description": "a delivery with a customer's proof removed",
+      "expect": "reject",
+      "failure": "pack_missing",
+      "files": [
+        "pack.json",
+        "report.json"
+      ],
+      "id": "pack-dropped-proof",
+      "kind": "pack",
+      "requires": [
+        "pack-v1"
+      ]
+    },
+    {
+      "description": "a member whose bytes differ from the index",
+      "expect": "reject",
+      "failure": "pack_altered",
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json"
+      ],
+      "id": "pack-altered-member",
+      "kind": "pack",
+      "requires": [
+        "pack-v1"
+      ]
+    },
+    {
+      "description": "a file the index does not name",
+      "expect": "reject",
+      "failure": "pack_unlisted",
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json",
+        "proof-mallory.json"
+      ],
+      "id": "pack-unlisted-member",
+      "kind": "pack",
+      "requires": [
+        "pack-v1"
+      ]
     }
   ],
   "description": "Cases any implementation must agree on to claim compatibility with this format.",

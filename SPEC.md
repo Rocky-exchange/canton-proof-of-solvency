@@ -1,10 +1,35 @@
-# Canton Proof-of-Solvency — Wire Format Specification v1
+# Canton Proof-of-Solvency — Wire Format Specification v1.1
 
 This document pins the exact byte-level format of the solvency commitment so
 that independent implementations interoperate. Two reference implementations
 ship in this repository — Rust (prover side) and TypeScript (browser verifier)
 — and both assert the golden vectors in §6. **Any change that breaks those
 vectors is a new format version, not a refactor.**
+
+## Status
+
+**v1.1 — frozen against the conformance corpus** ([`conformance/`](conformance),
+§14.3). Every normative section below is implemented by both reference
+implementations and exercised by at least one corpus case; a change to any of
+them requires a new domain string and a new corpus case, not an edit here.
+
+Normative: §1–§6 (commitment core), §8 (report envelope), §9 (proof
+documents), §11 (coverage), §12 (anchoring), §13 (hierarchy), §14 (profiles
+and conformance), §15 (evidence packs). §7 is informative. §10 records golden
+vectors, which are data rather than rules.
+
+**What v1.1 changed from v1.** No wire bytes. Every §6 and §10 vector still
+verifies unchanged. v1.1 adds §11–§15 as normative text and sharpens four
+under-specified points that two implementations had resolved identically by
+coincidence rather than by rule: bytewise ordering over UTF-8 and its
+disagreement with a UTF-16 sort (§2), serialization of explicit zeros (§2),
+`lp(root_hash)` covering the hex string (§8.2), and the origin of the fold's
+running sums (§5). Those were found by implementing this document from its
+text alone — see [`spec-audit/`](spec-audit), which also found the
+TypeScript verifier ordering keys wrongly. Any implementation that agreed with
+the reference before still agrees; one that had guessed differently on §2
+would have diverged only for non-ASCII asset names, which the
+`proof-astral-assets` case now catches.
 
 ## 1. Amounts
 
@@ -26,9 +51,24 @@ A balance set `{asset → amount}` serializes as:
 asset₁:amount₁|asset₂:amount₂|…
 ```
 
-- Assets sorted by **bytewise** (ASCII) order of the asset string.
+- Assets sorted by **bytewise order of their UTF-8 encoding**.
 - Amounts in canonical 18-digit render (§1).
 - Duplicate assets are an error. The empty set serializes to the empty string.
+- An asset present with value zero **is serialized**, as `asset:0.000…0`. It is
+  not dropped. Note this is a rule about *serialization*; §9.1's "absent and
+  zero are the same claim" is a rule about *comparison*, and the two are
+  independent.
+
+> **Bytewise is not the platform default everywhere.** JavaScript's
+> `Array.prototype.sort()` compares UTF-16 code units, which disagrees with
+> UTF-8 byte order for any codepoint above U+FFFF: a surrogate (`0xD800`)
+> sorts before U+E000..U+FFFF, while the same character's UTF-8 encoding
+> (`0xF0…`) sorts after. An implementation using the default sort computes a
+> different canonical string — and therefore a different leaf hash — for an
+> asset named outside the BMP, and rejects a report its producer signed
+> honestly. Every name in the §6 vectors is ASCII, where the orders agree, so
+> the vectors do not catch it; the `proof-astral-assets` conformance case
+> does.
 
 ## 3. Leaf
 
@@ -114,7 +154,9 @@ Levels where the node was promoted without a sibling contribute **no step**.
 Verification: recompute the leaf hash from the disclosed preimage
 (salt, user_id, balances), fold the steps with the §4 node rule, then compare
 **both** the final hash and the final per-asset sums against the published
-root. Comparing sums is what upgrades inclusion into aggregation-consistency.
+root. The fold's running sums start from the **preimage's own balances**, not
+from any figure the report or proof publishes — a proof that seeded the fold
+with an asserted total would be checking that total against itself. Comparing sums is what upgrades inclusion into aggregation-consistency.
 
 ## 6. Golden vectors
 
@@ -183,6 +225,11 @@ report_digest = SHA-256( "rocky-solvency-report-v1"
                        ‖ u64le(excluded_house_accounts)
                        ‖ lpmap(excluded_house_totals) )
 ```
+
+`lp(root_hash)` is taken over the **64-character lowercase hex string**, not
+over the 32 raw bytes: §8 transports hashes as hex, and `lp` is defined on
+strings. Both readings parse; they give different digests, and the §10 vector
+distinguishes them.
 
 The digest is computed over these fields, **not** over the JSON encoding, so a
 document may be reformatted, re-indented, or re-serialized without
@@ -689,21 +736,6 @@ the same treatment: a decision about what a leaf is, what the root asserts,
 and which rules are checked rather than asserted. An unregistered profile is
 rejected outright (§14.1), so a half-considered entry is worse than none.
 
-### 14.4 Audience-scoped packaging
-
-One commitment may be packaged for several audiences. Every packaging commits
-to the same leaves, so the root hash, the totals and the leaf count are
-identical; only the manifest (§8.5) differs.
-
-Two packagings therefore have **different digests and different signatures**,
-which is correct: they are different statements about the same commitment.
-A verifier comparing two packagings checks that the root, totals and leaf
-count agree — without that check a venue could hand two audiences genuinely
-different books, and each would verify in isolation.
-
-Producers **MUST NOT** emit two packagings naming the same audience: one would
-silently stand in for the other.
-
 ### 14.3 Conformance corpus
 
 [`conformance/`](conformance) holds the cases an implementation must agree on
@@ -735,3 +767,157 @@ A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
 separate two v2 profiles from each other. A fund proof presented against a
 repo report is caught by the commitment itself — the report digests
 differently, so the binding in §9.2 fails.
+
+### 14.4 Audience-scoped packaging
+
+One commitment may be packaged for several audiences. Every packaging commits
+to the same leaves, so the root hash, the totals and the leaf count are
+identical; only the manifest (§8.5) differs.
+
+Two packagings therefore have **different digests and different signatures**,
+which is correct: they are different statements about the same commitment.
+A verifier comparing two packagings checks that the root, totals and leaf
+count agree — without that check a venue could hand two audiences genuinely
+different books, and each would verify in isolation.
+
+Producers **MUST NOT** emit two packagings naming the same audience: one would
+silently stand in for the other.
+
+### 14.5 Compatibility statements
+
+The corpus establishes what an implementation does. A **compatibility
+statement** is how it says so, in a form another party can check rather than
+take on trust.
+
+```
+statement = { format_version, implementation, version, supports[],
+              corpus_digest, results[] }
+result    = { id, expected, outcome }
+```
+
+`format_version` is `canton-solvency-compat-v1`. `supports` lists §14.3
+`requires` names — the feature set the implementation claims. `results` covers
+**every** case in the corpus, including skipped ones, whose outcome is `skip`.
+
+Three rules make a statement meaningful rather than decorative:
+
+- A case whose `requires` are a subset of `supports` **MUST NOT** be reported
+  as `skip`. Claiming a feature and then skipping its cases is the failure
+  mode this exists to catch.
+- A case whose `requires` are *not* a subset of `supports` **MUST** be
+  reported as `skip`, never as a pass. A verifier that rejects a document
+  because it does not implement that document's version has not tested
+  anything, and a rejection for the wrong reason is indistinguishable from a
+  correct one at this level of detail.
+- `corpus_digest` binds the statement to the exact corpus it was produced
+  against:
+
+```
+corpus_digest = SHA-256( "rocky-solvency-corpus-v1"
+                       ‖ u64le(case_count)
+                       ‖ ( lp(id) ‖ lp(expect)
+                         ‖ u64le(requires_count) ‖ lp(requires_i)* )* )
+```
+
+with cases in manifest order and `requires` in the order listed. Two
+statements over different corpora are not comparable, and without this binding
+that would not be visible.
+
+An implementation MAY sign a statement with the §8.3 block over the statement
+digest. Nothing here depends on it: a statement is a claim by its author, and
+a reader who wants assurance runs the corpus themselves. Its value is that
+disagreement becomes *locatable* — two implementations' statements differ at a
+named case rather than in an unreproducible report of "we tested it".
+
+## 15. Evidence packs
+
+Every document in this format verifies on its own. That is not the same as a
+*delivery* verifying.
+
+A proof says nothing about what else was sent alongside it. Hand an auditor a
+folder with one customer's proof removed and it verifies exactly as cleanly as
+the complete folder: every remaining file is valid, the report is correctly
+signed, the totals are right, and nothing anywhere records that a file is
+absent. The same holds for a coverage statement swapped for an older one, or
+an anchor quietly dropped from a history.
+
+An evidence pack closes that gap. It is a signed index naming every member of
+a delivery and its digest, so the *set* is committed rather than only its
+elements.
+
+### 15.1 The index
+
+```
+pack.json = { pack, signature }
+pack      = { format_version, publisher, snapshot_time, report_digest, entries }
+entry     = { name, sha256 }
+```
+
+`format_version` is `canton-solvency-pack-v1`. `report_digest` is the §8.2
+digest of the report the pack is evidence for, so a pack cannot be lifted onto
+a different report. `entries` is sorted by `name`, so the same files assembled
+in any order produce the same pack.
+
+`name` MUST be a plain file name: not empty, `.`, `..`, and containing neither
+`/` nor `\`. A pack describes one directory; a name that could escape it would
+be a delivery instruction rather than an integrity claim. Producers MUST
+refuse to build such an index and verifiers MUST refuse to accept one — a name
+edited in transit breaks the signature, so the only way one arrives signed is
+a publisher that meant it.
+
+`sha256` is the digest of the member's bytes **as delivered**, not of any
+re-serialisation of them. A verifier that reformatted a member before hashing
+it would report every honest delivery as altered.
+
+This makes a pack correct for any byte convention but reproducible only within
+one. The reference producer writes members as pretty-printed JSON with two
+spaces of indentation and a trailing newline; a producer that omits the
+newline emits an equally valid pack whose digests match no checked-in fixture.
+Implementations comparing against the conformance corpus must reproduce that
+convention.
+
+### 15.2 Pack digest
+
+```
+sha256( "rocky-solvency-pack-v1"
+      ‖ lp(format_version) ‖ lp(publisher) ‖ lp(snapshot_time)
+      ‖ lp(report_digest)
+      ‖ u64le(entry_count)
+      ‖ (lp(name) ‖ lp(sha256))* )
+```
+
+`lp` and `u64le` are as in §8.1. The entry count is committed before the
+entries: without it a pack over two members and a pack over one longer member
+could be made to agree, and the number of files is part of the claim.
+
+The signature is detached, over this digest, in the §8.3 block.
+
+### 15.3 Verification
+
+In order:
+
+1. `format_version` is `canton-solvency-pack-v1`.
+2. The signature verifies under a **caller-supplied trusted key** — never the
+   key the pack carries, which is present for display only.
+3. Every entry's name is safe (§15.1).
+4. Every entry names a file that is present, whose bytes hash to `sha256`.
+5. No file in the delivery is absent from the index.
+
+Named-but-absent is reported before present-but-unnamed, because a dropped
+proof is the failure this exists to catch.
+
+A verifier MUST NOT verify a delivery's contents once the index has failed.
+Reporting that the 999 proofs which did arrive all verified is true and
+beside the point, and reads as a clean run.
+
+### 15.4 What a pack does not do
+
+A pack proves a delivery is the one that was signed. It does not establish who
+should have signed it — that is the trusted key's job, and the honest source
+for that key is an anchor (§8.4), which is independent of whoever assembled
+the archive.
+
+Nor does a pack say a delivery is *sufficient*. A publisher may sign an index
+over a genuinely partial set. What the pack removes is the ability to reduce a
+delivery after the fact without leaving a record: the omission has to be
+declared and signed rather than simply performed.
