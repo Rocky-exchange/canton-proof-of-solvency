@@ -779,7 +779,11 @@ Turns one implementation into something the network can rely on.
   a side channel, the v1 join ambiguity we knowingly did not fix, tree-shape
   confusion, verification order, and whether our key-distribution framing is
   overclaimed), and lists the documented non-goals so a reviewer does not
-  spend the engagement rediscovering them.
+  spend the engagement rediscovering them. A ready-to-send request with
+  suggested sizing is drafted in
+  [`docs/outreach/`](docs/outreach), alongside one for approaching a second
+  implementer — kept in the repository so the ask stays accurate as the
+  project changes.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
   Proposal process, with the conformance suite as its normative tests.
 
