@@ -11,6 +11,14 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **`verifyReportV2` threw on a malformed manifest or a missing disclosures
+  block**, rather than failing the report. Both fields come from the document
+  under examination, and `Object.keys` on a value that is not a map throws with
+  nothing in the type system to warn of it. This is the sixth instance of that
+  single mistake — four browser surfaces, the group path, and now v2
+  verification — so the guard is one exported `keysOf` in `verify.ts` rather
+  than a copy per module.
+
 - **The disclosure designer threw on a half-written manifest.** A manifest with
   no `audience` crashed the screen, because the check for a missing audience
   read `.trim()` off it — so the most ordinary in-progress document produced a
