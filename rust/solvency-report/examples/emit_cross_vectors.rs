@@ -18,6 +18,8 @@
 //! ordering, encoding, or canonicalisation surfaces as a failing test rather
 //! than as one venue's report failing in one browser.
 use canton_solvency_merkle::*;
+use canton_solvency_report::digest::report_digest;
+use canton_solvency_report::document::{Disclosures, Report};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -57,6 +59,20 @@ const NAMES: &[&str] = &[
     "Z",
     "a.b-c_1",
 ];
+
+/// `n` assets drawn from the adversarial set. A free function rather than a
+/// closure so it borrows the generator once per call.
+fn pick(rng: &mut Rng, n: usize) -> BTreeMap<String, u128> {
+    let mut m = BTreeMap::new();
+    for _ in 0..n {
+        let name = NAMES[(rng.next() % NAMES.len() as u64) as usize];
+        m.insert(
+            name.to_string(),
+            rng.next() as u128 % 1_000_000_000_000_000_000_000,
+        );
+    }
+    m
+}
 
 fn main() -> anyhow::Result<()> {
     let out: PathBuf = std::env::args()
@@ -100,6 +116,51 @@ fn main() -> anyhow::Result<()> {
         }));
     }
 
+    // --- §8.2 report digests ---
+    // The signature covers this preimage, so a divergence here breaks every
+    // cross-implementation signature check rather than one leaf. It embeds
+    // four amount maps, each sorted bytewise, which is the same surface the
+    // UTF-16 bug sat on.
+    let mut reports = Vec::new();
+    for i in 0..60 {
+        // Counts drawn first: `pick(&mut rng, rng.next())` would borrow the
+        // generator twice in one expression.
+        let (n_sums, n_prices) = (1 + (rng.next() % 4) as usize, (rng.next() % 3) as usize);
+        let (n_debt, n_excluded) = ((rng.next() % 3) as usize, (rng.next() % 3) as usize);
+        let root_sums = pick(&mut rng, n_sums);
+        let mark_prices = pick(&mut rng, n_prices);
+        let bad_debt = pick(&mut rng, n_debt);
+        let excluded_house_totals = pick(&mut rng, n_excluded);
+
+        let report = Report {
+            format_version: "canton-solvency-report-v1".to_string(),
+            profile: "solvency.liabilities".to_string(),
+            // Party identifiers are attacker-influenced in the general case
+            // too, so they get non-ASCII treatment as well.
+            publisher: if i % 3 == 0 {
+                format!("venue\u{1F3E6}::{i}")
+            } else {
+                format!("venue::{i}")
+            },
+            snapshot_time: "2026-01-01T00:00:00Z".to_string(),
+            ledger_offset: format!("{:018}", i),
+            root_hash: hex::encode([i as u8; 32]),
+            leaf_count: i as u64,
+            root_sums,
+            mark_prices,
+            disclosures: Disclosures {
+                bad_debt,
+                excluded_house_accounts: i as u64 % 7,
+                excluded_house_totals,
+            },
+            manifest: None,
+        };
+        reports.push(serde_json::json!({
+            "report": serde_json::to_value(&report)?,
+            "report_digest": hex::encode(report_digest(&report)),
+        }));
+    }
+
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -113,9 +174,15 @@ fn main() -> anyhow::Result<()> {
                                 Both implementations must reproduce every field.",
                 "master_salt": "cross-vector-master-salt",
                 "vectors": vectors,
+                "reports": reports,
             }))?
         ),
     )?;
-    println!("wrote {} ({} vectors)", out.display(), vectors.len());
+    println!(
+        "wrote {} ({} leaf vectors, {} report digests)",
+        out.display(),
+        vectors.len(),
+        reports.len()
+    );
     Ok(())
 }

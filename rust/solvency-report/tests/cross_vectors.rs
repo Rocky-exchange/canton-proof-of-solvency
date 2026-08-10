@@ -6,6 +6,8 @@
 //! value neither one computes any more.
 
 use canton_solvency_merkle::*;
+use canton_solvency_report::digest::report_digest;
+use canton_solvency_report::document::Report;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -56,6 +58,29 @@ fn the_checked_in_vectors_match_what_this_implementation_computes() {
             hex::encode(lpmap(&balances)),
             vector["lpmap"].as_str().unwrap(),
             "lpmap drifted for {user_id}"
+        );
+    }
+}
+
+/// The §8.2 preimage is what the signature covers, so a drift here would
+/// invalidate every signature rather than one leaf.
+#[test]
+fn the_checked_in_report_digests_match() {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/cross-vectors.json");
+    let doc: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let reports = doc["reports"].as_array().expect("report vectors");
+    assert!(reports.len() >= 40, "too few report vectors");
+
+    for entry in reports {
+        let report: Report =
+            serde_json::from_value(entry["report"].clone()).expect("a well-formed report");
+        assert_eq!(
+            hex::encode(report_digest(&report)),
+            entry["report_digest"].as_str().unwrap(),
+            "report digest drifted for publisher {}",
+            report.publisher
         );
     }
 }

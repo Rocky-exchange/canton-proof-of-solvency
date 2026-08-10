@@ -2,6 +2,1651 @@
   "description": "Generated differential vectors (SPEC §1–§3, §8.1). Both implementations must reproduce every field.",
   "format_version": "canton-solvency-cross-vectors-v1",
   "master_salt": "cross-vector-master-salt",
+  "reports": [
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "Z": "16.363562488702574388"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "AAB": "7.595473510856631862"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 0,
+        "ledger_offset": "000000000000000000",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::0",
+        "root_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "root_sums": {
+          "A:B": "8.159388127455221198",
+          "！": "14.675105255735804088",
+          "𐀀": "11.759389890196483267",
+          "😀": "7.144800152782984289"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "7e39775c8357bb64499f6128c3831622aba80a8d5ccbe4ee6a360dcabdf423ef"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "a": "11.217605447001539247",
+            "a.b-c_1": "17.804542370351521329"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {
+            "AAA": "3.728772041361931638"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 1,
+        "ledger_offset": "000000000000000001",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::1",
+        "root_hash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "root_sums": {
+          "A|B:0.000000000000000001": "6.334237377969133406",
+          "！": "9.376214842783858069",
+          "😀": "3.842448701775229849"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "4b12243081e905aa7a0f2f58b990b30c8a6a868f2d74b92b52677afad8464447"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "a.b-c_1": "7.301609589859917708"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "a": "1.516398624532430900"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 2,
+        "ledger_offset": "000000000000000002",
+        "mark_prices": {
+          "USDA": "15.642692862173353228"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::2",
+        "root_hash": "0202020202020202020202020202020202020202020202020202020202020202",
+        "root_sums": {
+          "USDA": "0.899065196043502944"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "e4301f359cf03c7561189f7d1df873a3094c41d6054e618d19d71c42fd46db32"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 3,
+        "ledger_offset": "000000000000000003",
+        "mark_prices": {
+          "CBTC": "11.338982384778304050"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::3",
+        "root_hash": "0303030303030303030303030303030303030303030303030303030303030303",
+        "root_sums": {
+          "！": "1.147382650472448021"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "04195c99c1a88c05955e6b31c6fdf368c616e1b420bc7eb82bd1ffb8b0a2795c"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "12.584204188314844460",
+            "A|B:0.000000000000000001": "9.987845839160313916"
+          },
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 4,
+        "ledger_offset": "000000000000000004",
+        "mark_prices": {
+          "A|B": "14.469676145725625374"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::4",
+        "root_hash": "0404040404040404040404040404040404040404040404040404040404040404",
+        "root_sums": {
+          "AAA": "0.626503934391120501",
+          "": "9.463600286789143913",
+          "😀": "0.094446826350866847"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "6d3ce118c1d1b70f8a0eff305196fdf03c8e8de05077cb76b79710ffc9a7e348"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "5.230427840290020548",
+            "😀": "13.352610334202548169"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 5,
+        "ledger_offset": "000000000000000005",
+        "mark_prices": {
+          "A|B:0.000000000000000001": "16.132536824764609677"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::5",
+        "root_hash": "0505050505050505050505050505050505050505050505050505050505050505",
+        "root_sums": {
+          "Z": "8.495804590229908559",
+          "！": "2.156907785350029685"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "11131b5629085f50bd7bb81f65c3a583e0fd59b1487d3efcbca84a850deb7799"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 6,
+        "ledger_offset": "000000000000000006",
+        "mark_prices": {
+          "": "13.938981803452572936"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::6",
+        "root_hash": "0606060606060606060606060606060606060606060606060606060606060606",
+        "root_sums": {
+          "A|B:0.000000000000000001": "10.281868625706825873",
+          "😀": "5.067168574261228845"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "31da922b4c7788cdc20946f7150d3b3ccb046516d534f799f82573b13fc1fe1e"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAA": "6.534107794502030680",
+            "USDA": "13.509788245027600106"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "！": "14.562668788758760999"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 7,
+        "ledger_offset": "000000000000000007",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::7",
+        "root_hash": "0707070707070707070707070707070707070707070707070707070707070707",
+        "root_sums": {
+          "AA": "15.244868568746164255",
+          "a": "7.784622107924526141",
+          "😀": "5.726684002870495898"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "086d27bf17adfe20fc9b1feda67fa6acbeda87613a9adc48f70d4703e218b387"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "Z": "1.755548919754422669",
+            "𐀀": "9.985938809106439658"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {
+            "A|B": "1.057299782039356689"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 8,
+        "ledger_offset": "000000000000000008",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::8",
+        "root_hash": "0808080808080808080808080808080808080808080808080808080808080808",
+        "root_sums": {
+          "A:B": "15.817255104934290281",
+          "AA": "1.403858482168269593",
+          "A|B:0.000000000000000001": "14.813526223222291022",
+          "😀": "4.601942739015907395"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "fd4197b17f59db0f4446d8f9f42f8630437546eac15f607bdf2f5c2b7b7761a0"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "a.b-c_1": "4.578092851718482626"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "Z": "15.517836646497549278"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 9,
+        "ledger_offset": "000000000000000009",
+        "mark_prices": {
+          "a.b-c_1": "17.283141512507777818"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::9",
+        "root_hash": "0909090909090909090909090909090909090909090909090909090909090909",
+        "root_sums": {
+          "AA": "16.079546921129202781",
+          "a": "0.272691469273127500",
+          "a.b-c_1": "10.146967070327564425",
+          "𐀀": "14.395465188692851636"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "fb1fcfdda6e9a8e9ee0ce16de38bd9df19e49891a8b055a297342774e9673655"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "CBTC": "13.339918764818552199",
+            "！": "14.139348257587536395"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {
+            "A|B:0.000000000000000001": "17.290404356942006498"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 10,
+        "ledger_offset": "000000000000000010",
+        "mark_prices": {
+          "CBTC": "13.179854286364725983"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::10",
+        "root_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "root_sums": {
+          "A:B": "10.110023501103510293",
+          "a": "4.881805945732437885"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "44cbb157fe105afc77c45fd3b8fa686110a95b674d0b153c07d7b462f35ef8fa"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A:B": "16.651940961144185113"
+          },
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {
+            "A|B:0.000000000000000001": "0.563432811528814004",
+            "CBTC": "1.551370150094511183"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 11,
+        "ledger_offset": "000000000000000011",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::11",
+        "root_hash": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "root_sums": {
+          "A:B": "12.704865550665246462",
+          "USDA": "9.488895091543683735",
+          "a.b-c_1": "18.119873426533260478",
+          "𐀀": "11.629889100378461256"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "e153f8f3cef21fad5d77cef096f7f613f114127ed8cd6cf077ec6f6161c0d380"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "3.460421929172806551",
+            "A|B:0.000000000000000001": "3.987615200760826648"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 12,
+        "ledger_offset": "000000000000000012",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::12",
+        "root_hash": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "root_sums": {
+          "A|B:0.000000000000000001": "15.166748062736093685",
+          "Z": "1.511886438920175000",
+          "": "16.066512118951437776",
+          "😀": "14.721852035370831973"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "114b43db8f77eb9eb377c16c18a4c8c7ff948fe1bc15f7c5366c381adb5fdeea"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A:B": "16.887240381688419416",
+            "！": "9.273971158394982314"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 13,
+        "ledger_offset": "000000000000000013",
+        "mark_prices": {
+          "a.b-c_1": "15.466179469115479733"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::13",
+        "root_hash": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "root_sums": {
+          "A:B": "3.969800748128463540",
+          "AAA": "8.373228574928547600",
+          "CBTC": "11.266132331593608200"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "fa17966a9d73ce4e3e06707543b71ef688b50935df5240a6aed57072632877b6"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "a.b-c_1": "14.464536012220816535"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "Z": "1.522505286793499725"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 14,
+        "ledger_offset": "000000000000000014",
+        "mark_prices": {
+          "A|B:0.000000000000000001": "13.388901859545081039",
+          "Z": "11.540937143303701545"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::14",
+        "root_hash": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "root_sums": {
+          "AAB": "7.228198695740796804"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "5824201c9214256d4e5c8c78f2a3533ba2bdaf2f3044d5cb4fdd16c3997d5e6f"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAB": "10.917140119136767211",
+            "😀": "12.327960293530230622"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 15,
+        "ledger_offset": "000000000000000015",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::15",
+        "root_hash": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "root_sums": {
+          "AA": "6.167371375348365418",
+          "𐀀": "4.998639434370401138"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "d9f408263f0a352adaeeeee4b421464ee262e0eef4d36c10b806c7a3a28fa2dc"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 16,
+        "ledger_offset": "000000000000000016",
+        "mark_prices": {
+          "Z": "17.042225354377496397"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::16",
+        "root_hash": "1010101010101010101010101010101010101010101010101010101010101010",
+        "root_sums": {
+          "！": "12.921284601904383575"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "c24618a4645e3be3454f69461fd5e5f6da7e5871349ad09903d8137f425dc541"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "a.b-c_1": "18.360797345196729262"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {
+            "AAB": "7.587614907143956914"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 17,
+        "ledger_offset": "000000000000000017",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::17",
+        "root_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "root_sums": {
+          "AA": "5.718099261596140713",
+          "A|B": "2.697538945435675023",
+          "A|B:0.000000000000000001": "17.628899505747028538",
+          "": "5.807571529129863382"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "817bf05ef9d4600e26f979c6ae482427d8fcc100a5769e6afe53a73a21e30a7d"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {
+            "Z": "14.876410391309833739",
+            "！": "14.214064455056642817"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 18,
+        "ledger_offset": "000000000000000018",
+        "mark_prices": {
+          "AAB": "6.202787777822436182",
+          "A|B": "11.233915605641486890"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::18",
+        "root_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+        "root_sums": {
+          "AAA": "17.307879448573096455",
+          "a": "11.342002270816162639"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "641041011a0dda8d3ed497d4a7048a224120e479a0aab141115409c0517a55d4"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {
+            "USDA": "16.848105231497512866"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 19,
+        "ledger_offset": "000000000000000019",
+        "mark_prices": {
+          "A:B": "12.920424423382585155"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::19",
+        "root_hash": "1313131313131313131313131313131313131313131313131313131313131313",
+        "root_sums": {
+          "a.b-c_1": "17.992261493780757465",
+          "😀": "6.102885834733130936"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "c32843e3bc8a5830ab0bd7ddd44ebcffa208cfb52762b62427478e3071070003"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAB": "17.113211002430808089",
+            "！": "3.105746988147321490"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {
+            "😀": "13.511575727036926225"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 20,
+        "ledger_offset": "000000000000000020",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::20",
+        "root_hash": "1414141414141414141414141414141414141414141414141414141414141414",
+        "root_sums": {
+          "！": "10.072092153032824823",
+          "😀": "13.654713871612174871"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "b5d008a67ea29e6e46c09714fffc57055a026ad82c78d66c400aa96babffa317"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "15.500124505303968467"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 21,
+        "ledger_offset": "000000000000000021",
+        "mark_prices": {
+          "A|B": "4.785427785351495898"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::21",
+        "root_hash": "1515151515151515151515151515151515151515151515151515151515151515",
+        "root_sums": {
+          "AAA": "9.744719657183814801",
+          "CBTC": "1.302800964530755597",
+          "Z": "14.190669355165891657"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "4f5788ec5e78c33b2106d60fe9e219b17c1b1797c9de70e379a9250a8e3ae27a"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "😀": "9.292579024752565525"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {
+            "AAA": "5.726233390599574965",
+            "a": "11.988337919678059042"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 22,
+        "ledger_offset": "000000000000000022",
+        "mark_prices": {
+          "AA": "15.499729596346411017",
+          "😀": "18.279910138235596337"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::22",
+        "root_hash": "1616161616161616161616161616161616161616161616161616161616161616",
+        "root_sums": {
+          "A|B:0.000000000000000001": "8.545263803478679813",
+          "Z": "0.397352602119045678",
+          "a": "13.023003407703069985"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "8d34aa9bb5858d35c2323f47c454cfebd814f054053009eadbe513905093e5e9"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "1.919654470300737905",
+            "a": "15.402230874004342297"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "CBTC": "11.070530806902809088"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 23,
+        "ledger_offset": "000000000000000023",
+        "mark_prices": {
+          "": "8.859921136835999813"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::23",
+        "root_hash": "1717171717171717171717171717171717171717171717171717171717171717",
+        "root_sums": {
+          "AA": "17.096850669151915547",
+          "USDA": "3.117118009382315546"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "def9127b354991aaa63eb9730ca4a37f673cfbc93e8da5a6648f726b7cc6abd5"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAA": "6.133747980186090728",
+            "USDA": "0.488596944011448791"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {
+            "Z": "16.885030550336355503",
+            "a": "6.381573464287643346"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 24,
+        "ledger_offset": "000000000000000024",
+        "mark_prices": {
+          "A:B": "15.985319830030976031",
+          "a.b-c_1": "16.229934082182973396"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::24",
+        "root_hash": "1818181818181818181818181818181818181818181818181818181818181818",
+        "root_sums": {
+          "a.b-c_1": "8.017722908803951628"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "5f77cb0b8742a03b262d3364be060971ee6e6734eeb0b144c757cad716f943dd"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B:0.000000000000000001": "8.985389195370183466"
+          },
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {
+            "AAA": "3.524166080797205866",
+            "！": "1.020963270089554703"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 25,
+        "ledger_offset": "000000000000000025",
+        "mark_prices": {
+          "a": "11.576832688469574294",
+          "𐀀": "10.169661917452073581"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::25",
+        "root_hash": "1919191919191919191919191919191919191919191919191919191919191919",
+        "root_sums": {
+          "AA": "4.213735129956441950",
+          "AAA": "12.807231101416488057",
+          "a": "16.853143525478770443"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "80dafab1d58ba09972d85b34082789b795d86ef0117b559e4e2c85ea65de1387"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "14.227021318298140134"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 26,
+        "ledger_offset": "000000000000000026",
+        "mark_prices": {
+          "USDA": "14.609851594565809384",
+          "！": "13.855832536920598479"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::26",
+        "root_hash": "1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a",
+        "root_sums": {
+          "A|B:0.000000000000000001": "18.032926057365912479"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "8ee81010ca00b2879010568d270034a2d2555f12943297619473573fb2792ad0"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAA": "2.736528653341555314",
+            "Z": "5.499681569410920108"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 27,
+        "ledger_offset": "000000000000000027",
+        "mark_prices": {
+          "USDA": "11.549319140736415408"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::27",
+        "root_hash": "1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b",
+        "root_sums": {
+          "A:B": "7.422960013970088245",
+          "！": "17.109889443394312729"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "74743454a12f59c45960477a56fe0b6c202ddbaa87974def3cb141aaea39fceb"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "6.437181471561008138"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "AAA": "10.784879300883198708"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 28,
+        "ledger_offset": "000000000000000028",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::28",
+        "root_hash": "1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c",
+        "root_sums": {
+          "AAB": "12.446461578241425197",
+          "A|B:0.000000000000000001": "12.313204995395931897"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "facadf726e859d93a4bce51025b0c7e625c1253d49c34efed41de22f8349240a"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {
+            "！": "10.211643305290074263"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 29,
+        "ledger_offset": "000000000000000029",
+        "mark_prices": {
+          "Z": "11.409445377669302289",
+          "𐀀": "11.831898879593206067"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::29",
+        "root_hash": "1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d",
+        "root_sums": {
+          "AA": "1.045885971552854492",
+          "😀": "10.652237343745543441"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "83dfcfcad37083d5ae90b37525a0d9c143f2042cac482bb3d1042464956cbc7b"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "3.183935776351638089",
+            "Z": "17.170232621284610143"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 30,
+        "ledger_offset": "000000000000000030",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::30",
+        "root_hash": "1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e",
+        "root_sums": {
+          "AAB": "10.438120387741294579",
+          "A|B": "13.240824762855041886",
+          "USDA": "8.633612163923407428"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "72b2dfb491735e1a291f5f9ca0891cca1755ee6ecac97ed26aad0445c8a36f44"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 31,
+        "ledger_offset": "000000000000000031",
+        "mark_prices": {
+          "CBTC": "13.460946283914172316"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::31",
+        "root_hash": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+        "root_sums": {
+          "AAA": "16.959763870935324555",
+          "CBTC": "17.622233783013643044"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "b66ffc90791ee8b7d3cae24b13658c0b0de7d47c8fd5a2c1637f894a1b057eb2"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 32,
+        "ledger_offset": "000000000000000032",
+        "mark_prices": {
+          "！": "9.637624909445326461",
+          "𐀀": "15.220162632301670051"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::32",
+        "root_hash": "2020202020202020202020202020202020202020202020202020202020202020",
+        "root_sums": {
+          "AA": "9.002926694460657500",
+          "Z": "4.014923258552356003",
+          "a.b-c_1": "6.526320516197087396",
+          "𐀀": "2.562197546223424940"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "5f73ab350a54b4839426b1c95a0adcd4edbd61dc73d877e2fbcd72ee208ea519"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AAB": "11.602542356948489536"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 33,
+        "ledger_offset": "000000000000000033",
+        "mark_prices": {
+          "AAB": "10.874366670358166595",
+          "A|B": "9.493437086472253580"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::33",
+        "root_hash": "2121212121212121212121212121212121212121212121212121212121212121",
+        "root_sums": {
+          "AA": "13.106772048182954696",
+          "a.b-c_1": "2.506262972166038327"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "1831c2d9462eb355248d13549c2b3c13a7f203542c0f32371b13473752de26a5"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B:0.000000000000000001": "4.057166244429198466"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {
+            "Z": "16.356296234231766946"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 34,
+        "ledger_offset": "000000000000000034",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::34",
+        "root_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+        "root_sums": {
+          "AAA": "1.817090030880085745",
+          "AAB": "2.500978839601965767",
+          "！": "13.145656411781380061"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "25d4b41704ee4e78422cc64a7369cc25eb8d696519be64323fae79d9587e167b"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "a.b-c_1": "12.356960487889266984"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 35,
+        "ledger_offset": "000000000000000035",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::35",
+        "root_hash": "2323232323232323232323232323232323232323232323232323232323232323",
+        "root_sums": {
+          "A:B": "5.539529266450921754",
+          "A|B:0.000000000000000001": "12.396109176403376856"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "387d71494ab8fc0cd43bfb411ad4977fdd944ab4f3f6e95555a6a8bf6a8d90d0"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "𐀀": "0.926546079745763323"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 36,
+        "ledger_offset": "000000000000000036",
+        "mark_prices": {
+          "AAA": "14.177110270551134615",
+          "CBTC": "15.998617249234776740"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::36",
+        "root_hash": "2424242424242424242424242424242424242424242424242424242424242424",
+        "root_sums": {
+          "CBTC": "16.967216214798756037",
+          "a.b-c_1": "9.418411686936279459",
+          "！": "1.304650236821487848"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "f8aa5f0da232a6988595eaadab07569e93ef9dbe71dce10bcb66652017a084ef"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "😀": "2.448782464486604659"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "A|B:0.000000000000000001": "15.126614470336354365"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 37,
+        "ledger_offset": "000000000000000037",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue::37",
+        "root_hash": "2525252525252525252525252525252525252525252525252525252525252525",
+        "root_sums": {
+          "a": "2.424351352448386430"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "97a661f38a169e9dc3883264207dce48897fa39ef5fff7cd6894299797963464"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "😀": "2.855833010177685758"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {
+            "": "4.218914979270741671"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 38,
+        "ledger_offset": "000000000000000038",
+        "mark_prices": {
+          "AAB": "16.026604636167975264"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::38",
+        "root_hash": "2626262626262626262626262626262626262626262626262626262626262626",
+        "root_sums": {
+          "AAB": "5.682209023633657834",
+          "Z": "10.794543358396728719"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "bb515853857c4ccef81779deb1058a6db588c8b1b8f5ad67d589cb1c9d27bfae"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AA": "3.026554209649044208"
+          },
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {
+            "A:B": "6.384094322096413864",
+            "AAA": "6.130111392763049512"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 39,
+        "ledger_offset": "000000000000000039",
+        "mark_prices": {
+          "AAB": "15.222454122801853524",
+          "USDA": "16.639231118829210717"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::39",
+        "root_hash": "2727272727272727272727272727272727272727272727272727272727272727",
+        "root_sums": {
+          "A:B": "10.500912726973777257",
+          "A|B": "9.117798682909190469",
+          "": "11.818364979164492167"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "2ae7a2e54932c40884a101bfc132e28aa3ed632b73058695b591336feab19180"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 40,
+        "ledger_offset": "000000000000000040",
+        "mark_prices": {
+          "！": "18.434699022250876188",
+          "𐀀": "6.550592067688196118"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::40",
+        "root_hash": "2828282828282828282828282828282828282828282828282828282828282828",
+        "root_sums": {
+          "A|B:0.000000000000000001": "6.570590573575379916"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "b1f404f15940e4a4f40d9d7219e7ab7e62df3876bd54252ea4892c15b7c768f7"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {
+            "a": "3.593422660049158971",
+            "😀": "4.272576761207257505"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 41,
+        "ledger_offset": "000000000000000041",
+        "mark_prices": {
+          "Z": "10.546122962093420261"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::41",
+        "root_hash": "2929292929292929292929292929292929292929292929292929292929292929",
+        "root_sums": {
+          "A:B": "3.474035938765239284",
+          "a": "2.655051104645891073",
+          "": "2.847879575128636539"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "baff197fd4e12b12a5220aa74b633471db7df4677db26a457c7f9adca3f7184e"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "AAB": "11.911001484557054775"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 42,
+        "ledger_offset": "000000000000000042",
+        "mark_prices": {},
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::42",
+        "root_hash": "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a",
+        "root_sums": {
+          "a": "12.006878813867971665",
+          "a.b-c_1": "10.668924869167109543",
+          "𐀀": "15.036567806840745405"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "6f7681bfa2f66945e2382a17463c0228c428048502d15a25642750d4e89d9b67"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "1.699058673353369012"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 43,
+        "ledger_offset": "000000000000000043",
+        "mark_prices": {
+          "a": "18.370576201726705814"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::43",
+        "root_hash": "2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b",
+        "root_sums": {
+          "A:B": "14.539518035045931939",
+          "a.b-c_1": "2.948883178851213891"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "a2074e824480ae121585277a534dcb6fa317f7b459c2a91cfe646eb84ee77efa"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A:B": "12.969000212575729915"
+          },
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "USDA": "5.171401133727945772",
+            "a": "17.312756342272881818"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 44,
+        "ledger_offset": "000000000000000044",
+        "mark_prices": {
+          "USDA": "10.252409831962390213",
+          "": "1.670531929018601673"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::44",
+        "root_hash": "2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c2c",
+        "root_sums": {
+          "AAA": "14.332131779388401349",
+          "Z": "2.695663815106332038",
+          "！": "12.025682583896802595",
+          "😀": "10.459642779691078375"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "7a034f5575733f43ddd427a767181730957f1d7b7b9a4521810f27844a3cac51"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {
+            "": "1.001241178436231052"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 45,
+        "ledger_offset": "000000000000000045",
+        "mark_prices": {
+          "Z": "1.927267079862998733"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::45",
+        "root_hash": "2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d",
+        "root_sums": {
+          "A|B:0.000000000000000001": "4.874890243821184335",
+          "USDA": "7.126423617512637762",
+          "！": "16.861068493103807428"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "93b0fde4572f47f7e8cb5962857d0f80d4fed64f116f8843174721e428b7592b"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "！": "3.420024812448844638"
+          },
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 46,
+        "ledger_offset": "000000000000000046",
+        "mark_prices": {
+          "a.b-c_1": "2.690609000635301262"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::46",
+        "root_hash": "2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+        "root_sums": {
+          "a.b-c_1": "1.012943504995617289",
+          "": "9.842006965497982843",
+          "！": "17.623636354109351987"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "7981c80d7db5857b591f7fe086dd7a5cede89d39815ab0c97f2051e2a05bbbb0"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "16.516481888654110218",
+            "a": "3.086853404742681711"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {
+            "A|B": "12.288280991550895381"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 47,
+        "ledger_offset": "000000000000000047",
+        "mark_prices": {
+          "AAB": "6.818215490074076806",
+          "Z": "2.650889785760240828"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::47",
+        "root_hash": "2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f",
+        "root_sums": {
+          "CBTC": "9.111939668333220918"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "0883b9fb04402b2c6bfbbcf76d6dbad0db8ea0d48cd7d56589e40b979167371c"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "😀": "4.716749284218678552"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {
+            "A|B": "14.777978632959862909",
+            "𐀀": "13.662280138267628206"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 48,
+        "ledger_offset": "000000000000000048",
+        "mark_prices": {
+          "AAB": "0.267929107695009180",
+          "！": "6.652846574438695429"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::48",
+        "root_hash": "3030303030303030303030303030303030303030303030303030303030303030",
+        "root_sums": {
+          "AAA": "10.531484588751194008",
+          "A|B": "1.949549765280686569",
+          "USDA": "7.774197864681133959",
+          "Z": "13.986791882164823428"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "80f332c543c2f1baa299f3f53dc01dfb24ee567bbdb6f4e4bfdc53d1a39b4844"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "8.383049468193474420",
+            "CBTC": "10.408455741425972317"
+          },
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 49,
+        "ledger_offset": "000000000000000049",
+        "mark_prices": {
+          "！": "3.916699404949870479"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::49",
+        "root_hash": "3131313131313131313131313131313131313131313131313131313131313131",
+        "root_sums": {
+          "A|B": "4.270183698797269199",
+          "！": "10.061196342005971662"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "47357d2954168d9c00f7b71312d211685be65377986384ffe13c0dbbc95fdb99"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "Z": "12.245826124554401370"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {
+            "😀": "11.977497455543223802"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 50,
+        "ledger_offset": "000000000000000050",
+        "mark_prices": {
+          "CBTC": "9.519961542244786026"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::50",
+        "root_hash": "3232323232323232323232323232323232323232323232323232323232323232",
+        "root_sums": {
+          "": "5.968581313411058474",
+          "！": "1.192370420495003639",
+          "𐀀": "14.026987230418389541"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "69676ec4fb960379f1f39da0645bab74cefdf5d4efb7729fd129416594b29aea"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 51,
+        "ledger_offset": "000000000000000051",
+        "mark_prices": {
+          "AAB": "17.806387655923438627"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::51",
+        "root_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+        "root_sums": {
+          "A|B:0.000000000000000001": "4.686471122731407823",
+          "𐀀": "6.865890805082220552"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "5797ea5ab31f4c5a1c96bb220e789abbaa27b39a666d59987fc619c7f89ec921"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "": "10.800799397248787856"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 52,
+        "ledger_offset": "000000000000000052",
+        "mark_prices": {
+          "a": "0.333416572330372397",
+          "😀": "14.766607747433081693"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::52",
+        "root_hash": "3434343434343434343434343434343434343434343434343434343434343434",
+        "root_sums": {
+          "AAA": "8.313323872736126470",
+          "AAB": "4.256694290608830555",
+          "USDA": "16.006203347883839151"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "1225fad466baf5fea683826d5851821371f57ec8c877794336b360b9e2e6fb5f"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 4,
+          "excluded_house_totals": {
+            "A|B:0.000000000000000001": "0.816846067890850912",
+            "CBTC": "7.006037019473649836"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 53,
+        "ledger_offset": "000000000000000053",
+        "mark_prices": {
+          "": "5.806951864127938625"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::53",
+        "root_hash": "3535353535353535353535353535353535353535353535353535353535353535",
+        "root_sums": {
+          "A:B": "16.560915082036171611",
+          "AAA": "8.342674088575343769",
+          "a.b-c_1": "14.700418015489536261",
+          "😀": "17.138514093642682198"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "31f34b60ed54822f840e6e22e5ea4a8fe78552fd30fc86841a9a7437aab36663"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "AA": "3.158840833313702543",
+            "A|B:0.000000000000000001": "1.654668330822321032"
+          },
+          "excluded_house_accounts": 5,
+          "excluded_house_totals": {
+            "A:B": "9.444642433807820382",
+            "𐀀": "12.160569274137704430"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 54,
+        "ledger_offset": "000000000000000054",
+        "mark_prices": {
+          "USDA": "12.968385178083637972"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::54",
+        "root_hash": "3636363636363636363636363636363636363636363636363636363636363636",
+        "root_sums": {
+          "😀": "16.408588877248128821"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "e8d928f3ff340b948f57f756062ea2b6ad3e07fc8bafa7dcb6543e067472409f"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "A|B": "13.899636111296275829",
+            "Z": "15.714314650514874572"
+          },
+          "excluded_house_accounts": 6,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 55,
+        "ledger_offset": "000000000000000055",
+        "mark_prices": {
+          "": "7.649770389839632782"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::55",
+        "root_hash": "3737373737373737373737373737373737373737373737373737373737373737",
+        "root_sums": {
+          "AAB": "5.534852593318240593",
+          "a": "10.120293399527517325",
+          "a.b-c_1": "13.720606766811134641"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "7c504ebc300051a283d42635409f7b5b3d0a14062bb193c29c1266180506e54b"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 0,
+          "excluded_house_totals": {
+            "A:B": "3.896843066826140198",
+            "𐀀": "8.947368852191434179"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 56,
+        "ledger_offset": "000000000000000056",
+        "mark_prices": {
+          "！": "9.097640921597602366"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::56",
+        "root_hash": "3838383838383838383838383838383838383838383838383838383838383838",
+        "root_sums": {
+          "A|B": "15.156132559840161491",
+          "USDA": "13.014030108692333038",
+          "Z": "1.561994173895955050",
+          "a.b-c_1": "17.591450658328673592"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "d79a7fdaa81c5f6ba4f67b126317b947173e66abbfbea290470c97e14fc23419"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "USDA": "13.393715183609451363"
+          },
+          "excluded_house_accounts": 1,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 57,
+        "ledger_offset": "000000000000000057",
+        "mark_prices": {
+          "A|B": "10.820138296811561241"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue🏦::57",
+        "root_hash": "3939393939393939393939393939393939393939393939393939393939393939",
+        "root_sums": {
+          "A:B": "11.903452669816486145"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "a44d8123d51a1c0a608402ed0f67bca791a154449dad3cb68436030eae709f9d"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {},
+          "excluded_house_accounts": 2,
+          "excluded_house_totals": {
+            "AAB": "6.286539427944156727"
+          }
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 58,
+        "ledger_offset": "000000000000000058",
+        "mark_prices": {
+          "USDA": "0.024911092860125112"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::58",
+        "root_hash": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+        "root_sums": {
+          "AAA": "9.567418239986695429",
+          "CBTC": "2.762420786665271018"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "fdbf35303dfe9e3956d999a27d15275ba8b780902a494d7c4fdc743de2c88110"
+    },
+    {
+      "report": {
+        "disclosures": {
+          "bad_debt": {
+            "Z": "7.166645178673487097"
+          },
+          "excluded_house_accounts": 3,
+          "excluded_house_totals": {}
+        },
+        "format_version": "canton-solvency-report-v1",
+        "leaf_count": 59,
+        "ledger_offset": "000000000000000059",
+        "mark_prices": {
+          "A:B": "14.074434682273576584",
+          "𐀀": "10.241904612830031334"
+        },
+        "profile": "solvency.liabilities",
+        "publisher": "venue::59",
+        "root_hash": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+        "root_sums": {
+          "AAA": "0.959670831541886256",
+          "AAB": "2.577502280650228163",
+          "": "6.213548737910714193"
+        },
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "report_digest": "87b37f9eaf735b70076a8a543cff8465235e7a6ce18a145f6f3c87546be55c87"
+    }
+  ],
   "vectors": [
     {
       "balances": {
