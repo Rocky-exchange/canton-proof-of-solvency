@@ -213,3 +213,81 @@ fn adversarial_amounts_are_rejected_not_fatal() {
         });
     }
 }
+
+/// Every other verification entry point, not just `verify`.
+///
+/// The suite above covered the customer-proof path and left the group,
+/// coverage, anchor, pack and v2 paths untested against documents that are
+/// structurally wrong rather than merely incorrect. All of them were already
+/// panic-free — this records that rather than discovering it.
+///
+/// Worth noting why the answer differs from the TypeScript side, where the
+/// same search found real throws. Rust's equivalents of the operations that
+/// failed there return `Result` and the compiler will not let them be ignored;
+/// `Object.keys(null)` throws with nothing in the type system to say so. The
+/// two implementations need different amounts of this kind of testing, and it
+/// is not because one was written more carefully.
+#[test]
+fn every_verification_entry_point_is_panic_free_on_structurally_wrong_input() {
+    use canton_solvency_report::{anchor, coverage, golden, group, pack, verify};
+
+    let key = golden::signer().public_key_hex();
+
+    let (group_report, membership) = golden::group_fixture();
+    for (label, mutate) in [
+        ("group: entity sums emptied", 0u8),
+        ("group: path emptied", 1),
+        ("group: entity id emptied", 2),
+    ] {
+        let mut m = membership.clone();
+        match mutate {
+            0 => m.entity.root_sums.clear(),
+            1 => m.steps.clear(),
+            _ => m.entity.entity_id = String::new(),
+        }
+        survives(label, || {
+            let _ = group::verify_membership(&group_report, &m, &key);
+        });
+    }
+
+    let (custody, statement) = golden::coverage_fixture();
+    let (liabilities, _) = golden::fixture();
+    let mut blanked = statement.clone();
+    blanked.custody_report_digest = String::new();
+    blanked.liabilities_report_digest = String::new();
+    survives("coverage: both binding digests blanked", || {
+        let _ = coverage::verify_coverage(&custody, &liabilities, &blanked, &key, &key);
+    });
+
+    survives("anchors: empty history", || {
+        let _ = anchor::verify_chain(&[]);
+    });
+    let mut hollow = golden::anchor_fixture();
+    hollow.report_digest = String::new();
+    hollow.publisher_key = String::new();
+    survives("anchors: digest fields blanked", || {
+        let _ = anchor::verify_chain(&[hollow]);
+    });
+
+    let (signed_pack, members) = golden::pack_fixture();
+    survives("pack: nothing delivered", || {
+        let _ = pack::verify_pack(&signed_pack, &key, &std::collections::BTreeMap::new());
+    });
+    let mut empty_index = signed_pack.clone();
+    empty_index.pack.entries.clear();
+    survives("pack: index emptied", || {
+        let _ = pack::verify_pack(&empty_index, &key, &members.iter().cloned().collect());
+    });
+
+    let (v2_report, v2_proof) = golden::repo_fixture();
+    let mut no_maps = v2_proof.clone();
+    no_maps.leaf.maps.clear();
+    survives("proof v2: leaf maps emptied", || {
+        let _ = verify::verify_v2(&v2_report, &no_maps, &key);
+    });
+    let mut no_steps = v2_proof.clone();
+    no_steps.steps.clear();
+    survives("proof v2: path emptied", || {
+        let _ = verify::verify_v2(&v2_report, &no_steps, &key);
+    });
+}

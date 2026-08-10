@@ -72,6 +72,24 @@ obligation, not a format guarantee.
 Substituting a key is also not quiet: the key is inside the anchor digest, so
 changing it breaks every later link in the history.
 
+## The two implementations fail differently
+
+Worth stating for a reviewer deciding where to spend attention: the same audit
+for "what happens on input that is not a document" found real defects in the
+TypeScript verifier and none in the Rust one.
+
+That is not a difference in care. The operations that failed in TypeScript —
+`Object.keys` on a null aggregate, an amount parser used on a display path —
+throw implicitly, with nothing in the type system saying so, and a function
+whose signature reads `Promise<VerificationResult>` can still reject. Their
+Rust equivalents return `Result` and the compiler will not let the caller
+ignore it, so the same mistake does not compile.
+
+The practical consequence is that the browser verifier needs this kind of
+testing more than the CLI does, and that a reviewer with limited time should
+weight it accordingly. Both now have the tests; only one of them needed the
+fixes.
+
 ## Known weaknesses we have accepted
 
 **Sibling sums are disclosed.** A proof reveals sibling subtotals, and at leaf
