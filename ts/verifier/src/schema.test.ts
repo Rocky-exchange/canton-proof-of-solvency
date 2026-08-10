@@ -178,6 +178,37 @@ describe("schema coverage", () => {
     "anchor.golden.json": validateAnchor,
   };
 
+  /**
+   * A schema nobody exercises can be wrong for as long as it likes, and the
+   * one thing third-party tooling parses against is the schema. The fixture
+   * list above has had this guard from the start; the schema directory did
+   * not, so adding a schema and forgetting its test would have gone unnoticed.
+   *
+   * Every schema here is genuinely exercised, not merely compiled — checked by
+   * replacing each in turn with `{}`, which accepts everything, and confirming
+   * at least one test fails each time.
+   */
+  it("exercises every schema in the repository", () => {
+    const dir = fileURLToPath(new URL("../../../schemas", import.meta.url));
+    const present = readdirSync(dir)
+      .filter((f) => f.endsWith(".schema.json"))
+      .sort();
+    const exercised = [
+      "anchor-v1.schema.json",
+      "coverage-statement-v1.schema.json",
+      "custody-report-v1.schema.json",
+      "group-membership-v1.schema.json",
+      "pack-v1.schema.json",
+      "proof-v1.schema.json",
+      "proof-v2.schema.json",
+      "report-v1.schema.json",
+      "report-v2.schema.json",
+    ].sort();
+    expect(present, "a schema was added or removed without updating its tests").toEqual(
+      exercised
+    );
+  });
+
   it("covers every fixture in the repository", () => {
     const dir = fileURLToPath(new URL("../../../fixtures", import.meta.url));
     const present = readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
