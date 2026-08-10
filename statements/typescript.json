@@ -14,7 +14,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "cbee4a4de11a800b4bcddaeaedbc13441132a112496a57e62ee75cacf5919739",
+  "corpus_digest": "d9699da9a8157345e299ebe07c27749b879a1bbba99f480010aa25fbd97bc398",
   "results": [
     {
       "id": "proof-valid",
@@ -88,6 +88,26 @@
     },
     {
       "id": "dvp-missing-leg",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "fund-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "eligibility-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "eligibility-not-unanimous",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "fund-missing-aggregate",
       "expected": "reject",
       "outcome": "reject"
     },

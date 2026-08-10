@@ -42,6 +42,9 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (custody, statement) = golden::coverage_fixture();
     let (shortfall_custody, shortfall_statement) = golden::shortfall_fixture();
     let (dvp_report, dvp_complete, dvp_missing_leg) = golden::dvp_fixture();
+    let (eligibility_report, eligibility_proof, eligibility_broken, eligibility_broken_proof) =
+        golden::eligibility_fixture();
+    let (fund_report, fund_proof, fund_partial, fund_partial_proof) = golden::fund_fixture();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
@@ -331,6 +334,62 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         vec![
             ("report.json", serde_json::to_value(&dvp_report)?),
             ("proof.json", serde_json::to_value(&dvp_missing_leg)?),
+        ],
+    )?;
+
+    // fund.nav and eligibility.holder were the last two profiles with no case
+    // at all. Between them they exercise the two aggregate forms: a profile
+    // requiring several prefixed families, and a profile whose statement is
+    // about every subject rather than about the totals.
+    add(
+        "fund-valid",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a tokenised fund publishing units outstanding and total entitlement",
+        "accept",
+        None,
+        vec![
+            ("report.json", serde_json::to_value(&fund_report)?),
+            ("proof.json", serde_json::to_value(&fund_proof)?),
+        ],
+    )?;
+    add(
+        "eligibility-valid",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "every committed holder satisfied the attested rule",
+        "accept",
+        None,
+        vec![
+            ("report.json", serde_json::to_value(&eligibility_report)?),
+            ("proof.json", serde_json::to_value(&eligibility_proof)?),
+        ],
+    )?;
+    add(
+        "eligibility-not-unanimous",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a holder who did not satisfy the rule the report asserts of everyone",
+        "reject",
+        Some("profile"),
+        vec![
+            ("report.json", serde_json::to_value(&eligibility_broken)?),
+            (
+                "proof.json",
+                serde_json::to_value(&eligibility_broken_proof)?,
+            ),
+        ],
+    )?;
+    add(
+        "fund-missing-aggregate",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a fund publishing units outstanding but not entitlement",
+        "reject",
+        Some("profile"),
+        vec![
+            ("report.json", serde_json::to_value(&fund_partial)?),
+            ("proof.json", serde_json::to_value(&fund_partial_proof)?),
         ],
     )?;
 

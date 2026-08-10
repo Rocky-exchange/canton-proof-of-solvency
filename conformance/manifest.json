@@ -234,6 +234,70 @@
       ]
     },
     {
+      "description": "a tokenised fund publishing units outstanding and total entitlement",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "fund-valid",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
+      "description": "every committed holder satisfied the attested rule",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "eligibility-valid",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
+      "description": "a holder who did not satisfy the rule the report asserts of everyone",
+      "expect": "reject",
+      "failure": "profile",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "eligibility-not-unanimous",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
+      "description": "a fund publishing units outstanding but not entitlement",
+      "expect": "reject",
+      "failure": "profile",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "fund-missing-aggregate",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
       "description": "an asset owed and held nowhere",
       "expect": "reject",
       "failure": "shortfall",

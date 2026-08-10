@@ -1,0 +1,22 @@
+{
+  "format_version": "canton-solvency-proof-v2",
+  "leaf": {
+    "maps": {
+      "units": {
+        "CLASS_A": "1000.000000000000000000"
+      }
+    },
+    "salt": "17636fbbbf165972640ef827f4021d8577a96d0f3427f7711fe9308a4e9b29d1",
+    "subject_id": "holder-a"
+  },
+  "report_digest": "676ec23d7e1407cbb2c945d6b42f4e5c88bed6ebc7e626380793852108e88ee1",
+  "steps": [
+    {
+      "sibling_hash": "c27158a781c9b2e64d7093ebf404b7839cd1f25c3fcc0fc4517a44cc78054e37",
+      "sibling_on_left": false,
+      "sibling_sums": {
+        "units/CLASS_A": "400.000000000000000000"
+      }
+    }
+  ]
+}
