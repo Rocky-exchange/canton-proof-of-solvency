@@ -157,6 +157,15 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
             let proof: crate::document::ProofDocumentV2 = load(&dir.join("proof.json"))?;
             crate::verify::verify_v2(&report, &proof, key).map_err(|e| e.to_string())
         }
+        "chain" => {
+            let group: crate::document::SignedReport = load(&dir.join("group-report.json"))?;
+            let membership: crate::group::GroupMembershipDocument =
+                load(&dir.join("membership.json"))?;
+            let entity: crate::document::SignedReport = load(&dir.join("entity-report.json"))?;
+            let proof: crate::document::ProofDocument = load(&dir.join("proof.json"))?;
+            crate::group::verify_chain(&group, &membership, &entity, &proof, key, key)
+                .map_err(|e| e.to_string())
+        }
         "membership" => {
             let report: crate::document::SignedReport = load(&dir.join("group-report.json"))?;
             let membership: crate::group::GroupMembershipDocument =

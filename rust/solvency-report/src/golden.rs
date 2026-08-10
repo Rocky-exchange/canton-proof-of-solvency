@@ -261,6 +261,48 @@ pub fn understated_fixture() -> (SignedReport, ProofDocument) {
 ///
 /// The member bytes are the pretty-printed documents a publisher writes, since
 /// the index pins bytes on disk rather than any re-serialisation of them.
+/// The §13.4 chain, and the substitution it exists to refuse.
+///
+/// Returns the group report, entity A's membership, entity B's membership,
+/// entity A's own report, and a customer proof against it.
+///
+/// Pairing A's membership with A's report is the honest chain. Pairing **B's**
+/// membership with A's report is the attack §13.4 names in as many words: "a
+/// group could present entity A's membership beside entity B's report". Both
+/// halves verify on their own — the proof against A's report, the membership
+/// against the group report — and only step 3, comparing the membership's
+/// claimed entity root against the report's actual one, connects them.
+pub fn chain_fixture() -> (
+    SignedReport,
+    crate::group::GroupMembershipDocument,
+    crate::group::GroupMembershipDocument,
+    SignedReport,
+    ProofDocument,
+) {
+    use crate::group::{publish_group, EntityInput};
+    let (entity_report, proof) = fixture();
+    let entities = vec![
+        EntityInput {
+            entity_id: "golden-entity-a".to_string(),
+            root_hash: crate::verify::hash32(&entity_report.report.root_hash, "root").unwrap(),
+            root_sums: entity_report.report.root_sums.clone(),
+        },
+        EntityInput {
+            entity_id: "golden-entity-b".to_string(),
+            root_hash: [0x11; 32],
+            root_sums: amounts(&[("USDA", 42_000_000_000_000_000_000)]),
+        },
+    ];
+    let published = publish_group(&entities, &metadata(), &signer()).unwrap();
+    (
+        published.signed_report,
+        published.memberships[0].clone(),
+        published.memberships[1].clone(),
+        entity_report,
+        proof,
+    )
+}
+
 /// A fixture whose asset names sort differently under UTF-8 bytes than under
 /// UTF-16 code units (SPEC §2).
 ///

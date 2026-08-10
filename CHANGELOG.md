@@ -102,6 +102,14 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Added
 
+- Conformance cases for §13.4 chain verification, which nothing exercised.
+  Removing step 3 — the check binding a membership to the entity report it
+  claims — left every existing case passing, so an implementation could omit it
+  and be certified conforming. §13.4 says in as many words that steps 1 and 2
+  are "independently valid and jointly meaningless" without it. The rejecting
+  case is the substitution the spec names: one entity's membership presented
+  beside another entity's report.
+
 - Robustness suites for both implementations: truncation at every byte offset,
   single-byte alteration at every position, wrong JSON types and malformed hex
   in every field, malformed trusted keys, deeply nested JSON, and adversarial

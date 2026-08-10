@@ -44,6 +44,8 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
     let (understated_report, understated_proof) = golden::understated_fixture();
+    let (chain_group, chain_membership_a, chain_membership_b, chain_entity, chain_proof) =
+        golden::chain_fixture();
     let key = golden::signer().public_key_hex();
 
     let report_j = serde_json::to_value(&report)?;
@@ -345,6 +347,46 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
                 )
             ]),
         )],
+    )?;
+
+    // --- §13.4 chain verification ---
+    // Step 3 binds the membership to the entity report. Nothing else in the
+    // corpus exercises it: steps 1 and 2 are each covered, and §13.4 says in
+    // as many words that they are "independently valid and jointly
+    // meaningless" without step 3.
+    add(
+        "chain-valid",
+        "chain",
+        &["report-v1", "proof-v1", "group-v1"],
+        "a customer proved all the way to a group's consolidated total",
+        "accept",
+        None,
+        vec![
+            ("group-report.json", serde_json::to_value(&chain_group)?),
+            (
+                "membership.json",
+                serde_json::to_value(&chain_membership_a)?,
+            ),
+            ("entity-report.json", serde_json::to_value(&chain_entity)?),
+            ("proof.json", serde_json::to_value(&chain_proof)?),
+        ],
+    )?;
+    add(
+        "chain-substituted-entity",
+        "chain",
+        &["report-v1", "proof-v1", "group-v1"],
+        "one entity's membership presented beside another entity's report",
+        "reject",
+        Some("entity_root_mismatch"),
+        vec![
+            ("group-report.json", serde_json::to_value(&chain_group)?),
+            (
+                "membership.json",
+                serde_json::to_value(&chain_membership_b)?,
+            ),
+            ("entity-report.json", serde_json::to_value(&chain_entity)?),
+            ("proof.json", serde_json::to_value(&chain_proof)?),
+        ],
     )?;
 
     // --- the sums comparison (SPEC §9.1 step 5) ---

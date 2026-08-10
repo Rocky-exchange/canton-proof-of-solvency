@@ -241,6 +241,42 @@
       ]
     },
     {
+      "description": "a customer proved all the way to a group's consolidated total",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "group-report.json",
+        "membership.json",
+        "entity-report.json",
+        "proof.json"
+      ],
+      "id": "chain-valid",
+      "kind": "chain",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "group-v1"
+      ]
+    },
+    {
+      "description": "one entity's membership presented beside another entity's report",
+      "expect": "reject",
+      "failure": "entity_root_mismatch",
+      "files": [
+        "group-report.json",
+        "membership.json",
+        "entity-report.json",
+        "proof.json"
+      ],
+      "id": "chain-substituted-entity",
+      "kind": "chain",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "group-v1"
+      ]
+    },
+    {
       "description": "an honest tree beside understated totals the publisher signed",
       "expect": "reject",
       "failure": "root_sums_mismatch",
