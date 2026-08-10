@@ -615,8 +615,8 @@ adopted infrastructure.
   legitimate but never accidental. Export is blocked while any field's
   declared state contradicts the draft, so the screen catches what
   verification would reject.
-- **Still blocked on a node:** connection and party declaration, reading live
-  data, scheduling, signing, publishing, anchoring.
+- ~~**Publishing**~~ — **delivered** as [`canton-solvency-publish`](rust/solvency-report/src/bin/publish.rs). An institution that can export balances as CSV produces a signed report, one proof per customer, and a linked anchor, without writing code. The signing seed is read from a file, never an argument, because a command line is readable by every other process on the host. The full loop runs: publish → verify with the independent tool → walk the history.
+- **Still blocked on a node:** connecting a participant from the browser console, reading live data, and scheduling.
 - **Viewer console** — provenance state on every figure
   (verified / disclosed / withheld), the data-flow graph of parties,
   synchronizers, and contract types behind each subtotal, plus coverage and
