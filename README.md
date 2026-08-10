@@ -738,7 +738,13 @@ Turns one implementation into something the network can rely on.
   case* rather than in a prose report, with the three rules that stop a
   statement being decorative — claim a feature and you may not skip its cases,
   skip what you do not claim rather than reporting a pass, and bind the whole
-  thing to a corpus digest. `verify_from_spec.py --statement` emits one.
+  thing to a corpus digest. `verify_from_spec.py --statement` emits one, and all three of our
+  implementations publish theirs in [`statements/`](statements) — compared by
+  a test that fails at a *named case* when two implementations claiming the
+  same feature disagree. That comparison is what was missing when Rust and
+  TypeScript diverged on key ordering for months with both suites green; a
+  second implementer's statement dropped into that directory is checked by the
+  same test, with no special handling.
 - ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
   coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
   and the document is frozen against the conformance corpus: every normative

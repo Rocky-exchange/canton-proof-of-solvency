@@ -4,3 +4,6 @@ dist/
 .DS_Store
 target/package/
 .daml/
+
+# esbuild scratch for the compatibility-statement emitter
+ts/verifier/src/.corpus.bundle.mjs

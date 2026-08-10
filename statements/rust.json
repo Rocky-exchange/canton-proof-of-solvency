@@ -1,0 +1,125 @@
+{
+  "format_version": "canton-solvency-compat-v1",
+  "implementation": "canton-solvency-report (Rust)",
+  "version": "0.1.0",
+  "supports": [
+    "anchor-v1",
+    "coverage-v1",
+    "group-v1",
+    "leaf-v2",
+    "manifest",
+    "pack-v1",
+    "proof-v1",
+    "proof-v2",
+    "report-v1",
+    "report-v2"
+  ],
+  "corpus_digest": "3b515fef0a6b2801503c3085cfaeaee1dea7ee76ed4dbded27cc60545d44f701",
+  "results": [
+    {
+      "id": "proof-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "proof-tampered-balance",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-understated-totals",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-forged-signature",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-stale",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "report-v2-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "report-v2-manifest-lies",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "repo-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "repo-under-collateralised",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "group-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "group-relabelled-entity",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "coverage-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "anchors-intact",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "anchors-suffix",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "anchors-broken-link",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-astral-assets",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "pack-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "pack-dropped-proof",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "pack-altered-member",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "pack-unlisted-member",
+      "expected": "reject",
+      "outcome": "reject"
+    }
+  ]
+}

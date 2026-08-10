@@ -5,11 +5,6 @@
 //! reference implementation cannot itself satisfy is not a conformance test,
 //! it is a bug report.
 
-use canton_solvency_report::anchor::{verify_chain, Anchor};
-use canton_solvency_report::coverage::{verify_coverage, CoverageStatement};
-use canton_solvency_report::document::{ProofDocument, ProofDocumentV2, SignedReport};
-use canton_solvency_report::group::{verify_membership, GroupMembershipDocument};
-use canton_solvency_report::verify::{verify, verify_v2};
 use std::path::{Path, PathBuf};
 
 fn corpus_dir() -> PathBuf {
@@ -21,60 +16,10 @@ fn load<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
     serde_json::from_str(&text).map_err(|e| e.to_string())
 }
 
-/// Ok(()) when the case's documents verify, Err(reason) otherwise.
-fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
-    match kind {
-        "proof" => {
-            let report: SignedReport = load(&dir.join("report.json"))?;
-            let proof: ProofDocument = load(&dir.join("proof.json"))?;
-            verify(&report, &proof, key).map_err(|e| e.to_string())
-        }
-        "proof-v2" => {
-            let report: SignedReport = load(&dir.join("report.json"))?;
-            let proof: ProofDocumentV2 = load(&dir.join("proof.json"))?;
-            verify_v2(&report, &proof, key).map_err(|e| e.to_string())
-        }
-        "membership" => {
-            let report: SignedReport = load(&dir.join("group-report.json"))?;
-            let membership: GroupMembershipDocument = load(&dir.join("membership.json"))?;
-            verify_membership(&report, &membership, key).map_err(|e| e.to_string())
-        }
-        "coverage" => {
-            let custody: SignedReport = load(&dir.join("custody.json"))?;
-            let liabilities: SignedReport = load(&dir.join("liabilities.json"))?;
-            let statement: CoverageStatement = load(&dir.join("statement.json"))?;
-            let outcome = verify_coverage(&custody, &liabilities, &statement, key, key)
-                .map_err(|e| e.to_string())?;
-            if outcome.fully_covered() {
-                Ok(())
-            } else {
-                Err("shortfall".to_string())
-            }
-        }
-        "pack" => {
-            // The delivery is read off disk rather than from the manifest's
-            // file list: a runner that trusted the list could not notice a
-            // file the index does not name.
-            let signed: canton_solvency_report::pack::SignedPack = load(&dir.join("pack.json"))?;
-            let mut members = std::collections::BTreeMap::new();
-            for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
-                let path = entry.map_err(|e| e.to_string())?.path();
-                let name = path.file_name().unwrap().to_string_lossy().into_owned();
-                if !path.is_file() || name == "pack.json" {
-                    continue;
-                }
-                members.insert(name, std::fs::read(&path).map_err(|e| e.to_string())?);
-            }
-            canton_solvency_report::pack::verify_pack(&signed, key, &members)
-                .map_err(|e| e.to_string())
-        }
-        "anchors" => {
-            let history: Vec<Anchor> = load(&dir.join("history.json"))?;
-            verify_chain(&history).map_err(|e| e.to_string())
-        }
-        other => panic!("unknown case kind {other}"),
-    }
-}
+/// Delegates to the library runner, which the §14.5 statement builder also
+/// uses: a statement must not be able to report an outcome this test would
+/// not have produced.
+use canton_solvency_report::compat::run_case;
 
 #[test]
 fn every_conformance_case_behaves_as_the_manifest_says() {

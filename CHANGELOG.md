@@ -29,6 +29,9 @@ verifies, and both implementations still assert them.
 - Tamper-evident report history via hash-linked anchors.
 - Specification v1.1, frozen against the conformance corpus, and a third
   verifier written from its text alone (`spec-audit/`).
+- SPEC §14.5 compatibility statements, one per implementation in
+  `statements/`, compared by a cross-implementation test. Running the corpus
+  in three places proved nothing while nothing compared the results.
 
 ### Fixed
 
