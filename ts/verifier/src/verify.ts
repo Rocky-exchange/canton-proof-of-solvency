@@ -58,12 +58,34 @@ export function canonicalBalances(balances: Record<string, string>): string {
 
 function canonicalSums(sums: Record<string, bigint>): string {
   return Object.keys(sums)
-    .sort()
+    .sort(bytewiseCompare)
     .map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`)
     .join("|");
 }
 
 const encoder = new TextEncoder();
+
+/**
+ * SPEC §2 and §8.1 order keys **bytewise** over UTF-8. JavaScript's default
+ * `Array.sort()` compares UTF-16 code units, which disagrees for any codepoint
+ * above U+FFFF: a surrogate (0xD800) sorts before U+E000..U+FFFF, while the
+ * UTF-8 encoding of the same character (0xF0…) sorts after. Rust's
+ * `String::cmp` is bytewise, so the default sort would give the two
+ * implementations different leaf hashes for an asset named outside the BMP —
+ * a report the producer signed honestly, rejected in the browser.
+ *
+ * Every ASCII name agrees under both orders, which is why the golden vectors
+ * never caught this.
+ */
+export function bytewiseCompare(a: string, b: string): number {
+  const x = encoder.encode(a);
+  const y = encoder.encode(b);
+  const n = Math.min(x.length, y.length);
+  for (let i = 0; i < n; i++) {
+    if (x[i] !== y[i]) return x[i] - y[i];
+  }
+  return x.length - y.length;
+}
 
 function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
@@ -129,7 +151,7 @@ function lpBytes(s: string): Uint8Array {
 }
 
 function lpmapBytes(m: Record<string, string>): Uint8Array {
-  const assets = Object.keys(m).sort();
+  const assets = Object.keys(m).sort(bytewiseCompare);
   const parts: Uint8Array[] = [u64le(assets.length)];
   for (const asset of assets) {
     parts.push(lpBytes(asset), lpBytes(formatAmount18dp(parseAmount18dp(m[asset]))));
@@ -153,7 +175,7 @@ export async function leafHashV2Hex(
   subjectId: string,
   maps: Record<string, Record<string, string>>
 ): Promise<string> {
-  const names = Object.keys(maps).sort();
+  const names = Object.keys(maps).sort(bytewiseCompare);
   for (const name of names) {
     if (!SAFE_NAME.test(name)) throw new Error(`unsafe map name: ${name}`);
     for (const asset of Object.keys(maps[name])) {

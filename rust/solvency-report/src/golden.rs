@@ -231,6 +231,38 @@ pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) 
 ///
 /// The member bytes are the pretty-printed documents a publisher writes, since
 /// the index pins bytes on disk rather than any re-serialisation of them.
+/// A fixture whose asset names sort differently under UTF-8 bytes than under
+/// UTF-16 code units (SPEC §2).
+///
+/// `U+FF01` encodes as `ef bc 81` and `U+10000` as `f0 90 80 80`, so bytewise
+/// order puts `U+FF01` first. JavaScript's default `Array.sort()` compares
+/// UTF-16 code units, where `U+10000` is the surrogate pair `d800 dc00` and
+/// therefore sorts *first* — the opposite order, a different canonical string,
+/// and a different leaf hash.
+///
+/// Every asset name in the §6 vectors is ASCII, where the two orders agree,
+/// which is why nothing caught this until a third implementation was written
+/// from the specification text. A conformance case makes it permanent: an
+/// implementation that sorts by UTF-16 fails here rather than in production
+/// against the first venue to list a non-ASCII asset.
+pub fn astral_fixture() -> (SignedReport, ProofDocument) {
+    let balances = amounts(&[
+        ("\u{FF01}", 1_000_000_000_000_000_000),
+        ("\u{10000}", 2_000_000_000_000_000_000),
+    ]);
+    let leaves: Vec<LeafInput> = ["astral-a", "astral-b"]
+        .into_iter()
+        .map(|user_id| LeafInput {
+            salt: leaf_salt(MASTER_SALT, user_id),
+            user_id: user_id.to_string(),
+            balances: balances.clone(),
+        })
+        .collect();
+    let published = publish(&leaves, &metadata(), &signer()).unwrap();
+    let proof = published.proofs[0].clone();
+    (published.signed_report, proof)
+}
+
 pub fn pack_fixture() -> (crate::pack::SignedPack, Vec<(String, Vec<u8>)>) {
     let (report, proof) = fixture();
     let members = vec![

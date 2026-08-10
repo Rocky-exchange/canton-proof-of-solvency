@@ -113,3 +113,29 @@ describe("tree combine and proof verification", () => {
     expect(await verifyProof(l1, path, { ...root, hashHex: LEAF0_HASH })).toBe(false);
   });
 });
+
+/**
+ * SPEC §2 requires assets sorted by **bytewise** (UTF-8) order. JavaScript's
+ * default `Array.sort()` compares UTF-16 code units, which disagrees for any
+ * codepoint above U+FFFF: a surrogate (0xD800) sorts before U+E000..U+FFFF,
+ * while its UTF-8 encoding (0xF0…) sorts after. Rust's `String::cmp` is
+ * bytewise, so an asset named with an emoji beside one in the private-use
+ * block would give the two implementations different leaf hashes — the
+ * browser would reject a report the producer signed honestly.
+ *
+ * Every ASCII asset name agrees under both orders, which is why the golden
+ * vectors never caught it.
+ */
+describe("bytewise asset ordering (SPEC §2)", () => {
+  const bmp = "！"; // U+FF01, UTF-8 ef bc 81
+  const astral = "\u{10000}"; // UTF-8 f0 90 80 80
+
+  it("orders a BMP asset before an astral one, as UTF-8 bytes do", () => {
+    const canonical = canonicalBalances({ [astral]: "2", [bmp]: "1" });
+    expect(canonical.indexOf(bmp)).toBeLessThan(canonical.indexOf(astral));
+  });
+
+  it("disagrees with JavaScript's default sort, which is the whole point", () => {
+    expect([bmp, astral].sort()).toEqual([astral, bmp]);
+  });
+});

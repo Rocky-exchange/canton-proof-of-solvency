@@ -158,9 +158,18 @@
     return canonicalSums(sumBalances(balances));
   }
   function canonicalSums(sums) {
-    return Object.keys(sums).sort().map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
+    return Object.keys(sums).sort(bytewiseCompare).map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
   }
   var encoder = new TextEncoder();
+  function bytewiseCompare(a, b) {
+    const x = encoder.encode(a);
+    const y = encoder.encode(b);
+    const n = Math.min(x.length, y.length);
+    for (let i = 0; i < n; i++) {
+      if (x[i] !== y[i]) return x[i] - y[i];
+    }
+    return x.length - y.length;
+  }
   function hexToBytes(hex) {
     if (hex.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(hex)) {
       throw new Error("invalid hex");
@@ -281,7 +290,7 @@
     return concat([u64le(bytes.length), bytes]);
   }
   function lpmap(m) {
-    const assets = Object.keys(m).sort();
+    const assets = Object.keys(m).sort(bytewiseCompare);
     const parts = [u64le(assets.length)];
     for (const asset of assets) {
       parts.push(lp(asset), lp(formatAmount18dp(parseAmount18dp(m[asset]))));
@@ -302,7 +311,7 @@
     const manifestParts = [];
     if (v2 && report.manifest) {
       manifestParts.push(lp(report.manifest.audience));
-      const paths = Object.keys(report.manifest.fields).sort();
+      const paths = Object.keys(report.manifest.fields).sort(bytewiseCompare);
       manifestParts.push(u64le(paths.length));
       for (const path of paths) {
         manifestParts.push(lp(path), lp(report.manifest.fields[path]));
@@ -381,7 +390,7 @@
       "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
       "disclosures.excluded_house_totals": Object.keys(report.disclosures.excluded_house_totals).length > 0
     };
-    for (const path of Object.keys(manifest.fields).sort()) {
+    for (const path of Object.keys(manifest.fields).sort(bytewiseCompare)) {
       const state = manifest.fields[path];
       if (!KNOWN_FIELDS.includes(path)) {
         return fail({

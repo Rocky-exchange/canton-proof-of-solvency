@@ -732,9 +732,27 @@ Turns one implementation into something the network can rely on.
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,
   ours verify under theirs.
-- **Public specification v1.1** — SPEC.md extended with §11 coverage, §12
-  anchoring, and §14 profiles (§13 hierarchy is already normative), frozen
-  against the conformance suite.
+- ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
+  coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
+  and the document is frozen against the conformance corpus: every normative
+  section is exercised by at least one case, and changing one requires a new
+  domain string and a new case. No wire bytes moved — every §6 and §10 vector
+  still verifies.
+- ~~**Specification implementability audit**~~ — **delivered**,
+  [`spec-audit/`](spec-audit). Two implementations by one author agree where
+  the spec is silent because the same person guessed twice, not because the
+  format is pinned. A third verifier written from the specification text alone
+  — dependency-free Python, Ed25519 included — reproduces every published
+  vector, and found two defects the other two could not: the **TypeScript
+  verifier sorted map keys by UTF-16 code units where §2 requires UTF-8
+  bytewise order**, so a report naming an asset outside the BMP verified in
+  Rust and failed in the browser; and a conformance case was passing for the
+  wrong reason, a v1-only verifier "passing" the manifest-lies case by
+  rejecting a version it never implemented. Both fixed, the first pinned by a
+  case that fails under a UTF-16 sort, and cases now declare `requires` so a
+  partial implementation filters by declaration. It runs in CI. It is
+  deliberately **not** counted toward the two independent implementations
+  below: same author, same repository.
 - **Third-party security review** — external review of the commitment core,
   salt derivation, and verifier; findings and remediations published in-repo.
 - **CIP proposal** — the wire format submitted to the Canton Improvement

@@ -105,6 +105,21 @@ fn every_conformance_case_behaves_as_the_manifest_says() {
         }
     }
 
+    // Every case must declare what it needs. An implementation supporting a
+    // subset of the format can then skip by declaration instead of by
+    // accident: a report-v1-only verifier that merely rejects the v2 cases
+    // "passes" `report-v2-manifest-lies` without ever testing a manifest.
+    for case in cases {
+        let id = case["id"].as_str().unwrap();
+        let requires = case["requires"]
+            .as_array()
+            .unwrap_or_else(|| panic!("case {id} declares no `requires`"));
+        assert!(
+            !requires.is_empty(),
+            "case {id} declares an empty `requires`, so nothing can filter it"
+        );
+    }
+
     // A corpus of only-accepts would pass against an implementation that
     // accepts everything, and a corpus of only-rejects against one that
     // rejects everything.

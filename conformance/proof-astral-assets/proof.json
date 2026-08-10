@@ -1,0 +1,22 @@
+{
+  "format_version": "canton-solvency-proof-v1",
+  "leaf": {
+    "balances": {
+      "！": "1.000000000000000000",
+      "𐀀": "2.000000000000000000"
+    },
+    "salt": "16bc3ed81da950ba66d40a237e79546f9ca8e550c8f341f999e5c7c69c598165",
+    "user_id": "astral-a"
+  },
+  "report_digest": "a5799cca22ac7e05802cee0798fc5da25011c2cb47966d856e26aececcce1b4d",
+  "steps": [
+    {
+      "sibling_hash": "5821392599cc9a0f36a7fb2c5ce44e58319bef50525bf65564ab6cc4ce6653af",
+      "sibling_on_left": false,
+      "sibling_sums": {
+        "！": "1.000000000000000000",
+        "𐀀": "2.000000000000000000"
+      }
+    }
+  ]
+}

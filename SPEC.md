@@ -1,10 +1,35 @@
-# Canton Proof-of-Solvency — Wire Format Specification v1
+# Canton Proof-of-Solvency — Wire Format Specification v1.1
 
 This document pins the exact byte-level format of the solvency commitment so
 that independent implementations interoperate. Two reference implementations
 ship in this repository — Rust (prover side) and TypeScript (browser verifier)
 — and both assert the golden vectors in §6. **Any change that breaks those
 vectors is a new format version, not a refactor.**
+
+## Status
+
+**v1.1 — frozen against the conformance corpus** ([`conformance/`](conformance),
+§14.3). Every normative section below is implemented by both reference
+implementations and exercised by at least one corpus case; a change to any of
+them requires a new domain string and a new corpus case, not an edit here.
+
+Normative: §1–§6 (commitment core), §8 (report envelope), §9 (proof
+documents), §11 (coverage), §12 (anchoring), §13 (hierarchy), §14 (profiles
+and conformance), §15 (evidence packs). §7 is informative. §10 records golden
+vectors, which are data rather than rules.
+
+**What v1.1 changed from v1.** No wire bytes. Every §6 and §10 vector still
+verifies unchanged. v1.1 adds §11–§15 as normative text and sharpens four
+under-specified points that two implementations had resolved identically by
+coincidence rather than by rule: bytewise ordering over UTF-8 and its
+disagreement with a UTF-16 sort (§2), serialization of explicit zeros (§2),
+`lp(root_hash)` covering the hex string (§8.2), and the origin of the fold's
+running sums (§5). Those were found by implementing this document from its
+text alone — see [`spec-audit/`](spec-audit), which also found the
+TypeScript verifier ordering keys wrongly. Any implementation that agreed with
+the reference before still agrees; one that had guessed differently on §2
+would have diverged only for non-ASCII asset names, which the
+`proof-astral-assets` case now catches.
 
 ## 1. Amounts
 
@@ -26,9 +51,24 @@ A balance set `{asset → amount}` serializes as:
 asset₁:amount₁|asset₂:amount₂|…
 ```
 
-- Assets sorted by **bytewise** (ASCII) order of the asset string.
+- Assets sorted by **bytewise order of their UTF-8 encoding**.
 - Amounts in canonical 18-digit render (§1).
 - Duplicate assets are an error. The empty set serializes to the empty string.
+- An asset present with value zero **is serialized**, as `asset:0.000…0`. It is
+  not dropped. Note this is a rule about *serialization*; §9.1's "absent and
+  zero are the same claim" is a rule about *comparison*, and the two are
+  independent.
+
+> **Bytewise is not the platform default everywhere.** JavaScript's
+> `Array.prototype.sort()` compares UTF-16 code units, which disagrees with
+> UTF-8 byte order for any codepoint above U+FFFF: a surrogate (`0xD800`)
+> sorts before U+E000..U+FFFF, while the same character's UTF-8 encoding
+> (`0xF0…`) sorts after. An implementation using the default sort computes a
+> different canonical string — and therefore a different leaf hash — for an
+> asset named outside the BMP, and rejects a report its producer signed
+> honestly. Every name in the §6 vectors is ASCII, where the orders agree, so
+> the vectors do not catch it; the `proof-astral-assets` conformance case
+> does.
 
 ## 3. Leaf
 
@@ -114,7 +154,9 @@ Levels where the node was promoted without a sibling contribute **no step**.
 Verification: recompute the leaf hash from the disclosed preimage
 (salt, user_id, balances), fold the steps with the §4 node rule, then compare
 **both** the final hash and the final per-asset sums against the published
-root. Comparing sums is what upgrades inclusion into aggregation-consistency.
+root. The fold's running sums start from the **preimage's own balances**, not
+from any figure the report or proof publishes — a proof that seeded the fold
+with an asserted total would be checking that total against itself. Comparing sums is what upgrades inclusion into aggregation-consistency.
 
 ## 6. Golden vectors
 
@@ -183,6 +225,11 @@ report_digest = SHA-256( "rocky-solvency-report-v1"
                        ‖ u64le(excluded_house_accounts)
                        ‖ lpmap(excluded_house_totals) )
 ```
+
+`lp(root_hash)` is taken over the **64-character lowercase hex string**, not
+over the 32 raw bytes: §8 transports hashes as hex, and `lp` is defined on
+strings. Both readings parse; they give different digests, and the §10 vector
+distinguishes them.
 
 The digest is computed over these fields, **not** over the JSON encoding, so a
 document may be reformatted, re-indented, or re-serialized without
@@ -775,6 +822,13 @@ a publisher that meant it.
 `sha256` is the digest of the member's bytes **as delivered**, not of any
 re-serialisation of them. A verifier that reformatted a member before hashing
 it would report every honest delivery as altered.
+
+This makes a pack correct for any byte convention but reproducible only within
+one. The reference producer writes members as pretty-printed JSON with two
+spaces of indentation and a trailing newline; a producer that omits the
+newline emits an equally valid pack whose digests match no checked-in fixture.
+Implementations comparing against the conformance corpus must reproduce that
+convention.
 
 ### 15.2 Pack digest
 

@@ -27,6 +27,23 @@ verifies, and both implementations still assert them.
 - Hierarchical group commitments and full-chain verification.
 - Coverage: custody reports paired to liabilities by digest.
 - Tamper-evident report history via hash-linked anchors.
+- Specification v1.1, frozen against the conformance corpus, and a third
+  verifier written from its text alone (`spec-audit/`).
+
+### Fixed
+
+- **The TypeScript verifier sorted map keys by UTF-16 code units** where SPEC
+  §2 requires bytewise UTF-8 order. The two disagree above U+FFFF, so a report
+  naming an asset outside the BMP verified in Rust and failed in the browser.
+  Every golden vector is ASCII, where the orders agree. Pinned by the
+  `proof-astral-assets` conformance case, which fails under a UTF-16 sort.
+- Conformance cases now declare `requires`. Without it a verifier supporting
+  only report v1 *passed* `report-v2-manifest-lies` by rejecting a version it
+  had never implemented, so a case written to test manifest consistency tested
+  nothing.
+
+### Added
+
 - Evidence packs: a signed index over a delivery, so omitting a proof is
   detectable. Without one, a folder with a customer's proof deleted verifies
   exactly as cleanly as the complete folder.

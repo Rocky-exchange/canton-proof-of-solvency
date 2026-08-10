@@ -51,3 +51,16 @@ jobs:
         working-directory: ts/verifier
       - run: npm test
         working-directory: ts/verifier
+
+  # The third verifier (spec-audit/). It runs the golden vectors and the
+  # corpus from the specification text with no dependencies, so a break here
+  # means SPEC.md and the implementations have drifted apart — which is the
+  # one failure the other two jobs cannot see, since they share an author.
+  spec-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python3 spec-audit/verify_from_spec.py --verbose

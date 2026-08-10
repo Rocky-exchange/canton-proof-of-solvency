@@ -43,6 +43,7 @@ fn main() -> anyhow::Result<()> {
     let (custody, statement) = golden::coverage_fixture();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
+    let (astral_report, astral_proof) = golden::astral_fixture();
     let key = golden::signer().public_key_hex();
 
     let report_j = serde_json::to_value(&report)?;
@@ -58,8 +59,14 @@ fn main() -> anyhow::Result<()> {
     let anchor_j = serde_json::to_value(&anchor)?;
 
     let mut cases: Vec<serde_json::Value> = Vec::new();
+    // `requires` is what lets an implementation run the corpus partially and
+    // honestly. Without it a verifier that supports only report v1 rejects the
+    // v2 cases: it fails `report-v2-valid`, and — worse — *passes*
+    // `report-v2-manifest-lies` by rejecting a version it does not implement,
+    // so a case meant to test the manifest tests nothing at all.
     let mut add = |id: &str,
                    kind: &str,
+                   requires: &[&str],
                    description: &str,
                    expect: &str,
                    failure: Option<&str>,
@@ -73,6 +80,7 @@ fn main() -> anyhow::Result<()> {
         cases.push(json!({
             "id": id,
             "kind": kind,
+            "requires": requires,
             "description": description,
             "expect": expect,
             "failure": failure,
@@ -85,6 +93,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "proof-valid",
         "proof",
+        &["report-v1", "proof-v1"],
         "a valid customer proof",
         "accept",
         None,
@@ -96,6 +105,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "proof-tampered-balance",
         "proof",
+        &["report-v1", "proof-v1"],
         "a balance edited after commitment",
         "reject",
         Some("root_hash_mismatch"),
@@ -110,6 +120,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "proof-understated-totals",
         "proof",
+        &["report-v1", "proof-v1"],
         "an honest root beside understated published totals",
         "reject",
         Some("digest_mismatch"),
@@ -124,6 +135,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "proof-forged-signature",
         "proof",
+        &["report-v1", "proof-v1"],
         "a signature that does not verify",
         "reject",
         Some("bad_signature"),
@@ -144,6 +156,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "proof-stale",
         "proof",
+        &["report-v1", "proof-v1"],
         "a proof bound to a different report",
         "reject",
         Some("digest_mismatch"),
@@ -160,6 +173,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "report-v2-valid",
         "proof",
+        &["report-v2", "proof-v1", "manifest"],
         "a v2 report with a consistent manifest",
         "accept",
         None,
@@ -171,6 +185,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "report-v2-manifest-lies",
         "proof",
+        &["report-v2", "proof-v1", "manifest"],
         "a field declared withheld that the report publishes",
         "reject",
         Some("manifest_inconsistent"),
@@ -191,6 +206,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "repo-valid",
         "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
         "a collateralised repo book",
         "accept",
         None,
@@ -202,6 +218,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "repo-under-collateralised",
         "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
         "exposure exceeding collateral for an asset",
         "reject",
         Some("profile"),
@@ -222,6 +239,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "group-valid",
         "membership",
+        &["report-v1", "group-v1"],
         "an entity committed in a group",
         "accept",
         None,
@@ -233,6 +251,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "group-relabelled-entity",
         "membership",
+        &["report-v1", "group-v1"],
         "an entity renamed after commitment",
         "reject",
         Some("root_hash_mismatch"),
@@ -249,6 +268,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "coverage-valid",
         "coverage",
+        &["report-v1", "coverage-v1"],
         "assets covering liabilities",
         "accept",
         None,
@@ -261,6 +281,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "coverage-unbound-statement",
         "coverage",
+        &["report-v1", "coverage-v1"],
         "a statement naming a different custody report",
         "reject",
         Some("digest_mismatch"),
@@ -289,6 +310,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "anchors-intact",
         "anchors",
+        &["anchor-v1"],
         "a two-anchor history",
         "accept",
         None,
@@ -297,6 +319,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "anchors-suffix",
         "anchors",
+        &["anchor-v1"],
         "a history that does not start at genesis",
         "reject",
         Some("not_genesis"),
@@ -305,6 +328,7 @@ fn main() -> anyhow::Result<()> {
     add(
         "anchors-broken-link",
         "anchors",
+        &["anchor-v1"],
         "an anchor not naming its predecessor",
         "reject",
         Some("broken"),
@@ -321,6 +345,20 @@ fn main() -> anyhow::Result<()> {
                 )
             ]),
         )],
+    )?;
+
+    // --- key ordering (SPEC §2) ---
+    add(
+        "proof-astral-assets",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "asset names that sort differently under UTF-16 than under UTF-8 bytes",
+        "accept",
+        None,
+        vec![
+            ("report.json", serde_json::to_value(&astral_report)?),
+            ("proof.json", serde_json::to_value(&astral_proof)?),
+        ],
     )?;
 
     // --- evidence packs (SPEC §15) ---
@@ -368,6 +406,7 @@ fn main() -> anyhow::Result<()> {
         let files = write_pack("pack-valid", None, None, false)?;
         cases.push(json!({
             "id": "pack-valid", "kind": "pack",
+            "requires": ["pack-v1"],
             "description": "a complete, unaltered delivery",
             "expect": "accept", "failure": null, "files": files,
         }));
@@ -375,6 +414,7 @@ fn main() -> anyhow::Result<()> {
         let files = write_pack("pack-dropped-proof", Some("proof.json"), None, false)?;
         cases.push(json!({
             "id": "pack-dropped-proof", "kind": "pack",
+            "requires": ["pack-v1"],
             "description": "a delivery with a customer's proof removed",
             "expect": "reject", "failure": "pack_missing", "files": files,
         }));
@@ -382,6 +422,7 @@ fn main() -> anyhow::Result<()> {
         let files = write_pack("pack-altered-member", None, Some("proof.json"), false)?;
         cases.push(json!({
             "id": "pack-altered-member", "kind": "pack",
+            "requires": ["pack-v1"],
             "description": "a member whose bytes differ from the index",
             "expect": "reject", "failure": "pack_altered", "files": files,
         }));
@@ -389,6 +430,7 @@ fn main() -> anyhow::Result<()> {
         let files = write_pack("pack-unlisted-member", None, None, true)?;
         cases.push(json!({
             "id": "pack-unlisted-member", "kind": "pack",
+            "requires": ["pack-v1"],
             "description": "a file the index does not name",
             "expect": "reject", "failure": "pack_unlisted", "files": files,
         }));

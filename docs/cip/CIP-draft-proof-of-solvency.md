@@ -90,13 +90,42 @@ Two, in the same repository, asserting identical golden vectors and both
 running the conformance corpus: a Rust producer and verifier, and a TypeScript
 browser verifier.
 
+A third verifier ([`spec-audit/`](https://github.com/Rocky-exchange/canton-proof-of-solvency/tree/main/spec-audit))
+was written from the specification text alone, in dependency-free Python
+including Ed25519, to test whether the document is implementable without the
+code. It reproduces every published vector. It is deliberately *not* counted
+as an independent implementation — same author, same repository — but it did
+establish that the text is sufficient, and it found two defects the two
+existing implementations could not:
+
+- The TypeScript verifier sorted map keys by UTF-16 code units where §2
+  requires UTF-8 bytewise order. The two disagree above U+FFFF, so a report
+  naming an asset outside the BMP verified in Rust and failed in the browser.
+  Every golden vector is ASCII, where the orders agree — two implementations
+  sharing an author agreed for exactly that reason.
+- A conformance case passed for the wrong reason: a verifier supporting only
+  report v1 "passed" the manifest-lies case by rejecting a version it had
+  never implemented. Cases now declare `requires` so a partial implementation
+  filters by declaration.
+
+Both are fixed, and the first is pinned by a conformance case that fails under
+a UTF-16 sort. This is the argument for the process requiring an implementer
+who did not write the spec.
+
 ## Security considerations
 
 See
 [SECURITY-ANALYSIS.md](https://github.com/Rocky-exchange/canton-proof-of-solvency/blob/main/docs/SECURITY-ANALYSIS.md).
-The unresolved item a reviewer should press hardest on is **publisher key
-distribution**: a key fetched from the same server that served the report
-proves nothing, and §8.4 says so without solving it.
+The item a reviewer should press hardest on is **publisher key distribution**.
+A key fetched from the same server that served the report proves nothing. §12
+anchors now carry `publisher_key`, so a reader who can see a publisher's
+anchors obtains the key from the ledger rather than from that server, and
+`verify_with_anchor` refuses an anchor describing a different report. That
+moves the question from "is this the right key?", which a reader had no way to
+answer, to "can I see this publisher's anchors?", which they can — it does not
+make the ledger trustworthy on their behalf, and a reader with no visibility
+of the anchor contract is where they started. Disclosure scope is therefore a
+deployment obligation, not a format guarantee.
 
 ## Open questions for the process
 
@@ -104,11 +133,20 @@ proves nothing, and §8.4 says so without solving it.
    document that can gain entries without a new CIP?
 2. Is on-ledger anchoring in scope for a CIP at all, given it needs a Daml
    package and a governance decision about a public observer party?
-3. What does the process require as evidence of a second implementation?
+3. What does the process require as evidence of a second implementation? The
+   spec-audit exercise suggests the useful bar is an implementer who did not
+   write the specification, rather than a second codebase — two codebases by
+   one author share that author's assumptions, which is precisely how the
+   sort-order defect survived.
 
 ## Unfinished before submission
 
-- A second independent implementation. One organisation's two implementations
-  are not two implementers.
+- A second independent implementation. One organisation's implementations are
+  not two implementers, however many languages they are written in.
 - A third-party security review.
-- The Daml anchoring package compiled and tested against a participant node.
+
+Completed since this draft was first written: the Daml anchoring package
+compiles, passes its Daml Script tests, and has been deployed to a running
+participant, where a three-anchor history was created and read back by an
+auditor and then by a regulator after disclosure widened. Publisher key
+distribution is answered as far as a format can answer it (above).

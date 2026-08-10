@@ -8,6 +8,7 @@
  */
 
 import {
+  bytewiseCompare,
   combineNodes,
   leafNodeV2,
   formatAmount18dp,
@@ -183,7 +184,7 @@ export function lp(s: string) {
 
 /** `u64le(count) ‖ (lp(asset) ‖ lp(canonical amount))*`, assets bytewise. */
 export function lpmap(m: AmountMap) {
-  const assets = Object.keys(m).sort();
+  const assets = Object.keys(m).sort(bytewiseCompare);
   const parts = [u64le(assets.length)];
   for (const asset of assets) {
     parts.push(lp(asset), lp(formatAmount18dp(parseAmount18dp(m[asset]))));
@@ -207,7 +208,7 @@ export async function reportDigestHex(report: Report): Promise<string> {
   const manifestParts: Uint8Array[] = [];
   if (v2 && report.manifest) {
     manifestParts.push(lp(report.manifest.audience));
-    const paths = Object.keys(report.manifest.fields).sort();
+    const paths = Object.keys(report.manifest.fields).sort(bytewiseCompare);
     manifestParts.push(u64le(paths.length));
     for (const path of paths) {
       manifestParts.push(lp(path), lp(report.manifest.fields[path]));
@@ -310,7 +311,7 @@ export function checkReportVersionAndManifest(report: Report): VerificationResul
       Object.keys(report.disclosures.excluded_house_totals).length > 0,
   };
 
-  for (const path of Object.keys(manifest.fields).sort()) {
+  for (const path of Object.keys(manifest.fields).sort(bytewiseCompare)) {
     const state = manifest.fields[path];
     if (!KNOWN_FIELDS.includes(path)) {
       return fail({
