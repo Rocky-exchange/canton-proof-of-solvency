@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "a60a30878e33dce86f66a9b873789a0c3eff7ad1c84f18e6dd04838826559476",
+  "corpus_digest": "cc12a9133616e1fc11499882296ee9da96af7cb3d0d7656fd37b6f7184fd53f6",
   "results": [
     {
       "id": "proof-valid",
@@ -75,6 +75,21 @@
       "outcome": "skip"
     },
     {
+      "id": "proof-unknown-report-version",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-unknown-proof-version",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-unknown-signature-algorithm",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
       "id": "anchors-intact",
       "expected": "accept",
       "outcome": "skip"
@@ -123,6 +138,11 @@
       "id": "proof-astral-assets",
       "expected": "accept",
       "outcome": "accept"
+    },
+    {
+      "id": "pack-unknown-version",
+      "expected": "reject",
+      "outcome": "reject"
     },
     {
       "id": "pack-valid",

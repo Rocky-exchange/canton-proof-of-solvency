@@ -37,6 +37,7 @@ fn expected_text(failure: &str) -> &'static str {
         "manifest_inconsistent" => "manifest disagrees",
         "profile" => "profile ",
         "not_genesis" => "names a predecessor",
+        "unsupported_version" => "unsupported",
         "broken" => "does not name the one before it",
         "publisher_changed" => "publisher",
         "went_backwards" => "backwards",

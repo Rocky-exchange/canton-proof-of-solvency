@@ -1,0 +1,23 @@
+{
+  "pack": {
+    "entries": [
+      {
+        "name": "proof.json",
+        "sha256": "0c58091b2ecd241da58dc876d59a042f97f6843f53059304395ca75ea9cfafba"
+      },
+      {
+        "name": "report.json",
+        "sha256": "eb516ae7febe962914b6e75ab5075080d8521df8080625b7a85af357065a2d1a"
+      }
+    ],
+    "format_version": "canton-solvency-pack-v9",
+    "publisher": "golden::publisher",
+    "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61",
+    "snapshot_time": "2026-01-01T00:00:00Z"
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "value": "8005431c6361ada6305653b710ce737a20ecdd63b8d758b89c153bbe758240b7238e2d0cbde67f06c9d87a2e338589f70614115a72ce2ab5f08ca8108409eb0b"
+  }
+}

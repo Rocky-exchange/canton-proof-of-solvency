@@ -301,6 +301,62 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         ],
     )?;
 
+    // --- the version gate (SPEC §9.1 step 1, §12, §15.3) ---
+    // Nothing exercised it. An implementation ignoring format_version
+    // altogether passed every other case, which would defeat the whole
+    // additive-versioning strategy: v1 stays untouched only because a verifier
+    // refuses to read a v2 document under v1 rules.
+    add(
+        "proof-unknown-report-version",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "a report claiming a format version this verifier does not know",
+        "reject",
+        Some("unsupported_version"),
+        vec![
+            (
+                "report.json",
+                tweak(
+                    &report_j,
+                    "canton-solvency-report-v1",
+                    "canton-solvency-report-v9",
+                ),
+            ),
+            ("proof.json", proof_j.clone()),
+        ],
+    )?;
+    add(
+        "proof-unknown-proof-version",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "a proof claiming a format version this verifier does not know",
+        "reject",
+        Some("unsupported_version"),
+        vec![
+            ("report.json", report_j.clone()),
+            (
+                "proof.json",
+                tweak(
+                    &proof_j,
+                    "canton-solvency-proof-v1",
+                    "canton-solvency-proof-v9",
+                ),
+            ),
+        ],
+    )?;
+    add(
+        "proof-unknown-signature-algorithm",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "a signature naming an algorithm this verifier does not implement",
+        "reject",
+        Some("unsupported_version"),
+        vec![
+            ("report.json", tweak(&report_j, "\"ed25519\"", "\"ed448\"")),
+            ("proof.json", proof_j.clone()),
+        ],
+    )?;
+
     // --- anchors ---
     let second = {
         let mut a = anchor.clone();
@@ -466,6 +522,26 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
             ("proof.json", serde_json::to_value(&astral_proof)?),
         ],
     )?;
+
+    // The pack index carries its own version, and §15.3 checks it first.
+    {
+        let mut wrong = pack.clone();
+        wrong.pack.format_version = "canton-solvency-pack-v9".to_string();
+        let dir = out.join("pack-unknown-version");
+        std::fs::create_dir_all(&dir)?;
+        write(&dir, "pack.json", &serde_json::to_value(&wrong)?)?;
+        let mut names = vec!["pack.json".to_string()];
+        for (name, bytes) in &pack_members {
+            std::fs::write(dir.join(name), bytes)?;
+            names.push(name.clone());
+        }
+        cases.push(json!({
+            "id": "pack-unknown-version", "kind": "pack",
+            "requires": ["pack-v1"],
+            "description": "a pack index claiming a format version this verifier does not know",
+            "expect": "reject", "failure": "unsupported_version", "files": names,
+        }));
+    }
 
     // --- evidence packs (SPEC §15) ---
     // A pack case is a directory of raw member files plus the signed index.
