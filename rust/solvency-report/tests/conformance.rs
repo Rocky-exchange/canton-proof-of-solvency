@@ -21,6 +21,28 @@ fn load<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
 /// not have produced.
 use canton_solvency_report::compat::run_case;
 
+/// A phrase that only the declared failure produces. Deliberately a fragment
+/// of the real message rather than a code: a message reworded into something
+/// less specific should fail here, because the message is what an operator
+/// reads.
+fn expected_text(failure: &str) -> &'static str {
+    match failure {
+        "root_hash_mismatch" => "does not fold to the published root",
+        "root_sums_mismatch" => "totals",
+        "digest_mismatch" => "belongs to a different report",
+        "bad_signature" => "signature does not verify",
+        "unknown_signer" => "trusted key",
+        "manifest_inconsistent" => "manifest disagrees",
+        "profile" => "profile ",
+        "not_genesis" => "names a predecessor",
+        "broken" => "does not name the one before it",
+        "pack_missing" => "which is not present",
+        "pack_altered" => "does not match the digest",
+        "pack_unlisted" => "does not name it",
+        other => panic!("no expected text for declared failure {other:?}"),
+    }
+}
+
 #[test]
 fn every_conformance_case_behaves_as_the_manifest_says() {
     let dir = corpus_dir();
@@ -43,7 +65,23 @@ fn every_conformance_case_behaves_as_the_manifest_says() {
                 accepted += 1;
             }
             "reject" => {
-                assert!(outcome.is_err(), "case {id} should be rejected but passed");
+                let error = outcome
+                    .as_ref()
+                    .err()
+                    .unwrap_or_else(|| panic!("case {id} should be rejected but passed"));
+                // Rejected is not enough: a case can exercise the check it
+                // names and a different check in fact. `proof-understated-totals`
+                // looked like a test of the §9.1 sums comparison and was
+                // rejected one step earlier by the digest binding, which left
+                // the sums comparison untested entirely.
+                if let Some(declared) = case["failure"].as_str() {
+                    let expected = expected_text(declared);
+                    assert!(
+                        error.contains(expected),
+                        "case {id} declares {declared:?}, so its rejection should \
+                         mention {expected:?}; it said {error:?}"
+                    );
+                }
                 rejected += 1;
             }
             other => panic!("case {id} has unknown expectation {other}"),

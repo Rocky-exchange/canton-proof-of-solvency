@@ -805,6 +805,14 @@ Both reference implementations run the corpus. That is the point — golden
 vectors pin the bytes two implementations produce, and the corpus pins the
 *decisions* they make.
 
+A rejecting case carries a `failure`, and a runner **SHOULD** check that the
+rejection is the declared one rather than merely that the document was
+rejected. A case can exercise the check it names and a different check in
+fact: `proof-understated-totals` reads as a test of the §9.1 sums comparison
+and is rejected one step earlier by the digest binding, which left the sums
+comparison — the format's only defence against a publisher printing
+understated totals — untested by the whole corpus.
+
 Two kinds of rule beyond required aggregates are available, and both exist
 because a total alone cannot express the statement:
 

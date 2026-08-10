@@ -71,6 +71,12 @@ Three rules make a statement worth reading, and they are checked, not assumed:
 - `corpus_digest` binds your statement to the exact corpus you ran. Statements
   over different corpora are not comparable.
 
+Check the *reason*, not just the outcome. Each rejecting case declares a
+`failure`; assert your implementation rejects for that reason. We did not, and
+it cost us: a case that looked like a test of the sums comparison was being
+rejected a step earlier by the digest binding, so removing the sums comparison
+entirely left every case still passing.
+
 ## Showing interop in both directions
 
 One-directional interop is the easy half and proves less than it appears. Both
