@@ -16,7 +16,7 @@ behaviour change — every 0.1.0 vector still verifies.
   duplicating the odd node instead of promoting it is the obvious
   implementation and silently overstates liabilities. The mutation fails
   conservation at three leaves.
-- 291 cross-implementation differential vectors covering **every hash preimage
+- 311 cross-implementation differential vectors covering **every hash preimage
   the specification defines**: leaves, canonical serialization, `lpmap`, report
   digests, tree roots, pack digests and anchor digests. Rust emits, TypeScript
   recomputes, CI compares. The names are chosen to break assumptions — astral
