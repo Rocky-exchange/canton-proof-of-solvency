@@ -2,6 +2,32 @@
 //!
 //! All behaviour lives here so it can be tested without spawning processes;
 //! `main` only maps a [`run::Summary`] onto stdout and an exit code.
+//!
+//! The exit codes are the contract a CI pipeline actually consumes, and the
+//! distinction between them is the point: a mistyped path must never be
+//! reported as evidence of insolvency.
+//!
+//! ```
+//! use canton_solvency_verify::{exit_code, EXIT_OK, EXIT_USAGE_OR_IO, EXIT_VERIFICATION_FAILED};
+//! use canton_solvency_verify::run::{ProofOutcome, Summary};
+//! use std::path::PathBuf;
+//!
+//! let outcome = |failure: Option<&str>| Summary {
+//!     report_digest: "aa".repeat(32),
+//!     statement: None,
+//!     outcomes: vec![ProofOutcome {
+//!         path: PathBuf::from("proof.json"),
+//!         subject: "alice".to_string(),
+//!         failure: failure.map(String::from),
+//!     }],
+//! };
+//!
+//! assert_eq!(exit_code(&Ok(outcome(None))), EXIT_OK);
+//! assert_eq!(exit_code(&Ok(outcome(Some("root hash mismatch")))), EXIT_VERIFICATION_FAILED);
+//!
+//! // An unreadable file is a 2, not a 1.
+//! assert_eq!(exit_code(&Err(anyhow::anyhow!("reading nope.json"))), EXIT_USAGE_OR_IO);
+//! ```
 
 pub mod anchors;
 pub mod args;

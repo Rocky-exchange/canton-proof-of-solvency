@@ -1,4 +1,4 @@
-//! A [`Transport`](crate::Transport) over the `curl` binary.
+//! A [`crate::Transport`] over the `curl` binary.
 //!
 //! Deliberately not an HTTP library. This crate is meant to be readable by an
 //! auditor who will check what it sends, and shelling out to a tool they
