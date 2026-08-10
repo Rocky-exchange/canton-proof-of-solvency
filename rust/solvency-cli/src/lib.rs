@@ -3,9 +3,12 @@
 //! All behaviour lives here so it can be tested without spawning processes;
 //! `main` only maps a [`run::Summary`] onto stdout and an exit code.
 
+pub mod anchors;
 pub mod args;
+pub mod coverage;
 pub mod diff;
 pub mod output;
+pub mod recompute;
 pub mod run;
 
 use anyhow::Result;

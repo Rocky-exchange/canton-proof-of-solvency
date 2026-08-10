@@ -146,6 +146,61 @@ pub fn repo_fixture() -> (SignedReport, crate::document::ProofDocumentV2) {
     (published.signed_report, proof)
 }
 
+/// The SPEC §11 coverage fixture: a custody report covering the §10
+/// liabilities, and the statement binding the two.
+pub fn coverage_fixture() -> (SignedReport, crate::coverage::CoverageStatement) {
+    use crate::coverage::{CoverageStatement, COVERAGE_FORMAT_VERSION};
+    use crate::digest::report_digest_hex;
+    use crate::produce::{publish_v2, LeafInputV2};
+
+    // Held comfortably above the §10 totals of CBTC 0.25 and USDA 101.5…001.
+    let leaves: Vec<LeafInputV2> = [
+        (
+            "custody-position-1",
+            "USDA",
+            120_000_000_000_000_000_000u128,
+        ),
+        ("custody-position-2", "CBTC", 300_000_000_000_000_000),
+    ]
+    .into_iter()
+    .map(|(id, asset, amount)| LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, id),
+        subject_id: id.to_string(),
+        maps: [("held".to_string(), amounts(&[(asset, amount)]))]
+            .into_iter()
+            .collect(),
+    })
+    .collect();
+
+    let custody = publish_v2(
+        &leaves,
+        &ReportMetadata {
+            profile: "coverage.custody".to_string(),
+            mark_prices: BTreeMap::new(),
+            disclosures: Default::default(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap()
+    .signed_report;
+
+    let (liabilities, _) = fixture();
+    let statement = CoverageStatement {
+        format_version: COVERAGE_FORMAT_VERSION.to_string(),
+        custody_report_digest: report_digest_hex(&custody.report),
+        liabilities_report_digest: report_digest_hex(&liabilities.report),
+        custody_basis: "omnibus custody party golden::custodian".to_string(),
+    };
+    (custody, statement)
+}
+
+/// The SPEC §12 anchor fixture: the genesis anchor of the §10 report.
+pub fn anchor_fixture() -> crate::anchor::Anchor {
+    let (signed, _) = fixture();
+    crate::anchor::anchor_report(&signed, None)
+}
+
 /// The SPEC §13 group fixture: the §10 report as one entity, plus a second
 /// entity with fixed values, consolidated under one group report.
 pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) {
@@ -327,6 +382,49 @@ mod tests {
             crate::verify::verify_v2(&signed, &proof, &signer().public_key_hex()),
             Ok(())
         );
+    }
+
+    const CUSTODY_REPORT_JSON: &str = include_str!("../../../fixtures/custody-report.golden.json");
+    const COVERAGE_STATEMENT_JSON: &str =
+        include_str!("../../../fixtures/coverage-statement.golden.json");
+
+    #[test]
+    fn coverage_fixture_files_match_what_the_producer_emits() {
+        let (custody, statement) = coverage_fixture();
+        assert_eq!(
+            serde_json::to_string_pretty(&custody).unwrap(),
+            CUSTODY_REPORT_JSON.trim_end(),
+            "fixtures/custody-report.golden.json is stale"
+        );
+        assert_eq!(
+            serde_json::to_string_pretty(&statement).unwrap(),
+            COVERAGE_STATEMENT_JSON.trim_end(),
+            "fixtures/coverage-statement.golden.json is stale"
+        );
+    }
+
+    /// The statement names the §10 report, so a reader can check the pairing
+    /// against a vector they already have.
+    #[test]
+    fn the_coverage_statement_binds_the_golden_liabilities_report() {
+        let (_, statement) = coverage_fixture();
+        assert_eq!(
+            statement.liabilities_report_digest,
+            "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61"
+        );
+    }
+
+    #[test]
+    fn the_coverage_fixture_verifies_when_read_back_from_disk() {
+        let custody: SignedReport = serde_json::from_str(CUSTODY_REPORT_JSON).unwrap();
+        let statement: crate::coverage::CoverageStatement =
+            serde_json::from_str(COVERAGE_STATEMENT_JSON).unwrap();
+        let liabilities: SignedReport = serde_json::from_str(REPORT_JSON).unwrap();
+        let key = signer().public_key_hex();
+        let outcome =
+            crate::coverage::verify_coverage(&custody, &liabilities, &statement, &key, &key)
+                .unwrap();
+        assert!(outcome.fully_covered(), "{:?}", outcome.assets);
     }
 
     const GROUP_REPORT_JSON: &str = include_str!("../../../fixtures/group-report.golden.json");

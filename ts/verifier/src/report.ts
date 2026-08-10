@@ -29,15 +29,30 @@ export type Disclosure = "published" | "committed" | "withheld";
 export type Manifest = { audience: string; fields: Record<string, Disclosure> };
 
 /** SPEC §14: what a leaf of the committed tree stands for. */
-export type LeafKind = "customer" | "entity" | "repoleg" | "shareholder";
+export type LeafKind =
+  | "customer"
+  | "entity"
+  | "repoleg"
+  | "shareholder"
+  | "settledtrade"
+  | "attestedholder";
 
 /** Kinds committed with a v2 leaf (SPEC §3.1). */
-const V2_LEAF_KINDS: LeafKind[] = ["repoleg", "shareholder"];
+const V2_LEAF_KINDS: LeafKind[] = [
+  "repoleg",
+  "shareholder",
+  "settledtrade",
+  "attestedholder",
+];
 export type ProfileRules = {
   name: string;
   leaf: LeafKind;
   requiredAggregates: string[];
   coverage?: { covering: string; covered: string };
+  /** Maps every leaf must carry, non-empty. A statement about each leaf. */
+  requiredLeafMaps?: string[];
+  /** Maps whose per-key total must equal the leaf count. */
+  unanimousMaps?: string[];
 };
 
 export const PROFILE_REGISTRY: ProfileRules[] = [
@@ -54,13 +69,26 @@ export const PROFILE_REGISTRY: ProfileRules[] = [
     leaf: "shareholder",
     requiredAggregates: ["units/*", "entitlement/*"],
   },
+  {
+    name: "settlement.dvp",
+    leaf: "settledtrade",
+    requiredAggregates: ["delivered/*", "paid/*"],
+    requiredLeafMaps: ["delivered", "paid"],
+  },
+  {
+    name: "eligibility.holder",
+    leaf: "attestedholder",
+    requiredAggregates: ["attested/*"],
+    requiredLeafMaps: ["attested"],
+    unanimousMaps: ["attested"],
+  },
 ];
 
 export function lookupProfile(name: string): ProfileRules | undefined {
   return PROFILE_REGISTRY.find((p) => p.name === name);
 }
 
-const KNOWN_FIELDS = [
+export const KNOWN_MANIFEST_FIELDS = [
   "root_sums",
   "mark_prices",
   "disclosures.bad_debt",
@@ -69,6 +97,7 @@ const KNOWN_FIELDS = [
   "customer_balances",
   "customer_identities",
 ];
+const KNOWN_FIELDS = KNOWN_MANIFEST_FIELDS;
 const REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
 
 /** Amounts arrive as decimal strings and are canonicalised before hashing. */
@@ -347,6 +376,19 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
       }
     }
   }
+  for (const mapName of rules.unanimousMaps ?? []) {
+    for (const [key, total] of Object.entries(report.root_sums)) {
+      if (!key.startsWith(`${mapName}/`)) continue;
+      const rule = key.slice(mapName.length + 1);
+      const expected = BigInt(report.leaf_count) * 10n ** 18n;
+      if (parseAmount18dp(total) !== expected) {
+        return fail({
+          kind: "profile",
+          detail: `profile ${rules.name}: ${key} totals ${formatAmount18dp(parseAmount18dp(total))} across ${report.leaf_count} leaves; the profile asserts every leaf satisfies ${rule}, which requires ${formatAmount18dp(expected)}`,
+        });
+      }
+    }
+  }
   if (rules.leaf !== wanted) {
     return fail({
       kind: "profile",
@@ -388,6 +430,17 @@ export async function verifyReportV2(
     checkVersion("proof.format_version", proof.format_version, PROOF_FORMAT_VERSION_V2) ??
     checkVersion("signature.algorithm", signed.signature.algorithm, SIGNATURE_ALGORITHM);
   if (failure) return failure;
+
+  // Statements about each leaf rather than about the totals.
+  const rules = lookupProfile(report.profile);
+  for (const required of rules?.requiredLeafMaps ?? []) {
+    if (Object.keys(proof.leaf.maps[required] ?? {}).length === 0) {
+      return fail({
+        kind: "profile",
+        detail: `profile ${rules!.name} requires every leaf to carry a non-empty ${required} map; ${proof.leaf.subject_id} does not`,
+      });
+    }
+  }
 
   let leaf: SolvencyNode;
   try {

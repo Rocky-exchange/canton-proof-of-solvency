@@ -1,0 +1,22 @@
+[package]
+name = "canton-reserve-attest"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "Apache-2.0"
+description = "Reads custody holdings from a Canton participant and commits them as a coverage report"
+documentation = "https://docs.rs/"
+repository = "https://github.com/Rocky-exchange/canton-proof-of-solvency"
+keywords = ["canton", "proof-of-solvency", "custody", "ledger-api"]
+readme = "../../README.md"
+categories = ["cryptography", "finance"]
+
+# No HTTP client dependency. The socket lives behind a `Transport` the caller
+# supplies, so request construction and response parsing stay unit-testable
+# and this crate stays as small as the rest.
+[dependencies]
+canton-solvency-merkle = { path = "../solvency-merkle", version = "0.1.0" }
+canton-solvency-report = { path = "../solvency-report", version = "0.1.0" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

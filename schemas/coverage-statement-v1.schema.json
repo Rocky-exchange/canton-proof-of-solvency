@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/coverage-statement-v1.schema.json",
+  "title": "Canton solvency coverage statement v1",
+  "description": "Binds a custody report to a liabilities report so the two can be compared (SPEC.md \u00a711). It restates no figures: a number restated in a third document is a number that can disagree with its sources.",
+  "type": "object",
+  "required": [
+    "format_version",
+    "custody_report_digest",
+    "liabilities_report_digest",
+    "custody_basis"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": {
+      "const": "canton-solvency-coverage-v1"
+    },
+    "custody_report_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "liabilities_report_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "custody_basis": {
+      "type": "string",
+      "minLength": 1,
+      "description": "How custody was established. Signed, but not proven by anything here."
+    }
+  }
+}

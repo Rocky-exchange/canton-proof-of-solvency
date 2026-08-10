@@ -41,6 +41,105 @@ pub fn render_diff_text(summary: &DiffSummary) -> String {
     out
 }
 
+/// Shortfalls are named with their size; a covered asset needs only a count.
+pub fn render_coverage_text(outcome: &canton_solvency_report::coverage::CoverageOutcome) -> String {
+    use canton_solvency_merkle::format_amount_18dp;
+    let mut out = String::new();
+    for asset in outcome.shortfalls() {
+        out.push_str(&format!(
+            "SHORT {}: holds {} against {} owed, {} missing\n",
+            asset.asset,
+            format_amount_18dp(asset.held),
+            format_amount_18dp(asset.owed),
+            format_amount_18dp(asset.shortfall())
+        ));
+    }
+    out.push_str(&format!(
+        "{} of {} assets covered{}\n",
+        outcome.assets.len() - outcome.shortfalls().len(),
+        outcome.assets.len(),
+        if outcome.fully_covered() {
+            ""
+        } else {
+            " — NOT COVERED"
+        }
+    ));
+    out
+}
+
+pub fn render_recompute_text(outcome: &crate::recompute::RecomputeOutcome) -> String {
+    let mut out = format!(
+        "leaves rebuilt: {}\npublished root: {}\nrecomputed    : {}\n",
+        outcome.leaves, outcome.published_root, outcome.recomputed_root
+    );
+    for asset in &outcome.disagreeing_assets {
+        out.push_str(&format!("DISAGREES     : {asset}\n"));
+    }
+    out.push_str(if outcome.matches() {
+        "the dump reproduces the published commitment\n"
+    } else {
+        "the dump does NOT reproduce the published commitment\n"
+    });
+    out
+}
+
+pub fn render_recompute_json(outcome: &crate::recompute::RecomputeOutcome) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": outcome.matches(),
+        "leaves": outcome.leaves,
+        "published_root": outcome.published_root,
+        "recomputed_root": outcome.recomputed_root,
+        "disagreeing_assets": outcome.disagreeing_assets,
+    }))
+    .expect("outcome is always serializable")
+}
+
+pub fn render_chain_text(summary: &crate::anchors::ChainSummary) -> String {
+    let mut out = format!(
+        "publisher     : {}\nhistory       : {} anchors, {} to {}\n",
+        summary.publisher, summary.anchors, summary.first, summary.last
+    );
+    match &summary.failure {
+        Some(failure) => out.push_str(&format!("BROKEN        : {failure}\n")),
+        None => out.push_str("history intact\n"),
+    }
+    out
+}
+
+pub fn render_chain_json(summary: &crate::anchors::ChainSummary) -> String {
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": summary.intact(),
+        "publisher": summary.publisher,
+        "anchors": summary.anchors,
+        "first": summary.first,
+        "last": summary.last,
+        "failure": summary.failure,
+    }))
+    .expect("summary is always serializable")
+}
+
+pub fn render_coverage_json(outcome: &canton_solvency_report::coverage::CoverageOutcome) -> String {
+    use canton_solvency_merkle::format_amount_18dp;
+    let assets: Vec<serde_json::Value> = outcome
+        .assets
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "asset": a.asset,
+                "held": format_amount_18dp(a.held),
+                "owed": format_amount_18dp(a.owed),
+                "covered": a.covered(),
+                "shortfall": format_amount_18dp(a.shortfall()),
+            })
+        })
+        .collect();
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": outcome.fully_covered(),
+        "assets": assets,
+    }))
+    .expect("outcome is always serializable")
+}
+
 pub fn render_diff_json(summary: &DiffSummary) -> String {
     let changes: Vec<serde_json::Value> = summary
         .changes

@@ -57,7 +57,9 @@ name = "canton-solvency-verify"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "canton-solvency-merkle",
  "canton-solvency-report",
+ "hex",
  "serde",
  "serde_json",
  "tempfile",

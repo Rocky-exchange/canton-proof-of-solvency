@@ -16,6 +16,11 @@ USAGE:
   canton-solvency-verify verify-chain --group-report <path> --membership <path>
                                 --report <path> --proof <path>
                                 --key <hex64> [--group-key <hex64>] [--json]
+  canton-solvency-verify coverage --custody <path> --liabilities <path>
+                                --statement <path> --key <hex64>
+                                [--custody-key <hex64>] [--json]
+  canton-solvency-verify recompute --leaves <path> --report <path> [--json]
+  canton-solvency-verify anchors --chain <dir-or-file> [--json]
   canton-solvency-verify manifest-diff --previous <path> --current <path> [--json]
   canton-solvency-verify digest --report <path>
   canton-solvency-verify --help | --version
@@ -61,6 +66,26 @@ pub enum Command {
         group_key: String,
         json: bool,
     },
+    /// Rebuild a root from a full leaf dump and compare it to the report.
+    Recompute {
+        leaves: PathBuf,
+        report: PathBuf,
+        json: bool,
+    },
+    /// Walk a publisher's anchor history (SPEC §12).
+    Anchors {
+        chain: PathBuf,
+        json: bool,
+    },
+    /// Custody assets against liabilities (SPEC §11).
+    Coverage {
+        custody: PathBuf,
+        liabilities: PathBuf,
+        statement: PathBuf,
+        trusted_key: String,
+        custody_key: String,
+        json: bool,
+    },
     /// What changed in the disclosure manifest between two reports (§8.5).
     ManifestDiff {
         previous: PathBuf,
@@ -96,7 +121,8 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
-        "verify" | "verify-group" | "verify-chain" | "manifest-diff" | "digest" => {}
+        "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
+        | "recompute" | "digest" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -108,7 +134,9 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--json" => json = true,
             "--help" | "-h" => return Ok(Command::Help),
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
-            | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current" => {
+            | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
+            | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
+            | "--leaves" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -145,6 +173,33 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     match first.as_str() {
         "digest" => Ok(Command::Digest {
             report: required_path("--report")?,
+        }),
+        "coverage" => {
+            let trusted_key = key()?;
+            let custody_key = match flags.get("--custody-key") {
+                Some(k) => {
+                    validate_key(k)?;
+                    k.clone()
+                }
+                None => trusted_key.clone(),
+            };
+            Ok(Command::Coverage {
+                custody: required_path("--custody")?,
+                liabilities: required_path("--liabilities")?,
+                statement: required_path("--statement")?,
+                trusted_key,
+                custody_key,
+                json,
+            })
+        }
+        "recompute" => Ok(Command::Recompute {
+            leaves: required_path("--leaves")?,
+            report: required_path("--report")?,
+            json,
+        }),
+        "anchors" => Ok(Command::Anchors {
+            chain: required_path("--chain")?,
+            json,
         }),
         "manifest-diff" => Ok(Command::ManifestDiff {
             previous: required_path("--previous")?,
@@ -415,6 +470,93 @@ mod tests {
     #[test]
     fn a_manifest_diff_does_not_require_a_key() {
         assert!(parse_str("manifest-diff --previous a.json --current b.json").is_ok());
+    }
+
+    #[test]
+    fn parses_a_coverage_check() {
+        let cmd = parse_str(&format!(
+            "coverage --custody c.json --liabilities l.json --statement s.json --key {KEY}"
+        ))
+        .unwrap();
+        assert_eq!(
+            cmd,
+            Command::Coverage {
+                custody: PathBuf::from("c.json"),
+                liabilities: PathBuf::from("l.json"),
+                statement: PathBuf::from("s.json"),
+                trusted_key: KEY.to_string(),
+                custody_key: KEY.to_string(),
+                json: false,
+            }
+        );
+    }
+
+    /// A custodian and a venue are often different institutions.
+    #[test]
+    fn coverage_accepts_a_separate_custody_key() {
+        let other = "cd".repeat(32);
+        let cmd = parse_str(&format!(
+            "coverage --custody c.json --liabilities l.json --statement s.json --key {KEY} --custody-key {other}"
+        ))
+        .unwrap();
+        match cmd {
+            Command::Coverage { custody_key, .. } => assert_eq!(custody_key, other),
+            other => panic!("expected coverage, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn coverage_needs_all_three_documents() {
+        let full = format!(
+            "coverage --custody c.json --liabilities l.json --statement s.json --key {KEY}"
+        );
+        for missing in [
+            "--custody c.json",
+            "--liabilities l.json",
+            "--statement s.json",
+        ] {
+            let err = parse_str(&full.replace(missing, "")).unwrap_err();
+            let flag = missing.split_whitespace().next().unwrap();
+            assert!(err.to_string().contains(flag), "got {err}");
+        }
+    }
+
+    #[test]
+    fn parses_an_anchor_walk() {
+        assert_eq!(
+            parse_str("anchors --chain ./history --json").unwrap(),
+            Command::Anchors {
+                chain: PathBuf::from("./history"),
+                json: true,
+            }
+        );
+    }
+
+    /// Anchors are public facts; verifying them needs no key.
+    #[test]
+    fn walking_anchors_needs_no_key() {
+        assert!(parse_str("anchors --chain ./history").is_ok());
+    }
+
+    #[test]
+    fn parses_a_recompute() {
+        assert_eq!(
+            parse_str("recompute --leaves dump.json --report r.json").unwrap(),
+            Command::Recompute {
+                leaves: PathBuf::from("dump.json"),
+                report: PathBuf::from("r.json"),
+                json: false,
+            }
+        );
+    }
+
+    /// Recomputing checks arithmetic against a published figure; it verifies
+    /// no signature, so it takes no key.
+    #[test]
+    fn recompute_needs_both_documents_and_no_key() {
+        assert!(parse_str("recompute --leaves dump.json").is_err());
+        assert!(parse_str("recompute --report r.json").is_err());
+        assert!(parse_str("recompute --leaves d.json --report r.json").is_ok());
     }
 
     #[test]

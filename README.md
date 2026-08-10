@@ -234,8 +234,8 @@ asserts, which aggregates are published, and who is entitled to which view.
 | `solvency.coverage` | Custody holdings ≥ liabilities, asset by asset | one custody position | M1 |
 | `collateral.repo` | Every open leg is committed, and aggregate collateral covers aggregate exposure per asset | one open repo leg, with `collateral` and `exposure` maps | **shipped** |
 | `fund.nav` | Every holder's units and entitlement are committed; root totals are units outstanding and total entitlement | one shareholder, with `units` and `entitlement` maps | **shipped** |
-| `settlement.dvp` | Across this window, no leg settled without its counter-leg | one settled trade | M3 |
-| `eligibility.holder` | Every holder satisfied rule R at issuance | one holder's attested attributes | M3 |
+| `settlement.dvp` | Every settled trade is committed, and no leg settled without its counter-leg | one settled trade, with `delivered` and `paid` maps | **shipped** |
+| `eligibility.holder` | Every committed holder satisfied each attested rule at issuance | one holder's attested attributes | **shipped** |
 
 **The disclosure manifest.** Each report carries a machine-readable manifest
 declaring, field by field, what is *published* (visible to that audience),
@@ -310,10 +310,15 @@ upgrade (see [Versioning](#-versioning--compatibility)).
 
 ## 🖥️ Disclosure Console
 
-> **Status: planned — [Milestone 4](#milestone-4--disclosure-console).** Today
-> the reference deployment publishes with the Rust producer and verifies with
-> the TypeScript library. The console is the layer that makes both usable by
-> people who do not run scripts.
+> **Status: viewer and designer shipped; publishing itself is not.**
+> [`console/viewer.html`](console/viewer.html) reads a published disclosure;
+> [`console/designer.html`](console/designer.html) designs the manifest for the
+> next one and diffs it against the last, refusing to export a manifest a
+> verifier would reject. Both are self-contained files with no network calls.
+> What remains blocked is narrower than it first looked: connecting a
+> participant node, reading live data, and signing and publishing need a ledger
+> connection and the producer's key, which a page loaded from a file cannot
+> have. The designer exports a manifest for the producer instead.
 
 A commitment nobody can operate is not transparency infrastructure. The console
 is two surfaces over one format.
@@ -471,12 +476,12 @@ checkable by everyone else.
 | # | Track | Milestone | Outcome |
 |---|---|---|---|
 | 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
-| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted |
-| 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly |
+| 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format and client shipped* |
+| 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly — *chain shipped* |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
-| 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code |
+| 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code — *viewer shipped* |
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
-| 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard |
+| 6 | Use | [Ecosystem Standardization](#milestone-6--ecosystem-standardization) | One implementation becomes a network standard — *conformance suite shipped* |
 
 *Sequencing: 0 is a prerequisite for everything — 1, 2, 3 and 5 all read or
 write the report document. 1 and 2 are then independent and run in parallel; 3
@@ -512,12 +517,11 @@ states **coverage** rather than only liabilities.
 
 **Deliverables**
 
-- `canton-reserve-attest` — Ledger API client that reads the active contract
-  set for a declared set of custody parties and aggregates holdings per asset.
+- ~~`canton-reserve-attest`~~ — **delivered**, [`rust/reserve-attest`](rust/reserve-attest). Builds the active-contract request for a declared party set, parses the response into positions, and commits them as a `coverage.custody` report. The socket sits behind a `Transport` the caller supplies, so request construction, response parsing and report building are all unit-tested; only the HTTP call itself needs a node. **Not yet run against a participant** — the wire shape is written to the Ledger API's documented JSON form and will need fixing against a real one.
 - **Snapshot binding** — the asset-side read is pinned to the *same* ledger
   offset as the liability snapshot, so both halves are provably as-of one
   instant rather than two reads minutes apart.
-- **Coverage report format** (new SPEC §11) — per-asset reserves, liabilities
+- ~~**Coverage report format**~~ — **delivered**, [SPEC.md](SPEC.md) §11. A custody report over `coverage.custody` leaves, plus a statement binding it to a liabilities report by digest so today's assets cannot be shown against last quarter's smaller liabilities. Coverage is checked per asset, and an asset owed but not held at all is a shortfall rather than silence. The `coverage` CLI verb exits 1 on any shortfall. **Still needs a participant node:** reading real holdings over the Ledger API, and pinning that read to the liabilities snapshot's offset, cannot be built or tested without one. *Original scope:* per-asset reserves, liabilities
   and coverage ratio, plus custody party IDs, ledger offset, and mark prices;
   signed by the venue.
 - **Multi-asset coverage** — ratios computed per asset; a shortfall in one
@@ -536,6 +540,7 @@ past report.
 
 **Deliverables**
 
+- ~~**Hash-linked history and verification**~~ — **delivered**, [SPEC.md](SPEC.md) §12. Anchors carry digests and offsets only, never balances. A dropped day, a fork, a rewound offset, a restated instant, or an edited past report all break the chain, and the `anchors` CLI verb walks a history from disk. **Not yet built:** the Daml package in [`daml/`](daml) is a reviewed design that has never been compiled or run — that needs the Daml SDK and a participant node. *Original scope:*
 - **Daml package `SolvencyReportAnchor`** — one immutable contract per report
   carrying `{format_version, report_root, root_sums_hash, snapshot_time,
   ledger_offset, publisher, prev_anchor}`, with an observer set the venue can
@@ -587,9 +592,7 @@ family of statements institutions on Canton actually need to make.
   still sums to the consolidated total. A customer can verify their own balance
   all the way up to a group's consolidated liabilities. Needed no wire-format
   break: a group tree is an ordinary §4 sum tree whose leaves are entities.
-- **Audience-scoped packaging** — one commitment, several packaged views, each
-  carrying only what its audience is entitled to and all reducing to the same
-  root.
+- ~~**Audience-scoped packaging**~~ — **delivered**, [SPEC.md](SPEC.md) §14.4. Every packaging commits to the same leaves, so roots and totals agree while manifests differ; two packagings naming the same audience are refused, and a comparison check catches two audiences being handed genuinely different books.
 
 **Done when:** every profile has golden vectors asserted by both
 implementations; a hierarchy test proves a subsidiary's subtree verifies
@@ -605,9 +608,15 @@ adopted infrastructure.
 
 **Deliverables**
 
-- **Publisher console** — node connection and party declaration, profile
-  selection, the disclosure designer with per-audience live preview,
-  pre-publication diff, scheduling, signing, publishing, anchoring.
+- ~~**Disclosure designer and pre-publication diff**~~ — **delivered**,
+  [`console/designer.html`](console/designer.html). Per-field states with a
+  live per-audience preview, a diff against the previous report, and reduced
+  disclosure called out separately from other changes because it can be
+  legitimate but never accidental. Export is blocked while any field's
+  declared state contradicts the draft, so the screen catches what
+  verification would reject.
+- **Still blocked on a node:** connection and party declaration, reading live
+  data, scheduling, signing, publishing, anchoring.
 - **Viewer console** — provenance state on every figure
   (verified / disclosed / withheld), the data-flow graph of parties,
   synchronizers, and contract types behind each subtotal, plus coverage and
@@ -668,8 +677,7 @@ Takes the publisher out of the verification path entirely.
   manifests (M3) — deliberately absent until those documents exist, because a
   verifier that silently skips a check is worse than one that does not offer
   it.
-- Recomputing a root from a full leaf dump — needs a dump format nothing
-  emits yet.
+- ~~Recomputing a root from a full leaf dump~~ — **delivered**: the `recompute` verb rebuilds the tree from a dump and compares root *and* totals. An inclusion proof cannot show a tree contains only the entries it should; a dump can, at the cost of all privacy, which is why it is an auditor's tool under engagement rather than something a venue publishes.
 - Schemas for the coverage, manifest, and profile documents.
 - crates.io release and prebuilt binaries.
 - **Reference producer integration** — a documented snapshot → equity → tree →
@@ -705,9 +713,7 @@ Turns one implementation into something the network can rely on.
 
 **Deliverables**
 
-- **Conformance suite** — an executable test corpus any implementation runs to
-  claim compatibility, covering the wire format, coverage reports, anchors,
-  profiles, and manifests.
+- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §14.3. Sixteen cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings and anchor chains, each with an expected outcome. Both implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,

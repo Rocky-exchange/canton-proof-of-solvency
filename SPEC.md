@@ -392,10 +392,128 @@ the second user, exercising a two-step path whose first sibling is on the
 left. Both reference implementations assert these files byte for byte, and
 regenerate them with `cargo run --example print_golden`.
 
-## 11–12. Reserved
+## 11. Coverage
 
-`§11` coverage reports and `§12` on-ledger anchoring are reserved for the
-milestones of the same name; see the README.
+A liabilities report says what is owed. It cannot say whether anything backs
+it. Coverage pairs it with a **custody report** — an ordinary §8 report over
+`coverage.custody` leaves, whose root sums are qualified `held/<asset>` keys.
+
+### 11.1 Coverage statement
+
+```json
+{
+  "format_version": "canton-solvency-coverage-v1",
+  "custody_report_digest": "<hex32>",
+  "liabilities_report_digest": "<hex32>",
+  "custody_basis": "omnibus custody party venue::custody"
+}
+```
+
+The statement **restates no figures**. A number restated in a third document
+is a number that can disagree with its sources; the comparison is derived from
+the two reports it names.
+
+Binding by digest is what makes the claim non-transferable. Without it a venue
+could present today's custody totals beside last quarter's smaller
+liabilities and the arithmetic would check out.
+
+### 11.2 Verification
+
+1. The statement's version is recognised.
+2. The custody report declares `coverage.custody` and the liabilities report
+   declares `solvency.liabilities`. Without this a liabilities report could
+   stand in for custody and cover itself.
+3. Both digests match the reports supplied.
+4. Both signatures verify against caller-supplied trusted keys — which may
+   differ, since a custodian and a venue are often different institutions.
+5. For **every asset owed**, `held/<asset>` ≥ that asset's liability.
+
+Step 5 is driven by what is owed, not by what is held: an asset held but not
+owed is not a coverage question, while an asset owed and *not held at all*
+is the worst case and must not read as "nothing required". Coverage is per
+asset — a surplus in one does not excuse a shortfall in another.
+
+### 11.3 What coverage does not prove
+
+That the custody report describes real holdings. `custody_basis` records how
+custody was established and is signed, but nothing here proves it: that is an
+attestation problem, not a commitment one. What §11 does prove is that a
+specific custody claim and a specific liabilities claim were published
+together and compared honestly.
+
+Golden vectors:
+[`fixtures/custody-report.golden.json`](fixtures/custody-report.golden.json)
+and
+[`fixtures/coverage-statement.golden.json`](fixtures/coverage-statement.golden.json),
+paired with the §10 report.
+
+## 12. On-ledger anchoring
+
+A signature proves who published a report. It does not stop a publisher
+quietly replacing one, or dropping a day nobody asked about. An anchor chain
+does.
+
+```json
+{
+  "format_version": "canton-solvency-anchor-v1",
+  "report_digest": "<hex32>",
+  "root_hash": "<hex32>",
+  "snapshot_time": "2026-01-01T00:00:00Z",
+  "ledger_offset": "000000000000000042",
+  "publisher": "golden::publisher",
+  "prev_anchor": "<hex32>"
+}
+```
+
+```
+anchor_digest = SHA-256( "rocky-solvency-anchor-v1"
+                       ‖ lp(format_version) ‖ lp(report_digest) ‖ lp(root_hash)
+                       ‖ lp(snapshot_time)  ‖ lp(ledger_offset)  ‖ lp(publisher)
+                       ‖ ( 0x00 | 0x01 ‖ lp(prev_anchor) ) )
+```
+
+The predecessor is preceded by a **presence byte**, not encoded as an empty
+string. Without it, a genesis anchor and an anchor naming an empty predecessor
+hash identically, and a publisher could present a mid-history anchor as the
+start of its history.
+
+**Anchors carry digests and offsets, never balances.** An amount on a ledger
+contract is disclosed to every observer of that contract — exactly the data
+this format exists to keep private.
+
+### 12.1 Chain rules
+
+Verifiers walk a history oldest-first and reject:
+
+- a first anchor that names a predecessor — a **complete** history starts at
+  genesis, and verifying a suffix would let a publisher present only the days
+  that suit them;
+- an anchor that does not name the one before it, which covers both a dropped
+  day and a fork;
+- `snapshot_time` that does not strictly increase — two reports for the same
+  instant are a restatement, not a history;
+- `ledger_offset` that rewinds;
+- a change of publisher mid-history.
+
+Editing any past report changes its digest, so its anchor changes, so every
+later link stops matching. That is the property: tampering is not merely
+improbable, it is arithmetic.
+
+### 12.2 What the ledger adds
+
+The chain arithmetic above is verifiable **offline** from the anchor documents
+alone. What a ledger contract adds is permanence — a record the publisher
+cannot rewrite or quietly withdraw, witnessed by whoever it names as
+observers. See [`daml/`](daml) for the package, and read its README: it is a
+reviewed design that has **not** been compiled or run, because that needs the
+Daml SDK and a participant node.
+
+As §8.4 notes, anchoring is also the intended home for publisher key
+distribution: a key bound on-ledger is a key a reader can obtain from
+somewhere other than the server that served the report.
+
+Golden vector: [`fixtures/anchor.golden.json`](fixtures/anchor.golden.json),
+the genesis anchor of the §10 report.
 
 ## 13. Hierarchical commitments
 
@@ -504,6 +622,23 @@ mean anything.
 
 | `fund.nav` | one holder of a tokenized fund (§3.1) | every holder's units and entitlement are committed, and the root totals are units outstanding and total entitlement | `units/*`, `entitlement/*` |
 
+| `settlement.dvp` | one settled trade, carrying both legs (§3.1) | every settled trade in this window is committed, and no leg settled without its counter-leg | `delivered/*`, `paid/*`, and both maps in every leaf |
+| `eligibility.holder` | one holder's attested attributes (§3.1) | every committed holder satisfied each attested rule at issuance | `attested/*`, and each rule's total equal to `leaf_count` |
+
+**Why a `settlement.dvp` leaf is a trade, not a leg.** If a leaf were a single
+leg, a tree could hold a delivered leg with no matching payment and nothing
+would notice — precisely the failure delivery-versus-payment exists to
+prevent. Making the leaf the trade puts atomicity in the structure: a
+committed trade missing a leg is rejected when its own proof is checked.
+
+**Why `eligibility.holder` sums an indicator.** Each attested rule carries the
+value `1` in every leaf, so `attested/R` totalling exactly `leaf_count` proves
+every committed holder satisfied R. That is provable from a published report,
+where an eligibility claim otherwise requires the full holder register — the
+thing an issuer cannot disclose. Inflating one holder's indicator to fake
+unanimity fails too: the tree commits to the leaves, so the padded total no
+longer matches the fold.
+
 **Why a `fund.nav` leaf is a shareholder, not a holding line item.** A
 holdings tree would prove what the fund owns, but no investor could find
 themselves in it, and being able to find yourself is the pattern this whole
@@ -542,12 +677,52 @@ Verifiers **MUST**:
 
 ### 14.2 Adding a profile
 
-`settlement.dvp` and `eligibility.holder` use the same §3.1 mechanism but each
-still needs its own decision about what a leaf is and what the root must
-assert — for DvP, whether a leaf is a trade or a leg; for eligibility, what a
-root can assert about holders it deliberately does not name. Neither is
-registered until designed: an unregistered profile is rejected outright
-(§14.1), so a half-considered entry would be worse than none.
+All six profiles the format set out to cover are registered. A seventh needs
+the same treatment: a decision about what a leaf is, what the root asserts,
+and which rules are checked rather than asserted. An unregistered profile is
+rejected outright (§14.1), so a half-considered entry is worse than none.
+
+### 14.4 Audience-scoped packaging
+
+One commitment may be packaged for several audiences. Every packaging commits
+to the same leaves, so the root hash, the totals and the leaf count are
+identical; only the manifest (§8.5) differs.
+
+Two packagings therefore have **different digests and different signatures**,
+which is correct: they are different statements about the same commitment.
+A verifier comparing two packagings checks that the root, totals and leaf
+count agree — without that check a venue could hand two audiences genuinely
+different books, and each would verify in isolation.
+
+Producers **MUST NOT** emit two packagings naming the same audience: one would
+silently stand in for the other.
+
+### 14.3 Conformance corpus
+
+[`conformance/`](conformance) holds the cases an implementation must agree on
+to claim compatibility. Each is a directory of documents plus an expected
+outcome, listed in `manifest.json`, and the corpus is generated from the
+golden fixtures so it cannot drift from the vectors both implementations
+already assert.
+
+A corpus of only-accepting cases would pass against an implementation that
+accepts everything, and a corpus of only-rejecting cases against one that
+rejects everything, so the runners assert a floor on both. A case whose
+mutation fails to apply is rejected at generation time: a mutation that
+silently no-ops produces a "rejection" case that is really testing acceptance
+of a valid document.
+
+Both reference implementations run the corpus. That is the point — golden
+vectors pin the bytes two implementations produce, and the corpus pins the
+*decisions* they make.
+
+Two kinds of rule beyond required aggregates are available, and both exist
+because a total alone cannot express the statement:
+
+- **per-leaf** (`required_leaf_maps`) — checked when a proof is verified, for
+  statements about each subject, such as a trade carrying both legs;
+- **unanimity** (`unanimous_maps`) — checked against `leaf_count`, for
+  statements about *every* subject without naming any of them.
 
 A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
 separate two v2 profiles from each other. A fund proof presented against a

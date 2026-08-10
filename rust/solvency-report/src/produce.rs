@@ -206,6 +206,59 @@ pub fn publish_v2(
     })
 }
 
+/// One commitment, packaged for several audiences (SPEC §14.4).
+///
+/// Every packaging commits to the same leaves, so every root hash and every
+/// total is identical; only the manifest — what each audience is told was
+/// published, committed or withheld — differs. Two packagings therefore have
+/// different digests and different signatures, which is correct: they are
+/// different statements about the same commitment.
+pub fn publish_for_audiences(
+    leaves: &[LeafInput],
+    meta: &ReportMetadata,
+    manifests: &[crate::manifest::Manifest],
+    signer: &ReportSigner,
+) -> Result<Vec<Publication>> {
+    anyhow::ensure!(
+        !manifests.is_empty(),
+        "publishing for no audience is not a packaging"
+    );
+    let mut audiences: Vec<&str> = manifests.iter().map(|m| m.audience.as_str()).collect();
+    audiences.sort_unstable();
+    let distinct = {
+        let mut seen = audiences.clone();
+        seen.dedup();
+        seen.len()
+    };
+    anyhow::ensure!(
+        distinct == manifests.len(),
+        "two packagings name the same audience, so one would silently replace the other"
+    );
+
+    manifests
+        .iter()
+        .map(|manifest| {
+            publish(
+                leaves,
+                &ReportMetadata {
+                    manifest: Some(manifest.clone()),
+                    ..meta.clone()
+                },
+                signer,
+            )
+        })
+        .collect()
+}
+
+/// Checks two reports are packagings of the same commitment: identical root
+/// and totals, differing only in what each audience was told.
+///
+/// Without this a venue could hand two audiences genuinely different books
+/// and each would verify in isolation.
+pub fn same_commitment(a: &Report, b: &Report) -> bool {
+    a.root_hash == b.root_hash && a.root_sums == b.root_sums && a.leaf_count == b.leaf_count
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -338,6 +391,120 @@ mod tests {
                 "proof for {} failed",
                 proof.leaf.user_id
             );
+        }
+    }
+
+    /// One commitment, several audiences (SPEC §14.4).
+    mod audiences {
+        use super::*;
+        use crate::manifest::{Disclosure, Manifest};
+
+        fn manifest(audience: &str, mark_prices: Disclosure) -> Manifest {
+            Manifest {
+                audience: audience.to_string(),
+                fields: [
+                    ("root_sums".to_string(), Disclosure::Published),
+                    ("mark_prices".to_string(), mark_prices),
+                    ("customer_balances".to_string(), Disclosure::Committed),
+                ]
+                .into_iter()
+                .collect(),
+            }
+        }
+
+        fn packagings() -> Vec<Publication> {
+            publish_for_audiences(
+                &leaves(5),
+                &metadata(),
+                &[
+                    manifest("public", Disclosure::Withheld),
+                    manifest("auditor", Disclosure::Withheld),
+                ],
+                &ReportSigner::from_seed(&[7u8; 32]),
+            )
+            .unwrap()
+        }
+
+        /// The property that makes packaging safe: every audience is looking
+        /// at the same commitment, whatever each was told.
+        #[test]
+        fn every_packaging_commits_to_the_same_leaves() {
+            let packs = packagings();
+            assert_eq!(packs.len(), 2);
+            assert!(same_commitment(
+                &packs[0].signed_report.report,
+                &packs[1].signed_report.report
+            ));
+            assert_eq!(
+                packs[0].signed_report.report.root_hash,
+                packs[1].signed_report.report.root_hash
+            );
+        }
+
+        /// And they are different statements, so they must not share a digest.
+        #[test]
+        fn packagings_for_different_audiences_have_different_digests() {
+            let packs = packagings();
+            assert_ne!(
+                crate::digest::report_digest(&packs[0].signed_report.report),
+                crate::digest::report_digest(&packs[1].signed_report.report)
+            );
+            assert_ne!(
+                packs[0].signed_report.signature.value,
+                packs[1].signed_report.signature.value
+            );
+        }
+
+        #[test]
+        fn every_packaging_verifies_on_its_own_terms() {
+            let key = ReportSigner::from_seed(&[7u8; 32]).public_key_hex();
+            for pack in packagings() {
+                for proof in &pack.proofs {
+                    assert_eq!(
+                        crate::verify::verify(&pack.signed_report, proof, &key),
+                        Ok(())
+                    );
+                }
+            }
+        }
+
+        /// Two audiences handed genuinely different books would each verify in
+        /// isolation, which is exactly what same_commitment exists to catch.
+        #[test]
+        fn two_different_books_are_not_packagings_of_one_commitment() {
+            let signer = ReportSigner::from_seed(&[7u8; 32]);
+            let a = publish(&leaves(5), &metadata(), &signer).unwrap();
+            let b = publish(&leaves(4), &metadata(), &signer).unwrap();
+            assert!(!same_commitment(
+                &a.signed_report.report,
+                &b.signed_report.report
+            ));
+        }
+
+        #[test]
+        fn two_packagings_naming_the_same_audience_are_refused() {
+            let err = publish_for_audiences(
+                &leaves(3),
+                &metadata(),
+                &[
+                    manifest("public", Disclosure::Withheld),
+                    manifest("public", Disclosure::Published),
+                ],
+                &ReportSigner::from_seed(&[7u8; 32]),
+            )
+            .unwrap_err();
+            assert!(err.to_string().contains("same audience"), "got {err}");
+        }
+
+        #[test]
+        fn publishing_for_no_audience_is_an_error() {
+            assert!(publish_for_audiences(
+                &leaves(3),
+                &metadata(),
+                &[],
+                &ReportSigner::from_seed(&[7u8; 32])
+            )
+            .is_err());
         }
     }
 

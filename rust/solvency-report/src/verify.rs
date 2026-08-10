@@ -174,6 +174,25 @@ pub fn verify_v2(
         SIGNATURE_ALGORITHM,
     )?;
 
+    // Statements about each leaf rather than about the totals: a settled
+    // trade missing a leg is caught here, when its own proof is checked.
+    let rules = validated_profile(report)?;
+    for required in rules.required_leaf_maps {
+        let carried = proof
+            .leaf
+            .maps
+            .get(*required)
+            .is_some_and(|m| !m.is_empty());
+        if !carried {
+            return Err(F::Profile {
+                detail: format!(
+                    "profile {} requires every leaf to carry a non-empty {required} map; {} does not",
+                    rules.name, proof.leaf.subject_id
+                ),
+            });
+        }
+    }
+
     let salt = hash32(&proof.leaf.salt, "leaf salt")?;
     let leaf =
         canton_solvency_merkle::leaf_node_v2(&salt, &proof.leaf.subject_id, &proof.leaf.maps)
@@ -627,7 +646,7 @@ mod tests {
 
     #[test]
     fn an_unregistered_profile_is_rejected() {
-        let pubn = restate(publication(5), |r| r.profile = "settlement.dvp".to_string());
+        let pubn = restate(publication(5), |r| r.profile = "not.a.profile".to_string());
         match check(&pubn, 0) {
             Err(VerificationFailure::Profile { detail }) => {
                 assert!(detail.contains("registry"), "got {detail}");
@@ -960,6 +979,160 @@ mod tests {
                 }
                 other => panic!("expected a profile failure, got {other:?}"),
             }
+        }
+    }
+
+    /// Delivery-versus-payment and holder eligibility: the two statements
+    /// that need a rule about each leaf, not only about the totals.
+    mod dvp_and_eligibility {
+        use super::*;
+        use crate::produce::{publish_v2, LeafInputV2, PublicationV2};
+        use std::collections::BTreeMap;
+
+        const ONE: u128 = 1_000_000_000_000_000_000;
+
+        fn map(entries: &[(&str, &[(&str, u128)])]) -> BTreeMap<String, BTreeMap<String, u128>> {
+            entries
+                .iter()
+                .map(|(name, amounts)| {
+                    (
+                        name.to_string(),
+                        amounts.iter().map(|(a, v)| (a.to_string(), *v)).collect(),
+                    )
+                })
+                .collect()
+        }
+
+        fn publish(profile: &str, leaves: Vec<LeafInputV2>) -> PublicationV2 {
+            publish_v2(
+                &leaves,
+                &ReportMetadata {
+                    profile: profile.to_string(),
+                    ..metadata()
+                },
+                &signer(),
+            )
+            .unwrap()
+        }
+
+        fn trade(i: u8, both_legs: bool) -> LeafInputV2 {
+            let maps = if both_legs {
+                map(&[("delivered", &[("BOND", 100)]), ("paid", &[("USDA", 99)])])
+            } else {
+                map(&[("delivered", &[("BOND", 100)])])
+            };
+            LeafInputV2 {
+                salt: [i; 32],
+                subject_id: format!("trade-{i}"),
+                maps,
+            }
+        }
+
+        #[test]
+        fn a_window_of_atomically_settled_trades_verifies() {
+            let p = publish("settlement.dvp", (1..=3).map(|i| trade(i, true)).collect());
+            assert_eq!(p.signed_report.report.root_sums["delivered/BOND"], 300);
+            assert_eq!(p.signed_report.report.root_sums["paid/USDA"], 297);
+            for i in 0..3 {
+                assert_eq!(
+                    verify_v2(&p.signed_report, &p.proofs[i], &signer().public_key_hex()),
+                    Ok(())
+                );
+            }
+        }
+
+        /// The failure DvP exists to prevent: a delivered leg with nothing
+        /// paid against it. A per-leg leaf could hide this; a per-trade leaf
+        /// cannot.
+        #[test]
+        fn a_trade_committed_with_only_one_leg_is_rejected() {
+            let p = publish("settlement.dvp", vec![trade(1, true), trade(2, false)]);
+            assert_eq!(
+                verify_v2(&p.signed_report, &p.proofs[0], &signer().public_key_hex()),
+                Ok(()),
+                "the complete trade still verifies"
+            );
+            match verify_v2(&p.signed_report, &p.proofs[1], &signer().public_key_hex()) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("paid"), "got {detail}");
+                    assert!(detail.contains("trade-2"), "got {detail}");
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
+        }
+
+        fn holder(i: u8, rules: &[&str]) -> LeafInputV2 {
+            LeafInputV2 {
+                salt: [i; 32],
+                subject_id: format!("holder-{i}"),
+                maps: [(
+                    "attested".to_string(),
+                    rules
+                        .iter()
+                        .map(|r| (r.to_string(), ONE))
+                        .collect::<BTreeMap<_, _>>(),
+                )]
+                .into_iter()
+                .collect(),
+            }
+        }
+
+        /// Summing an indicator turns "every holder satisfied R" into
+        /// arithmetic the published root settles.
+        #[test]
+        fn a_register_where_every_holder_is_eligible_verifies() {
+            let p = publish(
+                "eligibility.holder",
+                (1..=4)
+                    .map(|i| holder(i, &["kyc_tier2", "accredited"]))
+                    .collect(),
+            );
+            assert_eq!(p.signed_report.report.leaf_count, 4);
+            assert_eq!(
+                p.signed_report.report.root_sums["attested/kyc_tier2"],
+                4 * ONE
+            );
+            for i in 0..4 {
+                assert_eq!(
+                    verify_v2(&p.signed_report, &p.proofs[i], &signer().public_key_hex()),
+                    Ok(())
+                );
+            }
+        }
+
+        /// One holder short of the rule makes the total fall below the leaf
+        /// count, so the root can no longer claim unanimity.
+        #[test]
+        fn one_ineligible_holder_breaks_the_claim_for_everyone() {
+            let mut leaves: Vec<LeafInputV2> = (1..=4).map(|i| holder(i, &["kyc_tier2"])).collect();
+            leaves[2] = holder(3, &[]);
+            leaves[2].maps.insert(
+                "attested".to_string(),
+                [("kyc_tier2".to_string(), 0u128)].into_iter().collect(),
+            );
+
+            let p = publish("eligibility.holder", leaves);
+            match verify_v2(&p.signed_report, &p.proofs[0], &signer().public_key_hex()) {
+                Err(VerificationFailure::Profile { detail }) => {
+                    assert!(detail.contains("kyc_tier2"), "got {detail}");
+                    assert!(detail.contains("every leaf"), "got {detail}");
+                }
+                other => panic!("expected a profile failure, got {other:?}"),
+            }
+        }
+
+        /// Padding the total to fake unanimity fails too: the tree commits to
+        /// the leaves, so an inflated total no longer matches the fold.
+        #[test]
+        fn inflating_one_holders_indicator_does_not_fake_unanimity() {
+            let mut leaves: Vec<LeafInputV2> = (1..=3).map(|i| holder(i, &["kyc_tier2"])).collect();
+            leaves[0].maps.insert(
+                "attested".to_string(),
+                [("kyc_tier2".to_string(), 3 * ONE)].into_iter().collect(),
+            );
+            let p = publish("eligibility.holder", leaves);
+            // The totals now claim 5 where there are 3 leaves.
+            assert!(verify_v2(&p.signed_report, &p.proofs[0], &signer().public_key_hex()).is_err());
         }
     }
 

@@ -1,0 +1,7 @@
+sdk-version: 2.9.0
+name: canton-solvency-anchor
+source: daml
+version: 0.1.0
+dependencies:
+  - daml-prim
+  - daml-stdlib

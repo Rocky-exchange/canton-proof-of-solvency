@@ -235,6 +235,9 @@ pub fn run(command: &Command) -> Result<Summary> {
                 }],
             })
         }
+        Command::Coverage { .. } => anyhow::bail!("handled by run_coverage"),
+        Command::Anchors { .. } => anyhow::bail!("handled by run_anchors"),
+        Command::Recompute { .. } => anyhow::bail!("handled by run_recompute"),
         Command::ManifestDiff { .. } => anyhow::bail!("handled by run_diff"),
         Command::Help | Command::Version => Ok(Summary {
             report_digest: String::new(),

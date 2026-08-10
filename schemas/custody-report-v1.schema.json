@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/custody-report-v1.schema.json",
+  "title": "Canton solvency custody report v1",
+  "description": "A report over custody positions (SPEC.md \u00a711). Its root_sums are qualified held/<asset> keys produced by v2 leaves, so it uses the ordinary report envelope with a coverage.custody profile.",
+  "type": "object",
+  "required": [
+    "report",
+    "signature"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report": {
+      "$ref": "#/$defs/report"
+    },
+    "signature": {
+      "$ref": "#/$defs/signature"
+    }
+  },
+  "$defs": {
+    "amount": {
+      "type": "string",
+      "description": "Non-negative decimal, at most 18 fractional digits. Canonicalised to exactly 18 before hashing.",
+      "pattern": "^[0-9]+(\\.[0-9]{1,18})?$"
+    },
+    "amountMap": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/amount"
+      }
+    },
+    "hash256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "report": {
+      "type": "object",
+      "required": [
+        "format_version",
+        "profile",
+        "publisher",
+        "snapshot_time",
+        "ledger_offset",
+        "root_hash",
+        "leaf_count",
+        "root_sums",
+        "mark_prices",
+        "disclosures"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "const": "canton-solvency-report-v1"
+        },
+        "profile": {
+          "const": "coverage.custody"
+        },
+        "publisher": {
+          "type": "string",
+          "description": "Canton party identifier of the publishing institution.",
+          "minLength": 1
+        },
+        "snapshot_time": {
+          "type": "string",
+          "description": "RFC 3339 UTC instant with a Z suffix.",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "ledger_offset": {
+          "type": "string",
+          "description": "Opaque participant ledger offset pinning the snapshot in event history. Not assumed to be numeric.",
+          "minLength": 1
+        },
+        "root_hash": {
+          "$ref": "#/$defs/hash256"
+        },
+        "leaf_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "root_sums": {
+          "$ref": "#/$defs/amountMap",
+          "description": "The published liability totals. A verifier recomputes these from any inclusion proof."
+        },
+        "mark_prices": {
+          "$ref": "#/$defs/amountMap"
+        },
+        "disclosures": {
+          "type": "object",
+          "required": [
+            "bad_debt",
+            "excluded_house_accounts",
+            "excluded_house_totals"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "bad_debt": {
+              "$ref": "#/$defs/amountMap",
+              "description": "Negative equity clamped out of the tree, surfaced here rather than netted against other users."
+            },
+            "excluded_house_accounts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "excluded_house_totals": {
+              "$ref": "#/$defs/amountMap"
+            }
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": [
+        "algorithm",
+        "public_key",
+        "value"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "public_key": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Display metadata only. Verifiers MUST check against a trusted key obtained out of band; a self-certifying signature proves nothing about identity."
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{128}$"
+        }
+      }
+    }
+  }
+}

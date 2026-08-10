@@ -22,13 +22,26 @@ pub enum LeafKind {
     RepoLeg,
     /// One holder of a tokenized fund, carrying units and entitlement.
     Shareholder,
+    /// One settled trade, carrying both of its legs.
+    SettledTrade,
+    /// One holder's attested attributes at issuance.
+    AttestedHolder,
+    /// One custody position held by a declared party.
+    CustodyPosition,
 }
 
 impl LeafKind {
     /// Whether this kind is committed with a v2 leaf (SPEC §3.1). A v2 proof
     /// belongs to any v2-leaf profile, not to one specific profile.
     pub fn uses_leaf_v2(&self) -> bool {
-        matches!(self, Self::RepoLeg | Self::Shareholder)
+        matches!(
+            self,
+            Self::RepoLeg
+                | Self::Shareholder
+                | Self::SettledTrade
+                | Self::AttestedHolder
+                | Self::CustodyPosition
+        )
     }
 }
 
@@ -52,6 +65,13 @@ pub struct ProfileRules {
     /// Enforced at the root: the covering map must be at least the covered
     /// one for every asset.
     pub coverage: Option<Coverage>,
+    /// Maps every leaf must carry, non-empty. Checked per proof, because it
+    /// is a statement about each leaf rather than about the totals.
+    pub required_leaf_maps: &'static [&'static str],
+    /// Maps whose per-key total must equal `leaf_count`, i.e. every committed
+    /// leaf carries the value 1. This is what lets a root assert something
+    /// about *every* subject without publishing them.
+    pub unanimous_maps: &'static [&'static str],
 }
 
 pub const SOLVENCY_LIABILITIES: ProfileRules = ProfileRules {
@@ -60,6 +80,8 @@ pub const SOLVENCY_LIABILITIES: ProfileRules = ProfileRules {
     leaf: LeafKind::Customer,
     required_aggregates: &["root_sums"],
     coverage: None,
+    required_leaf_maps: &[],
+    unanimous_maps: &[],
 };
 
 pub const SOLVENCY_GROUP: ProfileRules = ProfileRules {
@@ -69,6 +91,8 @@ pub const SOLVENCY_GROUP: ProfileRules = ProfileRules {
     leaf: LeafKind::Entity,
     required_aggregates: &["root_sums"],
     coverage: None,
+    required_leaf_maps: &[],
+    unanimous_maps: &[],
 };
 
 /// The first profile a v1 leaf could not express: comparing two amount maps
@@ -83,6 +107,8 @@ pub const COLLATERAL_REPO: ProfileRules = ProfileRules {
         covering: "collateral",
         covered: "exposure",
     }),
+    required_leaf_maps: &[],
+    unanimous_maps: &[],
 };
 
 /// A leaf is one **shareholder**, not one holding line item.
@@ -102,6 +128,60 @@ pub const FUND_NAV: ProfileRules = ProfileRules {
     leaf: LeafKind::Shareholder,
     required_aggregates: &["units/*", "entitlement/*"],
     coverage: None,
+    required_leaf_maps: &[],
+    unanimous_maps: &[],
+};
+
+/// A leaf is one **settled trade**, carrying both legs.
+///
+/// If a leaf were a single leg, a tree could hold a delivered leg with no
+/// matching payment and nothing would notice — which is precisely the failure
+/// delivery-versus-payment exists to prevent. Making the leaf the trade puts
+/// atomicity in the structure: a committed trade that is missing a leg is
+/// rejected when its own proof is checked.
+pub const SETTLEMENT_DVP: ProfileRules = ProfileRules {
+    name: "settlement.dvp",
+    statement:
+        "every settled trade in this window is committed, and no leg settled without its counter-leg",
+    leaf: LeafKind::SettledTrade,
+    required_aggregates: &["delivered/*", "paid/*"],
+    coverage: None,
+    required_leaf_maps: &["delivered", "paid"],
+    unanimous_maps: &[],
+};
+
+/// A leaf is one holder's attested attributes, each rule carrying `1`.
+///
+/// Summing an indicator turns "every holder satisfied rule R" into arithmetic
+/// the root can settle: if `attested/R` totals exactly the leaf count, every
+/// committed holder satisfied it. That is provable from a published report,
+/// where an eligibility claim otherwise needs the full holder register — the
+/// thing the issuer cannot disclose.
+pub const ELIGIBILITY_HOLDER: ProfileRules = ProfileRules {
+    name: "eligibility.holder",
+    statement: "every committed holder satisfied each attested rule at issuance",
+    leaf: LeafKind::AttestedHolder,
+    required_aggregates: &["attested/*"],
+    coverage: None,
+    required_leaf_maps: &["attested"],
+    unanimous_maps: &["attested"],
+};
+
+/// The asset side. A leaf is one custody position, so a custodian can prove a
+/// single position to its holder without publishing the whole book — the same
+/// property the liabilities side has always had.
+///
+/// This profile alone says nothing about solvency: it states what is held, not
+/// that it covers anything. Pairing it with a liabilities report is what makes
+/// a coverage claim, and that pairing is §11's job.
+pub const COVERAGE_CUSTODY: ProfileRules = ProfileRules {
+    name: "coverage.custody",
+    statement: "every custody position is committed, and the root totals are the assets held",
+    leaf: LeafKind::CustodyPosition,
+    required_aggregates: &["held/*"],
+    coverage: None,
+    required_leaf_maps: &["held"],
+    unanimous_maps: &[],
 };
 
 pub const REGISTRY: &[ProfileRules] = &[
@@ -109,6 +189,9 @@ pub const REGISTRY: &[ProfileRules] = &[
     SOLVENCY_GROUP,
     COLLATERAL_REPO,
     FUND_NAV,
+    SETTLEMENT_DVP,
+    ELIGIBILITY_HOLDER,
+    COVERAGE_CUSTODY,
 ];
 
 pub fn lookup(name: &str) -> Option<&'static ProfileRules> {
@@ -173,6 +256,28 @@ pub fn validate(report: &Report) -> Result<&'static ProfileRules, ProfileError> 
             }
         }
     }
+    // `1` in 18dp fixed point: an indicator that every leaf sets.
+    const ONE: u128 = 1_000_000_000_000_000_000;
+    for map_name in rules.unanimous_maps {
+        for (key, total) in &report.root_sums {
+            let Some(rule) = key.strip_prefix(&format!("{map_name}/")) else {
+                continue;
+            };
+            let expected = (report.leaf_count as u128).saturating_mul(ONE);
+            if *total != expected {
+                return Err(ProfileError::Violation {
+                    profile: rules.name.to_string(),
+                    detail: format!(
+                        "{key} totals {} across {} leaves; \
+                         the profile asserts every leaf satisfies {rule}, which requires {}",
+                        canton_solvency_merkle::format_amount_18dp(*total),
+                        report.leaf_count,
+                        canton_solvency_merkle::format_amount_18dp(expected)
+                    ),
+                });
+            }
+        }
+    }
     Ok(rules)
 }
 
@@ -193,7 +298,9 @@ mod tests {
         assert_eq!(lookup("solvency.group"), Some(&SOLVENCY_GROUP));
         assert_eq!(lookup("collateral.repo"), Some(&COLLATERAL_REPO));
         assert_eq!(lookup("fund.nav"), Some(&FUND_NAV));
-        assert_eq!(lookup("eligibility.holder"), None, "not yet designed");
+        assert_eq!(lookup("settlement.dvp"), Some(&SETTLEMENT_DVP));
+        assert_eq!(lookup("eligibility.holder"), Some(&ELIGIBILITY_HOLDER));
+        assert_eq!(lookup("not.a.profile"), None);
         assert_eq!(lookup(""), None);
     }
 
@@ -225,11 +332,11 @@ mod tests {
     #[test]
     fn an_unregistered_profile_is_rejected_rather_than_waved_through() {
         let (mut signed, _) = golden::fixture();
-        signed.report.profile = "settlement.dvp".to_string();
+        signed.report.profile = "not.a.profile".to_string();
         assert_eq!(
             validate(&signed.report),
             Err(ProfileError::Unknown {
-                found: "settlement.dvp".to_string()
+                found: "not.a.profile".to_string()
             })
         );
     }

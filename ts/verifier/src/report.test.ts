@@ -180,7 +180,7 @@ describe("report v2 and the disclosure manifest", () => {
 describe("profile registry", () => {
   it("rejects a report whose profile is not registered", async () => {
     const doc = signed();
-    doc.report.profile = "settlement.dvp";
+    doc.report.profile = "not.a.profile";
     const result = await verifyReport(doc, proof(), GOLDEN_PUBLIC_KEY);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -297,6 +297,57 @@ describe("fund.nav profile", () => {
     expect(result.ok).toBe(false);
     if (!result.ok && result.failure.kind === "profile") {
       expect(result.failure.detail).toContain("v2 leaf proof");
+    }
+  });
+});
+
+describe("settlement.dvp and eligibility.holder", () => {
+  const base = (): SignedReport => JSON.parse(fixture("repo-report.golden.json"));
+  const baseProof = (): ProofDocumentV2 => JSON.parse(fixture("repo-proof.golden.json"));
+
+  /// The failure DvP exists to prevent, caught when the trade's own proof is
+  /// checked rather than by adding up totals.
+  it("rejects a settled trade committed with only one leg", async () => {
+    const doc = base();
+    doc.report.profile = "settlement.dvp";
+    doc.report.root_sums = { "delivered/BOND": "100", "paid/USDA": "99" };
+    const proof = baseProof();
+    proof.leaf.maps = { delivered: { BOND: "100" } };
+
+    const result = await verifyReportV2(doc, proof, GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("paid");
+    }
+  });
+
+  /// Summing an indicator turns "every holder satisfied R" into arithmetic
+  /// the published root settles.
+  it("rejects an eligibility claim the leaf count does not support", async () => {
+    const doc = base();
+    doc.report.profile = "eligibility.holder";
+    doc.report.leaf_count = 4;
+    doc.report.root_sums = { "attested/kyc_tier2": "3" };
+    const proof = baseProof();
+    proof.leaf.maps = { attested: { kyc_tier2: "1" } };
+
+    const result = await verifyReportV2(doc, proof, GOLDEN_PUBLIC_KEY);
+    expect(result.ok).toBe(false);
+    if (!result.ok && result.failure.kind === "profile") {
+      expect(result.failure.detail).toContain("every leaf satisfies kyc_tier2");
+    }
+  });
+
+  it("registers all six profiles", () => {
+    for (const name of [
+      "solvency.liabilities",
+      "solvency.group",
+      "collateral.repo",
+      "fund.nav",
+      "settlement.dvp",
+      "eligibility.holder",
+    ]) {
+      expect(lookupProfile(name), `${name} missing`).toBeDefined();
     }
   });
 });

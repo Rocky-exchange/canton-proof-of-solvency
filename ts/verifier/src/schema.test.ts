@@ -19,6 +19,11 @@ const validateReport = ajv.compile(json("schemas/report-v1.schema.json") as obje
 const validateProof = ajv.compile(json("schemas/proof-v1.schema.json") as object);
 const validateReportV2 = ajv.compile(json("schemas/report-v2.schema.json") as object);
 const validateProofV2 = ajv.compile(json("schemas/proof-v2.schema.json") as object);
+const validateCustody = ajv.compile(json("schemas/custody-report-v1.schema.json") as object);
+const validateCoverageStatement = ajv.compile(
+  json("schemas/coverage-statement-v1.schema.json") as object
+);
+const validateAnchor = ajv.compile(json("schemas/anchor-v1.schema.json") as object);
 const validateMembership = ajv.compile(
   json("schemas/group-membership-v1.schema.json") as object
 );
@@ -167,6 +172,9 @@ describe("schema coverage", () => {
     "repo-proof.golden.json": validateProofV2,
     "group-report.golden.json": validateReport,
     "group-membership.golden.json": validateMembership,
+    "custody-report.golden.json": validateCustody,
+    "coverage-statement.golden.json": validateCoverageStatement,
+    "anchor.golden.json": validateAnchor,
   };
 
   it("covers every fixture in the repository", () => {
@@ -178,6 +186,53 @@ describe("schema coverage", () => {
   it("validates each fixture against its schema", () => {
     for (const [name, validate] of Object.entries(validators)) {
       expect(validate(json(`fixtures/${name}`)), `${name} failed its schema`).toBe(true);
+    }
+  });
+});
+
+describe("coverage documents", () => {
+  it("accepts the golden custody report and statement", () => {
+    expect(validateCustody(json("fixtures/custody-report.golden.json"))).toBe(true);
+    expect(validateCoverageStatement(json("fixtures/coverage-statement.golden.json"))).toBe(true);
+  });
+
+  it("pins the custody profile, so a liabilities report cannot pose as custody", () => {
+    expect(validateCustody(json("fixtures/report.golden.json"))).toBe(false);
+  });
+
+  it("requires both report bindings on a statement", () => {
+    for (const field of ["custody_report_digest", "liabilities_report_digest"]) {
+      const doc = json("fixtures/coverage-statement.golden.json") as Record<string, unknown>;
+      delete doc[field];
+      expect(validateCoverageStatement(doc), `${field} was optional`).toBe(false);
+    }
+  });
+});
+
+describe("anchor schema", () => {
+  it("accepts the golden genesis anchor", () => {
+    expect(validateAnchor(json("fixtures/anchor.golden.json"))).toBe(true);
+  });
+
+  it("accepts an anchor naming a predecessor", () => {
+    const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+    doc.prev_anchor = "ab".repeat(32);
+    expect(validateAnchor(doc)).toBe(true);
+  });
+
+  /// Anchors carry digests and offsets only. An amount here would be
+  /// disclosed to every observer of the ledger contract.
+  it("rejects an anchor carrying balances", () => {
+    const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+    doc.root_sums = { USDA: "1" };
+    expect(validateAnchor(doc)).toBe(false);
+  });
+
+  it("requires the report binding and the publisher", () => {
+    for (const field of ["report_digest", "publisher", "ledger_offset"]) {
+      const doc = json("fixtures/anchor.golden.json") as Record<string, unknown>;
+      delete doc[field];
+      expect(validateAnchor(doc), `${field} was optional`).toBe(false);
     }
   });
 });

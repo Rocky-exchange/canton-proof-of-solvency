@@ -1,0 +1,68 @@
+-- | On-ledger anchoring of solvency report history (SPEC.md §12).
+--
+-- The chain arithmetic is verifiable offline from the anchor documents alone.
+-- What the ledger adds is permanence: a contract the publisher cannot rewrite
+-- or quietly withdraw, witnessed by whoever the publisher names as observers.
+--
+-- Deliberately minimal. An anchor carries digests, never balances: putting
+-- amounts on a ledger contract would leak exactly the data the whole format
+-- exists to keep private, to everyone the contract is disclosed to.
+module SolvencyReportAnchor where
+
+-- | Digests and offsets as published in the off-ledger documents.
+type Hex = Text
+
+template ReportAnchor
+  with
+    publisher : Party
+      -- ^ The institution whose history this is. Signs every anchor.
+    observers : [Party]
+      -- ^ Who may see this anchor: auditors, counterparties, or a public
+      -- observer party. Widening this set is the publisher's decision and is
+      -- itself visible on the ledger.
+    formatVersion : Text
+      -- ^ @canton-solvency-anchor-v1@.
+    reportDigest : Hex
+      -- ^ SPEC §8.2 digest of the anchored report.
+    rootHash : Hex
+    snapshotTime : Time
+    ledgerOffset : Text
+      -- ^ Opaque participant offset; not assumed numeric (SPEC §8.3).
+    prevAnchor : Optional Hex
+      -- ^ Digest of the previous anchor. 'None' only for the first.
+    anchorDigest : Hex
+      -- ^ SPEC §12 digest of this anchor's own fields, so a reader can link
+      -- the chain without recomputing it from the contract.
+  where
+    signatory publisher
+    observer observers
+
+    -- An anchor is a fact about a moment that has already passed. There is no
+    -- choice to amend or archive it: a history that can be edited is not a
+    -- history, and offering an Archive choice would hand back exactly the
+    -- power anchoring removes.
+
+    ensure formatVersion == "canton-solvency-anchor-v1"
+        && isHex 64 reportDigest
+        && isHex 64 rootHash
+        && isHex 64 anchorDigest
+        && optional True (isHex 64) prevAnchor
+        && ledgerOffset /= ""
+
+    nonconsuming choice Disclose : ContractId ReportAnchor
+      -- ^ Re-create with a wider observer set. Disclosure only ever widens:
+      -- the original contract remains, so nobody loses sight of an anchor
+      -- they were already shown.
+      with
+        newObservers : [Party]
+      controller publisher
+      do
+        create this with observers = dedup (observers <> newObservers)
+
+-- | Lowercase hex of an exact length.
+isHex : Int -> Text -> Bool
+isHex n t =
+  length chars == n && all (`elem` hexDigits) chars
+  where
+    chars = explode t
+    hexDigits = explode "0123456789abcdef"
