@@ -485,8 +485,9 @@
     if (!rules) {
       return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
     }
+    const keysOf = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
     for (const aggregate of rules.requiredAggregates) {
-      const present = aggregate.endsWith("/*") ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? Object.keys(report.root_sums).length > 0 : Object.keys(report.mark_prices).length > 0;
+      const present = aggregate.endsWith("/*") ? keysOf(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? keysOf(report.root_sums).length > 0 : keysOf(report.mark_prices).length > 0;
       if (!present) {
         return fail({
           kind: "profile",
@@ -608,6 +609,9 @@
     return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
   }
   function parseSums2(sums) {
+    if (sums === null || typeof sums !== "object" || Array.isArray(sums)) {
+      throw new Error("sums must be an object mapping asset to amount");
+    }
     return Object.fromEntries(Object.entries(sums).map(([a, v]) => [a, parseAmount18dp(v)]));
   }
   async function entityLeafNode(entity) {
@@ -672,7 +676,12 @@
       return fail2({ kind: "malformed", detail: String(e) });
     }
     if (current.hashHex !== report.root_hash) return fail2({ kind: "root_hash_mismatch" });
-    const published = parseSums2(report.root_sums);
+    let published;
+    try {
+      published = parseSums2(report.root_sums);
+    } catch (e) {
+      return fail2({ kind: "malformed", detail: String(e) });
+    }
     for (const asset of /* @__PURE__ */ new Set([...Object.keys(current.sums), ...Object.keys(published)])) {
       if ((current.sums[asset] ?? 0n) !== (published[asset] ?? 0n)) {
         return fail2({ kind: "root_sums_mismatch", asset });

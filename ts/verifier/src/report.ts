@@ -349,12 +349,24 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
   if (!rules) {
     return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
   }
+  // `report` is untrusted at this point: it is whatever JSON the caller was
+  // handed. Reading Object.keys off a field that is null, a string or an array
+  // throws a TypeError out of a function whose contract is to return a
+  // VerificationResult, and this runs before the fold's try/catch in both
+  // entry points. A report whose aggregates are not maps carries none of the
+  // aggregates its profile requires, which is a profile failure and not a
+  // crash.
+  const keysOf = (value: unknown): string[] =>
+    value !== null && typeof value === "object" && !Array.isArray(value)
+      ? Object.keys(value as Record<string, unknown>)
+      : [];
+
   for (const aggregate of rules.requiredAggregates) {
     const present = aggregate.endsWith("/*")
-      ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1)))
+      ? keysOf(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1)))
       : aggregate === "root_sums"
-        ? Object.keys(report.root_sums).length > 0
-        : Object.keys(report.mark_prices).length > 0;
+        ? keysOf(report.root_sums).length > 0
+        : keysOf(report.mark_prices).length > 0;
     if (!present) {
       return fail({
         kind: "profile",
