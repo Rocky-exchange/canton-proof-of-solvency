@@ -11,6 +11,15 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **The console showed a rewritten anchor history as fully linked.** The
+  history view checked only that each anchor named its predecessor by digest,
+  so a chain that changed publisher, restated a snapshot time or rewound a
+  ledger offset rendered every row green while `verifyAnchorChain` refused it.
+  An auditor saw agreement for exactly the rewriting anchoring exists to make
+  visible. The view now applies every §12.1 rule and names which one failed,
+  and a test holds it to the same verdict as the verifier on every history the
+  corpus rejects.
+
 - **The TypeScript coverage check never verified a signature.** §11 pairs a
   custody report with a liabilities report, and the Rust implementation checks
   both against the caller's trusted key. The TypeScript equivalent lived inside
