@@ -241,6 +241,51 @@ fn the_largest_representable_amount_is_the_boundary_both_implementations_use() {
 
 const SCALE_TEST: u128 = 1_000_000_000_000_000_000;
 
+/// §14 unanimity is only as strong as `leaf_count`, which nothing recomputes.
+///
+/// The argument is: each leaf contributes 0 or 1, the total equals
+/// `leaf_count`, therefore every leaf contributed 1. Sound given `leaf_count`
+/// — and `leaf_count` is signed metadata rather than anything the fold
+/// produces. A publisher committing ten holders, eight compliant, asserts
+/// eight and the check passes.
+///
+/// This is not a defect to fix in arithmetic: an inclusion proof attests to
+/// one leaf, so no claim about every leaf follows from it. It is the same
+/// limit that stops §5 from proving liabilities complete, and SPEC §14 now
+/// says so instead of saying "proves".
+#[test]
+fn unanimity_can_be_satisfied_while_being_false() {
+    let one = 1_000_000_000_000_000_000u128;
+    let holder = |i: u8, attested: u128| {
+        leaf_node(
+            &[i; 32],
+            &format!("h{i}"),
+            &[("attested/R".to_string(), attested)],
+        )
+        .unwrap()
+    };
+
+    let mut leaves: Vec<Node> = (1u8..=8).map(|i| holder(i, one)).collect();
+    leaves.push(holder(9, 0));
+    leaves.push(holder(10, 0));
+    let committed = leaves.len() as u128;
+
+    let root = SumTree::build(leaves).unwrap().root().clone();
+    let attested = root.sums["attested/R"] / one;
+
+    // The indicator total is honest: the tree really does contain eight
+    // compliant holders.
+    assert_eq!(attested, 8);
+    // And a publisher asserting leaf_count = 8 satisfies unanimity, while ten
+    // holders were committed and two of them did not comply.
+    let asserted_leaf_count = attested;
+    assert_eq!(asserted_leaf_count, attested, "the §14 check passes");
+    assert_ne!(
+        asserted_leaf_count, committed,
+        "yet it is not the number of leaves — the conclusion is false"
+    );
+}
+
 /// The §2 join is ambiguous, demonstrated rather than asserted.
 ///
 /// `{a: 1, b: 2}` and `{"a:1.000000000000000000|b": 2}` are different balance

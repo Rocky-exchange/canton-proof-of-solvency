@@ -168,6 +168,30 @@ change every node hash and invalidate every §6 vector. v2 leaves restrict names
 (§3.1). A deployment that controls its own asset naming is unaffected; one
 accepting arbitrary asset names is relying entirely on the two bounds above.
 
+**Unanimity rests on `leaf_count`, which nothing recomputes.** §14 lets a
+profile assert a property of *every* subject by summing an indicator: if each
+leaf carries `0` or `1` and the total equals `leaf_count`, every leaf carried
+`1`. The arithmetic is sound. The premise is not verified.
+
+`leaf_count` enters the §8.2 digest, so it cannot be altered after signing —
+but no inclusion proof can check it against the tree. A publisher committing
+ten holders, eight of them compliant, asserts `leaf_count = 8` and publishes
+`attested/R = 8`. The check passes; the conclusion is false. Pinned by
+`unanimity_can_be_satisfied_while_being_false` in
+`rust/solvency-merkle/tests/properties.rs`.
+
+Nothing in the format closes this, and it is worth being clear why rather than
+proposing a fix that does not work. A `present` indicator fails for the same
+reason — the publisher sets it to `0` on the leaves they are hiding. The real
+obstruction is that an inclusion proof attests to one leaf, so no statement
+about every leaf can follow from it. This is the completeness limit above,
+reappearing wherever a profile makes a universal claim.
+
+What does close it is disclosure: `recompute` rebuilds the tree from a full
+leaf dump and verifies `leaf_count` directly. A unanimity claim is therefore as
+strong as the auditor's access, and §14 now says "consistent with" where it
+used to say "proves".
+
 **Snapshot frequency bounds everything.** A daily report commits to daily
 states. Nothing here says anything about intra-day positions, and a venue
 solvent at every snapshot may not have been between them.
