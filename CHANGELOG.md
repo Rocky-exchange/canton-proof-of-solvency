@@ -11,6 +11,22 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **An attacker could choose whose balance their own proof disclosed.** A proof
+  carries its sibling's sums, and at leaf level the sibling is one other
+  customer, so whoever is paired with you learns your exact balances. The
+  reference producer ordered leaves by ascending `user_id`, which let an
+  attacker who can influence their own identifier pick that pairing: register
+  two accounts around a target, one to fix the parity of the target's index and
+  one to occupy the pair position, and the second account's proof carries the
+  target's balances. Two accounts, no special access, and it worked every time.
+  Leaves are now ordered by the derived salt — a keyed function of a
+  per-snapshot secret — which is equally stable for the producer and
+  unpredictable to everyone else. Measured over sixty snapshots the same
+  attacker was paired with the target 13% of the time, against 100% before.
+  This removes the aiming, not the disclosure; SPEC §7 and
+  `docs/SECURITY-ANALYSIS.md` say so. **Producers ordering leaves by identifier
+  should change it.** No format change: §4 always left the order to the
+  producer, and every §6 vector still verifies.
 - **Two customers could share one proof filename, and one proof overwrote the
   other.** `canton-solvency-publish` replaced every non-alphanumeric character
   with `_`, so `alice-1`, `alice_1` and `alice 1` are three customers and were

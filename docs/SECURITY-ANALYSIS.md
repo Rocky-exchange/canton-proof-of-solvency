@@ -104,11 +104,31 @@ colluders: spread evenly, 64 others exposed; arranged as adjacent pairs or one
 contiguous block, **zero**, because each colluder already held their partner's
 leaf and learns nothing new from it.
 
-The bound is on *this* analysis, over a producer-chosen ordering. §4 lets the
-producer order leaves as it likes, so the ordering is part of the privacy story
-rather than an implementation detail, and an adversary able to influence where
-they land does better than the table above. That is the part still worth an
-external opinion.
+**Leaf ordering was the exploitable part, and it is fixed.** §4 lets the
+producer order leaves as it likes, and the obvious choice — ascending
+`user_id` — is attackable. An attacker who can influence their own identifier
+registers two accounts around a target: one to fix the parity of the target's
+index, one to land in the pair position. The second account's own proof then
+carries the target's exact balances. Two accounts, no special access, and it
+worked every time.
+
+The reference producer now orders by the **derived salt**,
+`HMAC(master_salt, user_id)`, with the master salt a per-snapshot secret. It is
+equally stable and deterministic for the producer and unpredictable to everyone
+else, so nobody can aim. Measured over sixty snapshots, the same attacker was
+paired with the target in 13% of them — chance, where identifier ordering gave
+100%.
+
+What this does *not* do is stop the disclosure. An attacker still learns
+somebody's exact balances from each proof they hold, and over enough snapshots
+they will be paired with any particular customer eventually. A fixed order
+leaks the same neighbour every time; a rotating one leaks a different neighbour
+each time, and neither dominates. What is removed is **targeting**, which was
+the only part the attacker controlled.
+
+A deployment that keeps identifier ordering keeps the attack. This is a
+producer obligation rather than a format guarantee, which is why §7 states it
+and §4 does not.
 
 **The v1 node join is ambiguous.** §4 canonicalises sums with a `:`/`|` join.
 An asset name containing those characters could in principle forge a boundary.

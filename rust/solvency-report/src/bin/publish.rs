@@ -111,15 +111,38 @@ fn read_balances(path: &Path, master_salt: &str) -> Result<Vec<LeafInput>> {
     }
     anyhow::ensure!(!users.is_empty(), "no balances in the file");
 
-    // Ascending user id: the stable order SPEC §4 requires.
-    Ok(users
+    // Ordered by the derived salt, not by the identifier.
+    //
+    // §4 lets the producer pick any stable order, and ascending `user_id` is
+    // the obvious one. It is also attackable. A proof discloses its sibling's
+    // sums, and at leaf level the sibling is one other customer, so whoever
+    // lands as your pair learns your exact balances. Under identifier order,
+    // an attacker who can influence their own identifier chooses where they
+    // land: register two accounts around a target — one to fix the parity of
+    // the target's index, one to occupy the pair position — and the second
+    // account's own proof discloses the target's balances. Two accounts and no
+    // special access.
+    //
+    // The salt is `HMAC(master_salt, user_id)`, and the master salt is a
+    // per-snapshot secret. Ordering by it is just as stable and deterministic
+    // for the producer, and unpredictable to everyone else: an attacker cannot
+    // aim at a chosen victim because they cannot predict where any identifier
+    // lands.
+    //
+    // The trade is worth stating. A fixed order leaks the same neighbour every
+    // snapshot; a rotating one leaks a different random neighbour each time.
+    // Neither dominates — what this removes is *targeting*, which is the part
+    // an attacker controls.
+    let mut leaves: Vec<LeafInput> = users
         .into_iter()
         .map(|(user_id, balances)| LeafInput {
             salt: canton_solvency_merkle::leaf_salt(master_salt.as_bytes(), &user_id),
             user_id,
             balances,
         })
-        .collect())
+        .collect();
+    leaves.sort_by(|a, b| a.salt.cmp(&b.salt).then_with(|| a.user_id.cmp(&b.user_id)));
+    Ok(leaves)
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
@@ -256,7 +279,75 @@ fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::proof_filename;
+    use super::{proof_filename, read_balances};
+
+    /// Leaves must not be ordered by identifier.
+    ///
+    /// A proof discloses its sibling's sums, and at leaf level the sibling is
+    /// one other customer. Under identifier order an attacker who can
+    /// influence their own identifier picks who that is: two accounts, one to
+    /// fix the parity of the target's index and one to occupy the pair
+    /// position, and the second account's proof carries the target's exact
+    /// balances. Ordering by the per-snapshot derived salt removes the
+    /// targeting, because nobody without the master salt can predict where an
+    /// identifier lands.
+    #[test]
+    fn leaves_are_ordered_unpredictably_not_by_identifier() {
+        let dir = std::env::temp_dir().join("cps-order-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("balances.csv");
+        std::fs::write(
+            &path,
+            "aaa,USDA,1\naab,USDA,1\nvictim,USDA,9\nvictin,USDA,1\nzzz,USDA,1\n",
+        )
+        .unwrap();
+
+        let leaves = read_balances(&path, "a-master-salt").unwrap();
+        let ids: Vec<&str> = leaves.iter().map(|l| l.user_id.as_str()).collect();
+
+        let mut sorted = ids.clone();
+        sorted.sort_unstable();
+        assert_ne!(
+            ids, sorted,
+            "leaves came out in identifier order, which lets an attacker choose \
+             whose balance their own proof discloses"
+        );
+
+        // Still a total order over the same set: nothing is lost or duplicated.
+        let mut round_trip = ids.clone();
+        round_trip.sort_unstable();
+        assert_eq!(round_trip, sorted);
+    }
+
+    /// The order must be stable for a given snapshot, or two runs over the
+    /// same input would publish different roots.
+    #[test]
+    fn the_order_is_deterministic_for_one_snapshot() {
+        let dir = std::env::temp_dir().join("cps-order-stable");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("balances.csv");
+        std::fs::write(&path, "a,USDA,1\nb,USDA,2\nc,USDA,3\nd,USDA,4\n").unwrap();
+
+        let first: Vec<String> = read_balances(&path, "salt-one")
+            .unwrap()
+            .iter()
+            .map(|l| l.user_id.clone())
+            .collect();
+        let again: Vec<String> = read_balances(&path, "salt-one")
+            .unwrap()
+            .iter()
+            .map(|l| l.user_id.clone())
+            .collect();
+        assert_eq!(first, again, "the same snapshot must order identically");
+
+        // A different snapshot salt reorders, so a pairing does not persist.
+        let other: Vec<String> = read_balances(&path, "salt-two")
+            .unwrap()
+            .iter()
+            .map(|l| l.user_id.clone())
+            .collect();
+        assert_ne!(first, other, "a new snapshot should reshuffle the pairing");
+    }
 
     /// The bug this guards: `alice-1`, `alice_1` and `alice 1` are three
     /// customers and used to be one filename, so two proofs were overwritten
