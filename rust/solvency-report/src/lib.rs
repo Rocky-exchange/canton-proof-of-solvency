@@ -72,6 +72,7 @@
 
 pub mod anchor;
 pub mod compat;
+pub mod corpus_gen;
 pub mod coverage;
 pub mod digest;
 pub mod document;
