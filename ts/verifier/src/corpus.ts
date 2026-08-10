@@ -119,7 +119,28 @@ export async function failureKind(c: Case, KEY: string): Promise<string | undefi
       KEY,
       KEY
     );
-  else return undefined; // the other kinds are checked structurally, not by kind
+  else if (c.kind === "membership")
+    result = await verifyMembership(f("group-report.json"), f("membership.json"), KEY);
+  else if (c.kind === "pack") {
+    const { verifyPack } = await import("./pack");
+    const dir = fileURLToPath(new URL(`../../../conformance/${c.id}`, import.meta.url));
+    const members = new Map<string, Uint8Array>();
+    for (const name of readdirSync(dir)) {
+      if (name === "pack.json") continue;
+      members.set(name, new Uint8Array(readFileSync(`${dir}/${name}`)));
+    }
+    const packResult = await verifyPack(f("pack.json"), members);
+    // The pack verifier names its own failures; map them onto the corpus
+    // vocabulary so a declared `failure` means the same thing everywhere.
+    if (packResult.ok) return undefined;
+    return {
+      version: "unsupported_version",
+      missing: "pack_missing",
+      altered: "pack_altered",
+      unlisted: "pack_unlisted",
+      "unsafe-name": "unsafe_name",
+    }[packResult.failure];
+  } else return undefined; // coverage and anchors are checked structurally
   return result.ok ? undefined : result.failure.kind;
 }
 
