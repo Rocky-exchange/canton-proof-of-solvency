@@ -501,6 +501,80 @@ mod tests {
         TWO_POSITIONS.replacen(from, to, 1)
     }
 
+    /// A participant response arrives over a network from a service this
+    /// crate does not control. Every shape it can be wrong in must produce an
+    /// error naming what was wrong, never a panic and never a silent zero.
+    #[test]
+    fn an_adversarial_response_is_refused_with_an_explanation() {
+        let fields = HoldingFields {
+            asset: "instrument".to_string(),
+            amount: "quantity".to_string(),
+        };
+        let cases: Vec<(&str, String)> = vec![
+            ("empty", String::new()),
+            ("not json", "garbage".to_string()),
+            ("null", "null".to_string()),
+            ("an object rather than an array", "{}".to_string()),
+            ("an array of nulls", "[null,null]".to_string()),
+            ("an array of numbers", "[1,2,3]".to_string()),
+            (
+                "an entry with no createdEvent",
+                r#"[{"contractEntry":{"JsActiveContract":{}}}]"#.to_string(),
+            ),
+            (
+                "a createArgument that is a string",
+                r#"[{"contractEntry":{"JsActiveContract":{"createdEvent":{"contractId":"c","templateId":"t","createArgument":"nope"}}}}]"#.to_string(),
+            ),
+            (
+                "an amount sent as a number",
+                r#"[{"contractEntry":{"JsActiveContract":{"createdEvent":{"contractId":"c","templateId":"t","createArgument":{"instrument":"U","quantity":1}}}}}]"#.to_string(),
+            ),
+            (
+                "an asset name that is an object",
+                r#"[{"contractEntry":{"JsActiveContract":{"createdEvent":{"contractId":"c","templateId":"t","createArgument":{"instrument":{},"quantity":"1"}}}}}]"#.to_string(),
+            ),
+            (
+                "deeply nested json",
+                format!("{}{}", "[".repeat(2_000), "]".repeat(2_000)),
+            ),
+        ];
+        for (label, body) in cases {
+            let outcome = parse_holdings(&body, &fields);
+            assert!(outcome.is_err(), "{label} should be refused");
+            let message = outcome.unwrap_err().to_string();
+            assert!(
+                !message.is_empty(),
+                "{label} was refused without saying why"
+            );
+        }
+    }
+
+    /// Two positions can each be representable and their sum not be. Checked
+    /// arithmetic matters here in a way it does not in a debug build: an
+    /// unchecked add wraps in release, and a wrapped custody total understates
+    /// reserves against unchanged liabilities.
+    #[test]
+    fn a_custody_total_that_overflows_is_an_error_not_a_wrap() {
+        let fields = HoldingFields {
+            asset: "instrument".to_string(),
+            amount: "quantity".to_string(),
+        };
+        let max = "340282366920938463463.374607431768211455";
+        let body = format!(
+            "[{}]",
+            (0..2)
+                .map(|i| format!(
+                    r#"{{"contractEntry":{{"JsActiveContract":{{"createdEvent":{{"contractId":"c{i}","templateId":"t","createArgument":{{"instrument":"U","quantity":"{max}"}}}}}}}}}}"#
+                ))
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+        let positions = parse_holdings(&body, &fields).expect("each position is representable");
+        assert_eq!(positions.len(), 2);
+        let err = totals(&positions).unwrap_err().to_string();
+        assert!(err.contains("overflow"), "got {err}");
+    }
+
     #[test]
     fn a_malformed_amount_names_the_contract_it_came_from() {
         let body = mutate(r#""amount":"100.5""#, r#""amount":"-1""#);

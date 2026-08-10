@@ -48,6 +48,12 @@ as a format version, never as a fix.
   amount strings. Nothing asserts *which* error — only that one is returned.
   Every document these tools read comes from the party being checked, so a
   panic is a crash on demand rather than a wrong answer.
+  `canton-solvency-publish` and `canton-reserve-attest` are covered too: the
+  first against malformed balance exports and key files, the second against
+  every shape a participant response can be wrong in, including a custody
+  total that overflows `u128` — checked arithmetic there matters in release
+  builds, where a wrap would understate reserves against unchanged
+  liabilities.
   The CLI suite runs the real binary across every verb, asserting the exit-code
   contract a pipeline actually consumes: malformed input is a 2, a failed
   verification is a 1, and neither is ever the 101 that a panic produces.
