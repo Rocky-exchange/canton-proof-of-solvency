@@ -28,7 +28,7 @@ use canton_solvency_report::compat::run_case;
 fn expected_text(failure: &str) -> &'static str {
     match failure {
         "root_hash_mismatch" => "does not fold to the published root",
-        "root_sums_mismatch" => "totals",
+        "root_sums_mismatch" => "disagrees with the committed leaves",
         "digest_mismatch" => "belongs to a different report",
         "bad_signature" => "signature does not verify",
         "unknown_signer" => "trusted key",
