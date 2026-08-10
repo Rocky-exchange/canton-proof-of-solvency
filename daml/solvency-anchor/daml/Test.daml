@@ -1,0 +1,109 @@
+-- | Daml Script tests for the anchoring package (SPEC.md §12).
+--
+-- These exercise what the ledger enforces that the offline chain rules
+-- cannot: that an anchor's fields are well formed at creation, that it has
+-- no way to be amended or archived, and that disclosure only ever widens.
+module Test where
+
+import Daml.Script
+import DA.Assert ((===))
+import DA.Date (date, Month(Jan))
+import DA.Time (time)
+import qualified DA.Optional as O
+
+import SolvencyReportAnchor
+
+hex64 : Text
+hex64 = "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61"
+
+hex64b : Text
+hex64b = "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970"
+
+anchorFor : Party -> [Party] -> Optional Text -> ReportAnchor
+anchorFor publisher observers prev = ReportAnchor with
+  publisher
+  observers
+  formatVersion = "canton-solvency-anchor-v1"
+  reportDigest = hex64
+  rootHash = hex64b
+  snapshotTime = time (date 2026 Jan 1) 0 0 0
+  ledgerOffset = "3020644"
+  prevAnchor = prev
+  anchorDigest = hex64
+
+-- | A genesis anchor is creatable and readable by its observers.
+testGenesisAnchor : Script ()
+testGenesisAnchor = do
+  publisher <- allocateParty "publisher"
+  auditor <- allocateParty "auditor"
+  cid <- submit publisher do
+    createCmd (anchorFor publisher [auditor] None)
+  Some anchor <- queryContractId auditor cid
+  anchor.prevAnchor === None
+  anchor.publisher === publisher
+
+-- | A later anchor names its predecessor.
+testLinkedAnchor : Script ()
+testLinkedAnchor = do
+  publisher <- allocateParty "publisher"
+  _ <- submit publisher do createCmd (anchorFor publisher [] None)
+  cid <- submit publisher do
+    createCmd (anchorFor publisher [] (Some hex64b))
+  Some anchor <- queryContractId publisher cid
+  O.isSome anchor.prevAnchor === True
+
+-- | The ensure clause rejects a malformed digest, so a contract that could
+-- not be part of any chain never reaches the ledger.
+testRejectsMalformedDigest : Script ()
+testRejectsMalformedDigest = do
+  publisher <- allocateParty "publisher"
+  submitMustFail publisher do
+    createCmd ((anchorFor publisher [] None) with reportDigest = "not-a-digest")
+
+testRejectsUppercaseHex : Script ()
+testRejectsUppercaseHex = do
+  publisher <- allocateParty "publisher"
+  submitMustFail publisher do
+    createCmd ((anchorFor publisher [] None) with rootHash = "0800C1047C9724EA429B238B01366F2032D674425D3ED745ED3402B2F534DF61")
+
+testRejectsEmptyOffset : Script ()
+testRejectsEmptyOffset = do
+  publisher <- allocateParty "publisher"
+  submitMustFail publisher do
+    createCmd ((anchorFor publisher [] None) with ledgerOffset = "")
+
+testRejectsWrongFormatVersion : Script ()
+testRejectsWrongFormatVersion = do
+  publisher <- allocateParty "publisher"
+  submitMustFail publisher do
+    createCmd ((anchorFor publisher [] None) with formatVersion = "canton-solvency-anchor-v9")
+
+-- | Disclosure widens and never narrows: the original contract survives, so
+-- nobody loses sight of an anchor they were already shown.
+testDiscloseWidensWithoutRevoking : Script ()
+testDiscloseWidensWithoutRevoking = do
+  publisher <- allocateParty "publisher"
+  auditor <- allocateParty "auditor"
+  regulator <- allocateParty "regulator"
+
+  cid <- submit publisher do
+    createCmd (anchorFor publisher [auditor] None)
+  wider <- submit publisher do
+    exerciseCmd cid Disclose with newObservers = [regulator]
+
+  -- The regulator can now see it...
+  Some seenByRegulator <- queryContractId regulator wider
+  seenByRegulator.publisher === publisher
+  -- ...and the auditor has not lost the one they had.
+  Some _ <- queryContractId auditor cid
+  pure ()
+
+-- | Only the publisher may widen disclosure of its own history.
+testOnlyPublisherCanDisclose : Script ()
+testOnlyPublisherCanDisclose = do
+  publisher <- allocateParty "publisher"
+  auditor <- allocateParty "auditor"
+  cid <- submit publisher do
+    createCmd (anchorFor publisher [auditor] None)
+  submitMustFail auditor do
+    exerciseCmd cid Disclose with newObservers = [auditor]
