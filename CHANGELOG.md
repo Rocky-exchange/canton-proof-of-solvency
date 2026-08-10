@@ -78,6 +78,11 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
+- A measurement of what colluding proof-holders learn, answering a question
+  `docs/SECURITY-REVIEW-BRIEF.md` had left open: `k` colluders expose at most
+  `k` other customers, exactly `k` when none are already paired, with no
+  cascade above leaf level. Placement matters — spread out, 64 colluders in
+  1,024 leaves expose 64 others; arranged as adjacent pairs, zero.
 
 ## 0.1.0 — 2026-08-10
 

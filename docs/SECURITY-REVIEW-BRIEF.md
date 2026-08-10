@@ -43,8 +43,16 @@ balance.
 
 **Sibling sums as a side channel (§5).** A proof discloses each sibling's
 per-asset sums. In a small or sparse tree, or for an unusual asset, that may
-identify a specific counterparty's position. How many proofs, colluding, are
-needed to reconstruct the book? The spec does not currently bound this.
+identify a specific counterparty's position.
+
+We have since measured the collusion question rather than leaving it open —
+see [SECURITY-ANALYSIS.md](SECURITY-ANALYSIS.md) and
+[`examples/sibling_leakage.rs`](../rust/solvency-merkle/examples/sibling_leakage.rs).
+`k` colluders expose at most `k` other customers, exactly `k` when none are
+already paired, with no cascade above level 0. What we have *not* answered, and
+would most like an independent view on: an adversary who can influence where
+they land in the leaf ordering, which §4 leaves to the producer. Our numbers
+assume they cannot.
 
 **Domain separation and preimage ambiguity (§2, §3.1, §8.1).** v2 leaves and
 all digests are length-prefixed. **v1 leaves and §4 node sums still use a

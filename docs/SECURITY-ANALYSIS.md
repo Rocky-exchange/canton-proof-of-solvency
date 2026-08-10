@@ -80,6 +80,36 @@ is inherent to Merkle sum trees. Identities are not revealed and salt rotation
 prevents cross-report linkage, but a reader should not be told the scheme
 discloses nothing about others.
 
+*How far does it go under collusion?* Measured, by
+[`examples/sibling_leakage.rs`](../rust/solvency-merkle/examples/sibling_leakage.rs),
+which reconstructs everything a colluding set can derive: their own leaves,
+every sibling subtree sum along their paths, the published root, and then the
+fixpoint of `parent = left + right` applied in both directions.
+
+| Leaves | Colluders | Other customers exposed |
+|---|---|---|
+| 1,024 | 1 | 1 |
+| 1,024 | 2 | 2 |
+| 1,024 | 128 | 128 |
+| 1,024 | 512 | 512 (the whole rest of the book) |
+
+**`k` colluders expose at most `k` others, and exactly `k` when no two of them
+are already paired.** There is no cascade: the subtree sums above level 0 leave
+too many unknowns to resolve into individual leaves. Half the book colluding
+exposes the other half, because at that density every remaining customer is
+somebody's partner.
+
+Placement changes the number and not the shape. At 1,024 leaves with 64
+colluders: spread evenly, 64 others exposed; arranged as adjacent pairs or one
+contiguous block, **zero**, because each colluder already held their partner's
+leaf and learns nothing new from it.
+
+The bound is on *this* analysis, over a producer-chosen ordering. §4 lets the
+producer order leaves as it likes, so the ordering is part of the privacy story
+rather than an implementation detail, and an adversary able to influence where
+they land does better than the table above. That is the part still worth an
+external opinion.
+
 **The v1 node join is ambiguous.** §4 canonicalises sums with a `:`/`|` join.
 An asset name containing those characters could in principle forge a boundary.
 Fixed for v2 leaves by restricting names; **not** fixed for v1, because that

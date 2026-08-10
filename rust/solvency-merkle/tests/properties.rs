@@ -198,6 +198,29 @@ fn amounts_round_trip_through_the_canonical_render() {
     }
 }
 
+/// The privacy fact every customer should be told: your proof's first sibling
+/// *is* another customer's leaf, so you learn their exact per-asset balances.
+///
+/// This is inherent to a sum tree, not a defect — a node carries its children's
+/// totals, and at level 0 a child is one customer. It is asserted here so it
+/// cannot stop being true quietly, and because a reader of
+/// docs/SECURITY-ANALYSIS.md should be able to find the line that checks it.
+#[test]
+fn a_proofs_first_sibling_is_another_customers_exact_balance() {
+    let g = tree_of(77, 8);
+    let (tree, leaves) = (&g.tree, &g.leaves);
+
+    for i in 0..leaves.len() {
+        let proof = tree.prove(i).expect("index in range");
+        let first = proof.steps.first().expect("a tree of eight has a partner");
+        let partner = i ^ 1;
+        assert_eq!(
+            first.sibling.sums, leaves[partner].sums,
+            "leaf {i}'s first sibling should be leaf {partner}'s exact balances"
+        );
+    }
+}
+
 /// §1 bounds the scaled value at 2^128 - 1. Pinned on both sides: the
 /// TypeScript verifier parses with BigInt, which has no such limit, and
 /// accepted amounts this producer cannot represent until the bound was
