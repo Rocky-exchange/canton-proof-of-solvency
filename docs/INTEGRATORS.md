@@ -76,9 +76,11 @@ Three rules make a statement worth reading, and they are checked, not assumed:
 One-directional interop is the easy half and proves less than it appears. Both
 directions:
 
-- **Your reports under our tools.** Publish a report, proof and pack; we verify
-  with `canton-solvency-verify` and in the browser verifier. Any disagreement
-  is a spec defect until shown otherwise.
+- **Your reports under our tools.** Add a directory to
+  [`interop/`](../interop) with your documents and the trusted key, out of
+  band. Our CI verifies them on every commit from then on — so a later change
+  to our verifier that broke your documents fails our build, not yours. Any
+  disagreement is a spec defect until shown otherwise.
 - **Our reports under yours.** The golden fixtures and the corpus are checked
   in; verify them with your implementation and publish your statement.
 

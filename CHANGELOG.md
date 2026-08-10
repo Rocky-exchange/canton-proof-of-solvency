@@ -32,6 +32,9 @@ verifies, and both implementations still assert them.
 - SPEC §14.5 compatibility statements, one per implementation in
   `statements/`, compared by a cross-implementation test. Running the corpus
   in three places proved nothing while nothing compared the results.
+- `interop/`, where a third-party producer's reports are verified by this
+  toolkit on every commit — the other half of bidirectional interop, which
+  until now was an invitation rather than a procedure.
 
 ### Fixed
 

@@ -744,7 +744,12 @@ Turns one implementation into something the network can rely on.
   same feature disagree. That comparison is what was missing when Rust and
   TypeScript diverged on key ordering for months with both suites green; a
   second implementer's statement dropped into that directory is checked by the
-  same test, with no special handling.
+  same test, with no special handling. The reverse direction has a path too:
+  [`interop/`](interop) is a directory a producer drops their reports into, and
+  our CI verifies them under this toolkit on every commit — which turns "send
+  us your reports and we'll check" from a promise into a procedure, and means a
+  later change to our verifier that broke a third party's documents fails *our*
+  build rather than theirs.
 - ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
   coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
   and the document is frozen against the conformance corpus: every normative

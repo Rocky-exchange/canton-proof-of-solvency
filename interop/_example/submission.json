@@ -1,0 +1,10 @@
+{
+  "format_version": "canton-solvency-interop-v1",
+  "organisation": "(worked example — not a third party)",
+  "contact": "https://github.com/Rocky-exchange/canton-proof-of-solvency/issues",
+  "implementation": "canton-solvency-report (Rust), the reference producer",
+  "trusted_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+  "documents": [
+    { "kind": "proof", "report": "report.json", "proof": "proof.json" }
+  ]
+}
