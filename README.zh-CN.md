@@ -442,7 +442,7 @@ npm 包遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
 **交付物**
 
-- ~~`canton-reserve-attest`~~ —— **已交付**,见 [`rust/reserve-attest`](rust/reserve-attest)。为声明的 party 集合构造活跃合约查询、把响应解析成持仓,并将其承诺为一份 `coverage.custody` 报告。套接字被放在调用方提供的 `Transport` 之后,因此请求构造、响应解析与报告构建全部有单元测试;只有 HTTP 调用本身需要节点。**已对线上 mainnet participant 做只读验证**:JSON Ledger API v2 的形状已确认 —— `/state/ledger-end` 返回数字型 offset,过滤器是 `cumulative` 的 `TemplateFilter` 条目,响应是 `contractEntry.JsActiveContract` 的裸数组且字段为单数 `createArgument`。请求必须用**包名**指定模板(`#name:Module:Template`),而响应回来的是**包 ID** 限定形式;客户端会带解释地拒绝写反的那一种,因为 participant 自己的报错并不说明是哪个方向。HTTP 调用本身仍由调用方的 `Transport` 提供。
+- ~~`canton-reserve-attest`~~ —— **已交付**,见 [`rust/reserve-attest`](rust/reserve-attest)。为声明的 party 集合构造活跃合约查询、把响应解析成持仓,并将其承诺为一份 `coverage.custody` 报告。套接字被放在调用方提供的 `Transport` 之后,因此请求构造、响应解析与报告构建全部有单元测试;只有 HTTP 调用本身需要节点。**已对线上 mainnet participant 做只读验证**:JSON Ledger API v2 的形状已确认 —— `/state/ledger-end` 返回数字型 offset,过滤器是 `cumulative` 的 `TemplateFilter` 条目,响应是 `contractEntry.JsActiveContract` 的裸数组且字段为单数 `createArgument`。请求必须用**包名**指定模板(`#name:Module:Template`),而响应回来的是**包 ID** 限定形式;客户端会带解释地拒绝写反的那一种,因为 participant 自己的报错并不说明是哪个方向。`CurlTransport` 已作为可用实现随包提供 —— bearer token 通过 stdin 传入而非命令行参数,因为命令行对主机上任何其他进程都是可读的。**已对线上 Canton mainnet 端到端跑通**:在 offset 3020644 读取到四条真实托管持仓,并承诺为一份签名的 `coverage.custody` 报告。
 - **快照绑定** —— 资产侧读取与负债侧快照钉在*同一个*账本 offset 上,使两侧
   可证明地对应同一时刻,而不是相隔数分钟的两次读取。
 - ~~**覆盖率报告格式**~~ —— **已交付**,见 [SPEC.md](SPEC.md) §11。一份基于 `coverage.custody` 叶子的托管报告,外加一份以摘要绑定负债报告的声明,使"今天的资产"无法被拿去对"上季度更小的负债"。覆盖率逐资产校验;某资产有负债却完全没有托管,记为缺口而不是沉默。CLI 的 `coverage` 子命令在任何缺口下以退出码 1 结束。**仍然需要 participant 节点:** 通过 Ledger API 读取真实持仓、并把该读取钉在负债快照的 offset 上,没有节点就无法构建也无法测试。*原始范围:* 逐资产的储备、负债与覆盖率,外加托管

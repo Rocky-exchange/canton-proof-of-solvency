@@ -21,6 +21,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub mod build;
+pub mod curl;
 
 /// `GET` the offset a snapshot is pinned to.
 pub const LEDGER_END_PATH: &str = "/state/ledger-end";
