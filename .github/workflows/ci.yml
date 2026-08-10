@@ -1,4 +1,9 @@
 name: CI
+
+# Every job runs a section of scripts/check.sh rather than repeating its
+# commands. A contributor running that script locally is running CI, not
+# something resembling it — the previous arrangement had CONTRIBUTING.md
+# listing three crates out of four and claiming "CI runs exactly these".
 on:
   push:
     branches: [main]
@@ -10,28 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --manifest-path rust/solvency-merkle/Cargo.toml
-      - run: cargo clippy --manifest-path rust/solvency-merkle/Cargo.toml --all-targets -- -D warnings
-      - run: cargo fmt --manifest-path rust/solvency-merkle/Cargo.toml --check
-      - run: cargo test --manifest-path rust/solvency-report/Cargo.toml
-      - run: cargo clippy --manifest-path rust/solvency-report/Cargo.toml --all-targets -- -D warnings
-      - run: cargo fmt --manifest-path rust/solvency-report/Cargo.toml --check
-      - run: cargo test --manifest-path rust/solvency-cli/Cargo.toml
-      - run: cargo clippy --manifest-path rust/solvency-cli/Cargo.toml --all-targets -- -D warnings
-      - run: cargo fmt --manifest-path rust/solvency-cli/Cargo.toml --check
-      - run: cargo test --manifest-path rust/reserve-attest/Cargo.toml
-      # docs.rs builds these, and a broken intra-doc link renders as dead text
-      # on a crate people are being asked to adopt. Two were already broken
-      # before anyone looked.
-      - name: Documentation builds clean
-        env:
-          RUSTDOCFLAGS: "-D warnings"
-        run: |
-          for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
-            cargo doc --no-deps --manifest-path "rust/$c/Cargo.toml"
-          done
-      - run: cargo clippy --manifest-path rust/reserve-attest/Cargo.toml --all-targets -- -D warnings
-      - run: cargo fmt --manifest-path rust/reserve-attest/Cargo.toml --check
+      - run: scripts/check.sh rust
 
   daml:
     runs-on: ubuntu-latest
@@ -45,10 +29,7 @@ jobs:
         run: |
           curl -sSL https://get.daml.com | sh -s 2.10.4
           echo "$HOME/.daml/bin" >> "$GITHUB_PATH"
-      - run: daml build
-        working-directory: daml/solvency-anchor
-      - run: daml test
-        working-directory: daml/solvency-anchor
+      - run: scripts/check.sh daml
 
   ts:
     runs-on: ubuntu-latest
@@ -57,15 +38,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
-        working-directory: ts/verifier
-      - run: npm test
-        working-directory: ts/verifier
+      - run: scripts/check.sh ts
 
-  # The third verifier (spec-audit/). It runs the golden vectors and the
-  # corpus from the specification text with no dependencies, so a break here
-  # means SPEC.md and the implementations have drifted apart — which is the
-  # one failure the other two jobs cannot see, since they share an author.
+  # The third verifier. A break here means SPEC.md and the implementations have
+  # drifted apart, which is the one failure the other jobs cannot see, since
+  # they share an author.
   spec-audit:
     runs-on: ubuntu-latest
     steps:
@@ -73,5 +50,4 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: python3 spec-audit/verify_from_spec.py --verbose
-      - run: python3 spec-audit/test_statement.py
+      - run: scripts/check.sh audit

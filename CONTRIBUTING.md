@@ -21,27 +21,23 @@ including in itself.
 
 ## Development Setup
 
-Prerequisites: Rust ≥ 1.75, Node.js ≥ 18.
+Prerequisites: Rust ≥ 1.75, Node.js ≥ 18. Optionally Python 3 for the
+specification audit and the Daml SDK for the anchoring package.
 
 ```bash
-# Rust core
-cd rust/solvency-merkle
-cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
-
-# Rust report documents
-cd rust/solvency-report
-cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
-
-# Verification CLI
-cd rust/solvency-cli
-cargo test && cargo clippy --all-targets -- -D warnings && cargo fmt --check
-
-# TypeScript verifier
-cd ts/verifier
-npm install && npm test
+scripts/check.sh            # everything
+scripts/check.sh rust       # or one section: rust | ts | audit | daml
 ```
 
-All of these must pass locally before you open a PR — CI runs exactly these.
+**CI runs this script**, section by section, rather than its own copy of the
+commands — so a green run locally is a green run in CI, by construction. This
+paragraph used to list the commands and claim CI ran exactly them; it had
+drifted to three crates out of four, with no rustdoc, no specification audit
+and no Daml.
+
+A section whose toolchain is missing is skipped with a notice rather than
+failing, so you can work on the Rust core without installing the Daml SDK. CI
+installs everything, so nothing is skipped there.
 
 Everything in `fixtures/` is asserted byte for byte by both implementations —
 the v1 and v2 reports, the v1 and v2 proofs, and the group report and
