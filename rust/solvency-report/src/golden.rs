@@ -226,6 +226,36 @@ pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) 
 /// Cross-implementation wire-format pin (SPEC §10). The TypeScript verifier
 /// asserts these same bytes against the same fixture files. Changing any value
 /// here is a format version bump, not a refactor.
+/// A publisher that commits an honest tree and signs understated totals.
+///
+/// SPEC §9.1 names this as the reason step 5 compares sums as well as hashes:
+/// "a publisher can commit a truthful tree and still print understated totals
+/// in the report". Nothing in the corpus exercised it — the existing
+/// `proof-understated-totals` case edits the report *after* signing, so the
+/// digest binding catches it first and the sums comparison never runs.
+///
+/// Here the publisher signs the lie. The digest is computed over the false
+/// totals, so the proof binds correctly and the signature verifies; the root
+/// hash is the real one, because the tree is real. Only comparing the folded
+/// sums against the published ones detects it.
+pub fn understated_fixture() -> (SignedReport, ProofDocument) {
+    let (mut signed, mut proof) = fixture();
+
+    // Understate one asset. The tree is untouched.
+    let understated = signed.report.root_sums["USDA"] / 2;
+    signed
+        .report
+        .root_sums
+        .insert("USDA".to_string(), understated);
+
+    // Sign the report as it now reads, and rebind the proof to it.
+    let digest = crate::digest::report_digest(&signed.report);
+    signed.signature.value = signer().sign_digest(&digest);
+    proof.report_digest = hex::encode(digest);
+
+    (signed, proof)
+}
+
 /// The golden report and proof packaged as an evidence pack (SPEC §15),
 /// signed by the same key, so a conformance runner can check a whole delivery.
 ///

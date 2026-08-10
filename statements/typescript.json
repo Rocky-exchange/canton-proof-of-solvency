@@ -14,7 +14,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "3b515fef0a6b2801503c3085cfaeaee1dea7ee76ed4dbded27cc60545d44f701",
+  "corpus_digest": "221efc37818f3fefd9d70b1606bf8e40393a1b2b2bc121558245ad190159914c",
   "results": [
     {
       "id": "proof-valid",
@@ -93,6 +93,11 @@
     },
     {
       "id": "anchors-broken-link",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-signed-understated-totals",
       "expected": "reject",
       "outcome": "reject"
     },

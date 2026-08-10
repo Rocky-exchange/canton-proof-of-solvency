@@ -44,6 +44,7 @@ fn main() -> anyhow::Result<()> {
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
+    let (understated_report, understated_proof) = golden::understated_fixture();
     let key = golden::signer().public_key_hex();
 
     let report_j = serde_json::to_value(&report)?;
@@ -345,6 +346,20 @@ fn main() -> anyhow::Result<()> {
                 )
             ]),
         )],
+    )?;
+
+    // --- the sums comparison (SPEC §9.1 step 5) ---
+    add(
+        "proof-signed-understated-totals",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "an honest tree beside understated totals the publisher signed",
+        "reject",
+        Some("root_sums_mismatch"),
+        vec![
+            ("report.json", serde_json::to_value(&understated_report)?),
+            ("proof.json", serde_json::to_value(&understated_proof)?),
+        ],
     )?;
 
     // --- key ordering (SPEC §2) ---

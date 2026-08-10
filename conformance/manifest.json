@@ -241,6 +241,21 @@
       ]
     },
     {
+      "description": "an honest tree beside understated totals the publisher signed",
+      "expect": "reject",
+      "failure": "root_sums_mismatch",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-signed-understated-totals",
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
+    },
+    {
       "description": "asset names that sort differently under UTF-16 than under UTF-8 bytes",
       "expect": "accept",
       "failure": null,

@@ -96,6 +96,24 @@ export async function checkAnchors(history: any[]): Promise<boolean> {
   return true;
 }
 
+/**
+ * The failure kind a rejecting case produced, where this runner can name it.
+ *
+ * A case can exercise the check it names and a different check in fact: the
+ * corpus carries `proof-understated-totals`, which reads as a test of the §9.1
+ * sums comparison and is rejected a step earlier by the digest binding. Only
+ * comparing against the declared `failure` catches that.
+ */
+export async function failureKind(c: Case, KEY: string): Promise<string | undefined> {
+  const f = (name: string) => json(`conformance/${c.id}/${name}`);
+  let result;
+  if (c.kind === "proof") result = await verifyReport(f("report.json"), f("proof.json"), KEY);
+  else if (c.kind === "proof-v2")
+    result = await verifyReportV2(f("report.json"), f("proof.json"), KEY);
+  else return undefined; // the other kinds are checked structurally, not by kind
+  return result.ok ? undefined : result.failure.kind;
+}
+
 export async function runCase(c: Case, KEY: string): Promise<boolean> {
   const f = (name: string) => json(`conformance/${c.id}/${name}`);
   switch (c.kind) {

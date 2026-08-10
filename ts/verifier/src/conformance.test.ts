@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { buildStatement, runCase, type Case } from "./corpus";
+import { buildStatement, failureKind, runCase, type Case } from "./corpus";
 
 /**
  * The conformance corpus (SPEC §14.3) exists so a second implementation can
@@ -25,6 +25,18 @@ describe("conformance corpus", () => {
     expect(cases.length).toBeGreaterThanOrEqual(15);
     expect(cases.filter((c) => c.expect === "accept").length).toBeGreaterThanOrEqual(5);
     expect(cases.filter((c) => c.expect === "reject").length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("rejects each case for the reason it declares, not merely rejects it", async () => {
+    // Rejected is not enough. `proof-understated-totals` reads as a test of the
+    // §9.1 sums comparison and is caught a step earlier by the digest binding,
+    // which is how the sums comparison went untested by the whole corpus.
+    for (const c of cases as any[]) {
+      if (c.expect !== "reject" || !c.failure) continue;
+      const kind = await failureKind(c, KEY);
+      if (kind === undefined) continue; // kind checked structurally elsewhere
+      expect(kind, `${c.id} declares ${c.failure}`).toBe(c.failure);
+    }
   });
 
   it("declares what every case requires, so a partial implementation can filter", () => {
