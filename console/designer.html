@@ -162,18 +162,22 @@
   var encoder2 = new TextEncoder();
 
   // src/publisher.ts
+  function keysOf(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  }
   function carriesData(report, path) {
+    const disclosures = report.disclosures ?? {};
     switch (path) {
       case "root_sums":
-        return Object.keys(report.root_sums).length > 0;
+        return keysOf(report.root_sums).length > 0;
       case "mark_prices":
-        return Object.keys(report.mark_prices).length > 0;
+        return keysOf(report.mark_prices).length > 0;
       case "disclosures.bad_debt":
-        return Object.keys(report.disclosures.bad_debt).length > 0;
+        return keysOf(disclosures.bad_debt).length > 0;
       case "disclosures.excluded_house_accounts":
-        return report.disclosures.excluded_house_accounts > 0;
+        return Number(disclosures.excluded_house_accounts ?? 0) > 0;
       case "disclosures.excluded_house_totals":
-        return Object.keys(report.disclosures.excluded_house_totals).length > 0;
+        return keysOf(disclosures.excluded_house_totals).length > 0;
       default:
         return false;
     }
@@ -187,7 +191,7 @@
   ];
   function designerRows(report, manifest) {
     return [...KNOWN_MANIFEST_FIELDS].sort().map((path) => {
-      const state = manifest.fields[path] ?? "withheld";
+      const state = fieldsOf(manifest)[path] ?? "withheld";
       const has = carriesData(report, path);
       let problem = null;
       if (BODY_FIELDS.includes(path)) {
@@ -200,22 +204,29 @@
       return { path, state, carriesData: has, problem };
     });
   }
+  function fieldsOf(manifest) {
+    const fields = manifest?.fields;
+    return fields !== null && typeof fields === "object" && !Array.isArray(fields) ? fields : {};
+  }
   function changeRows(previous2, next) {
     if (!previous2) return [];
-    const paths = [.../* @__PURE__ */ new Set([...Object.keys(previous2.fields), ...Object.keys(next.fields)])].sort();
+    const before = fieldsOf(previous2);
+    const after = fieldsOf(next);
+    const paths = [.../* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])].sort();
     const rows = [];
     for (const path of paths) {
-      const from = previous2.fields[path] ?? null;
-      const to = next.fields[path] ?? null;
+      const from = before[path] ?? null;
+      const to = after[path] ?? null;
       if (from === to) continue;
       rows.push({ path, from, to, reduction: from === "published" && to !== "published" });
     }
     return rows;
   }
   function previewFor(manifest) {
-    const byState = (want) => Object.keys(manifest.fields).filter((path) => manifest.fields[path] === want).sort();
+    const fields = fieldsOf(manifest);
+    const byState = (want) => Object.keys(fields).filter((path) => fields[path] === want).sort();
     return {
-      audience: manifest.audience,
+      audience: manifest?.audience,
       shown: byState("published"),
       provenOnly: byState("committed"),
       withheld: byState("withheld")
@@ -225,7 +236,7 @@
     const fields = designerRows(report, manifest);
     const changes = changeRows(previous2, manifest);
     const problems = fields.filter((f) => f.problem).map((f) => `${f.path}: ${f.problem}`);
-    if (!manifest.audience.trim()) {
+    if (typeof manifest?.audience !== "string" || !manifest.audience.trim()) {
       problems.push("no audience named: a packaging is for someone in particular");
     }
     const warnings = changes.filter((c) => c.reduction).map((c) => `${c.path} was published and is now ${c.to ?? "not declared at all"}`);
