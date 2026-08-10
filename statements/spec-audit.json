@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "9b8bc362de0314d50e6ddc77d16342c5910ecb06d7852d150fed9bf5e3099877",
+  "corpus_digest": "a60a30878e33dce86f66a9b873789a0c3eff7ad1c84f18e6dd04838826559476",
   "results": [
     {
       "id": "proof-valid",
@@ -81,6 +81,21 @@
     },
     {
       "id": "anchors-suffix",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-publisher-changed",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-restated-instant",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "anchors-rewound-offset",
       "expected": "reject",
       "outcome": "skip"
     },
