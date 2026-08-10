@@ -124,3 +124,73 @@ fn every_profile_the_changelog_names_is_registered() {
         );
     }
 }
+
+/// Every relative link in the documentation must resolve.
+///
+/// A link into the repository is a claim that a file is there, and this sweep
+/// moved or added enough of them — `scripts/`, `statements/`, `interop/`,
+/// `spec-audit/`, `UPGRADING.md` — that one going stale was a matter of time.
+/// One already had: SPEC §8.5 pointed at `fixtures/proof-v2.golden.json`,
+/// which has never existed. I then used that name in a test of my own and
+/// spent a run debugging an ENOENT, which is what a wrong reference in a
+/// specification costs a reader.
+#[test]
+fn every_relative_link_in_the_documentation_resolves() {
+    fn markdown(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+        let skip = ["node_modules", "target", "Xushi", ".git"];
+        for entry in std::fs::read_dir(dir).expect("readable") {
+            let path = entry.expect("entry").path();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            if skip.contains(&name.as_str()) {
+                continue;
+            }
+            if path.is_dir() {
+                markdown(&path, out);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+                out.push(path);
+            }
+        }
+    }
+
+    let mut docs = Vec::new();
+    markdown(&repo(), &mut docs);
+    assert!(
+        docs.len() >= 10,
+        "expected the documentation set, found {}",
+        docs.len()
+    );
+
+    let mut broken = Vec::new();
+    let mut checked = 0usize;
+    for doc in &docs {
+        let text = std::fs::read_to_string(doc).expect("readable");
+        // [label](target), ignoring anchors and absolute URLs.
+        let mut rest = text.as_str();
+        while let Some(open) = rest.find("](") {
+            let after = &rest[open + 2..];
+            let Some(close) = after.find(')') else { break };
+            let target = &after[..close];
+            rest = &after[close..];
+            if target.starts_with("http") || target.starts_with("mailto:") || target.is_empty() {
+                continue;
+            }
+            let path = target.split('#').next().unwrap();
+            if path.is_empty() {
+                continue;
+            }
+            checked += 1;
+            if !doc.parent().unwrap().join(path).exists() {
+                broken.push(format!("{}: {path}", doc.display()));
+            }
+        }
+    }
+    assert!(
+        checked >= 100,
+        "only {checked} links checked; the parser stopped seeing them"
+    );
+    assert!(
+        broken.is_empty(),
+        "broken documentation links:\n  {}",
+        broken.join("\n  ")
+    );
+}

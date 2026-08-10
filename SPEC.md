@@ -373,8 +373,15 @@ fixtures are unchanged, and v1 reports keep verifying: historical reports are
 what an auditor returns to years later.
 
 Golden vectors: [`fixtures/report-v2.golden.json`](fixtures/report-v2.golden.json)
-and [`fixtures/proof-v2.golden.json`](fixtures/proof-v2.golden.json), built on
-the same tree as §10 — v2 changes the envelope, not the commitment.
+and [`fixtures/proof-for-report-v2.golden.json`](fixtures/proof-for-report-v2.golden.json),
+built on the same tree as §10 — v2 changes the envelope, not the commitment.
+
+The proof in that pair is a **`canton-solvency-proof-v1`** document, and its
+name says so on purpose: a report v2 does not imply a proof v2. The two
+version numbers move independently, because §8.5 changes the envelope and §9.2
+changes the leaf. The proof-v2 vector is
+[`fixtures/repo-proof.golden.json`](fixtures/repo-proof.golden.json), paired
+with a report whose leaves are v2.
 
 ## 9. Proof document
 
