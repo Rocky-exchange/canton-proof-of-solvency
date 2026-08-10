@@ -805,7 +805,7 @@ Both reference implementations run the corpus. That is the point — golden
 vectors pin the bytes two implementations produce, and the corpus pins the
 *decisions* they make.
 
-A rejecting case carries a `failure`, and a runner **SHOULD** check that the
+A rejecting case carries a `failure`, and a runner **MUST** check that the
 rejection is the declared one rather than merely that the document was
 rejected. A case can exercise the check it names and a different check in
 fact: `proof-understated-totals` reads as a test of the §9.1 sums comparison

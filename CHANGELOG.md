@@ -105,7 +105,9 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 - The conformance runner now checks that a rejecting case is rejected for the
   reason it declares, not merely that it was rejected. Every case's declared
   `failure` was in fact correct, but nothing enforced it — which is how the
-  gap below survived. SPEC §14.3 asks other implementations to do the same.
+  gap below survived. All three implementations check it now, and each one was
+  shown to fail on a deliberately mis-declared case before being trusted.
+  SPEC §14.3 requires it of other implementations too.
 - A conformance case for the sums comparison (§9.1 step 5), which nothing
   exercised. Removing that check entirely from the reference verifier left all
   21 existing cases passing, so an implementation could omit the one defence

@@ -337,6 +337,14 @@ def sums_equal(left: dict[str, int], right: dict[str, int]) -> bool:
     return True
 
 
+# §14.3 failure names, as the manifest declares them.
+DIGEST_MISMATCH = "digest_mismatch"
+UNKNOWN_SIGNER = "unknown_signer"
+BAD_SIGNATURE = "bad_signature"
+ROOT_HASH_MISMATCH = "root_hash_mismatch"
+ROOT_SUMS_MISMATCH = "root_sums_mismatch"
+
+
 def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
     """The five steps of §9.1, failing on the first that does not hold."""
     report = signed["report"]
@@ -353,16 +361,16 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
     # 2. the digest binds the proof to this report
     digest = report_digest(report)
     if digest.hex() != proof["report_digest"]:
-        raise Rejected("digest mismatch")
+        raise Rejected(DIGEST_MISMATCH)
 
     # 3. trusted key, then signature. §8.4: the embedded key is display
     #    metadata, so it is compared rather than used.
     if signature["public_key"].lower() != trusted_key_hex.lower():
-        raise Rejected("unknown signer")
+        raise Rejected(UNKNOWN_SIGNER)
     if not ed25519_verify(
         bytes.fromhex(trusted_key_hex), digest, bytes.fromhex(signature["value"])
     ):
-        raise Rejected("bad signature")
+        raise Rejected(BAD_SIGNATURE)
 
     # 4. recompute the leaf from the disclosed preimage
     leaf = proof["leaf"]
@@ -380,9 +388,9 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
         node = (node_hash(left[0], right[0], sums), sums)
 
     if node[0].hex() != report["root_hash"]:
-        raise Rejected("root hash mismatch")
+        raise Rejected(ROOT_HASH_MISMATCH)
     if not sums_equal(node[1], parse_map(report["root_sums"])):
-        raise Rejected("root sums mismatch")
+        raise Rejected(ROOT_SUMS_MISMATCH)
 
 
 # --------------------------------------------------------------------------
@@ -553,8 +561,24 @@ def check_conformance(log) -> list[str]:
         try:
             run_case(corpus / cid, case["kind"], key)
             outcome = "accept"
-        except Rejected:
+        except Rejected as e:
             outcome = "reject"
+            # Rejected is not enough. A case can exercise the check it names
+            # and a different check in fact -- `proof-understated-totals` reads
+            # as a test of the §9.1 sums comparison and is caught a step
+            # earlier by the digest binding.
+            declared = case.get("failure")
+            reason = str(e)
+            if declared and reason in {
+                DIGEST_MISMATCH,
+                UNKNOWN_SIGNER,
+                BAD_SIGNATURE,
+                ROOT_HASH_MISMATCH,
+                ROOT_SUMS_MISMATCH,
+            } and reason != declared:
+                failures.append(
+                    f"{cid}: declares {declared}, rejected for {reason}"
+                )
         except AssertionError:
             raise
         except Exception as e:  # a malformed document is a rejection too
