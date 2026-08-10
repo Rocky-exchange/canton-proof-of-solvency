@@ -47,19 +47,34 @@ export type DesignerModel = {
   warnings: string[];
 };
 
+/**
+ * Keys of a value that should be a map, or none.
+ *
+ * The designer renders whatever a compliance team exported, which is not
+ * always the shape this code expects. `Object.keys(null)` throws, and a throw
+ * out of a render leaves the operator looking at a blank screen rather than at
+ * a report that says what is wrong with their document.
+ */
+function keysOf(value: unknown): string[] {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value as Record<string, unknown>)
+    : [];
+}
+
 /** Whether the report body carries data for a manifest field. */
 export function carriesData(report: Report, path: string): boolean {
+  const disclosures = (report.disclosures ?? {}) as Record<string, unknown>;
   switch (path) {
     case "root_sums":
-      return Object.keys(report.root_sums).length > 0;
+      return keysOf(report.root_sums).length > 0;
     case "mark_prices":
-      return Object.keys(report.mark_prices).length > 0;
+      return keysOf(report.mark_prices).length > 0;
     case "disclosures.bad_debt":
-      return Object.keys(report.disclosures.bad_debt).length > 0;
+      return keysOf(disclosures.bad_debt).length > 0;
     case "disclosures.excluded_house_accounts":
-      return report.disclosures.excluded_house_accounts > 0;
+      return Number(disclosures.excluded_house_accounts ?? 0) > 0;
     case "disclosures.excluded_house_totals":
-      return Object.keys(report.disclosures.excluded_house_totals).length > 0;
+      return keysOf(disclosures.excluded_house_totals).length > 0;
     default:
       // Fields attested through the commitment rather than the body.
       return false;
@@ -76,7 +91,7 @@ const BODY_FIELDS = [
 
 export function designerRows(report: Report, manifest: Manifest): FieldRow[] {
   return [...KNOWN_MANIFEST_FIELDS].sort().map((path) => {
-    const state = manifest.fields[path] ?? "withheld";
+    const state = fieldsOf(manifest)[path] ?? "withheld";
     const has = carriesData(report, path);
     let problem: string | null = null;
     if (BODY_FIELDS.includes(path)) {
@@ -90,13 +105,23 @@ export function designerRows(report: Report, manifest: Manifest): FieldRow[] {
   });
 }
 
+/** A manifest's field map, or an empty one if it is not a map. */
+function fieldsOf(manifest: Manifest | null): Record<string, Disclosure> {
+  const fields = manifest?.fields as unknown;
+  return fields !== null && typeof fields === "object" && !Array.isArray(fields)
+    ? (fields as Record<string, Disclosure>)
+    : {};
+}
+
 export function changeRows(previous: Manifest | null, next: Manifest): ChangeRow[] {
   if (!previous) return [];
-  const paths = [...new Set([...Object.keys(previous.fields), ...Object.keys(next.fields)])].sort();
+  const before = fieldsOf(previous);
+  const after = fieldsOf(next);
+  const paths = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
   const rows: ChangeRow[] = [];
   for (const path of paths) {
-    const from = previous.fields[path] ?? null;
-    const to = next.fields[path] ?? null;
+    const from = before[path] ?? null;
+    const to = after[path] ?? null;
     if (from === to) continue;
     rows.push({ path, from, to, reduction: from === "published" && to !== "published" });
   }
@@ -105,12 +130,13 @@ export function changeRows(previous: Manifest | null, next: Manifest): ChangeRow
 
 /** Exactly what this audience will and will not be shown. */
 export function previewFor(manifest: Manifest): AudiencePreview {
+  const fields = fieldsOf(manifest);
   const byState = (want: Disclosure) =>
-    Object.keys(manifest.fields)
-      .filter((path) => manifest.fields[path] === want)
+    Object.keys(fields)
+      .filter((path) => fields[path] === want)
       .sort();
   return {
-    audience: manifest.audience,
+    audience: manifest?.audience,
     shown: byState("published"),
     provenOnly: byState("committed"),
     withheld: byState("withheld"),
@@ -126,7 +152,10 @@ export function buildDesigner(
   const changes = changeRows(previous, manifest);
 
   const problems = fields.filter((f) => f.problem).map((f) => `${f.path}: ${f.problem}`);
-  if (!manifest.audience.trim()) {
+  // A manifest still being written has no audience yet, and that is the state
+  // this screen exists to be looked at in. Reading .trim() off it turned the
+  // most ordinary half-finished document into a blank page.
+  if (typeof manifest?.audience !== "string" || !manifest.audience.trim()) {
     problems.push("no audience named: a packaging is for someone in particular");
   }
 
