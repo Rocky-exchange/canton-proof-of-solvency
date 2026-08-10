@@ -1,3 +1,60 @@
+//! Merkle sum tree for exchange proof-of-solvency commitments on Canton.
+//!
+//! Each leaf commits to one subject's per-asset balances under a derived
+//! salt, and every internal node carries the sum of its children as well as
+//! their hashes. Folding an inclusion path therefore re-derives part of the
+//! aggregation: equal roots imply equal totals, so a customer checking their
+//! own proof also checks that the published liabilities are not understated.
+//!
+//! Amounts are non-negative fixed point with 18 fractional digits, carried as
+//! strings, so `NUMERIC(38,18)` maps in losslessly and nothing depends on
+//! floating point.
+//!
+//! # Example
+//!
+//! Commit two customers, prove one of them, and verify without the tree:
+//!
+//! ```
+//! use canton_solvency_merkle::*;
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! // One secret per snapshot, held by the producer. Each customer learns
+//! // only their own derived salt.
+//! let master_salt = b"per-snapshot-secret";
+//!
+//! let mut leaves = Vec::new();
+//! for (user_id, usda) in [("alice", "100.5"), ("bob", "0.25")] {
+//!     let balances = vec![("USDA".to_string(), parse_amount_18dp(usda)?)];
+//!     let salt = leaf_salt(master_salt, user_id);
+//!     leaves.push(leaf_node(&salt, user_id, &balances)?);
+//! }
+//!
+//! let tree = SumTree::build(leaves.clone())?;
+//!
+//! // The root publishes the totals, and they are the real sum.
+//! assert_eq!(
+//!     format_amount_18dp(tree.root().sums["USDA"]),
+//!     "100.750000000000000000"
+//! );
+//!
+//! // Alice verifies her own inclusion from her proof alone.
+//! let proof = tree.prove(0)?;
+//! assert!(verify_proof(&leaves[0], &proof, tree.root()));
+//!
+//! // Bob's leaf does not verify under Alice's proof.
+//! assert!(!verify_proof(&leaves[1], &proof, tree.root()));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # What this does not prove
+//!
+//! That the tree contains *every* customer. A producer can omit one entirely,
+//! and only the omitted customer can detect it, by finding their proof
+//! missing. No Merkle scheme fixes that; it is a disclosure-and-audit problem.
+//!
+//! [`SPEC.md`]: https://github.com/Rocky-exchange/canton-proof-of-solvency/blob/main/SPEC.md
+
 use anyhow::{bail, ensure, Result};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -9,6 +66,17 @@ const SCALE: u128 = 1_000_000_000_000_000_000;
 /// only amount representation the tree accepts: NUMERIC(38,18) maps in
 /// losslessly and negative values (clamped upstream per the design doc)
 /// are a hard error, never a wrap.
+/// ```
+/// # use canton_solvency_merkle::*;
+/// assert_eq!(parse_amount_18dp("1.5").unwrap(), 1_500_000_000_000_000_000);
+/// assert_eq!(parse_amount_18dp("0").unwrap(), 0);
+///
+/// // A sign, a bare dot, or more than 18 fraction digits are errors, never
+/// // a silent truncation.
+/// assert!(parse_amount_18dp("-1").is_err());
+/// assert!(parse_amount_18dp("1.").is_err());
+/// assert!(parse_amount_18dp("0.0000000000000000001").is_err());
+/// ```
 pub fn parse_amount_18dp(s: &str) -> Result<u128> {
     let (int_part, frac_part) = match s.split_once('.') {
         Some((i, f)) => (i, f),
@@ -39,12 +107,34 @@ pub fn parse_amount_18dp(s: &str) -> Result<u128> {
         .ok_or_else(|| anyhow::anyhow!("amount {s:?} overflows"))
 }
 
+/// Renders 18dp fixed point in the canonical form, always with exactly 18
+/// fraction digits so two producers cannot disagree about the same amount.
+///
+/// ```
+/// # use canton_solvency_merkle::*;
+/// assert_eq!(format_amount_18dp(1_500_000_000_000_000_000), "1.500000000000000000");
+/// assert_eq!(format_amount_18dp(0), "0.000000000000000000");
+/// ```
 pub fn format_amount_18dp(v: u128) -> String {
     format!("{}.{:018}", v / SCALE, v % SCALE)
 }
 
 /// Canonical wire form committed into hashes: assets sorted bytewise,
 /// each rendered as `ASSET:int.<18 digits>`, joined by `|`.
+/// ```
+/// # use canton_solvency_merkle::*;
+/// let balances = vec![
+///     ("USDA".to_string(), parse_amount_18dp("1").unwrap()),
+///     ("CBTC".to_string(), parse_amount_18dp("0.25").unwrap()),
+/// ];
+/// // Assets are ordered bytewise over UTF-8 -- not by the platform's default
+/// // string comparison, which disagrees above U+FFFF.
+/// assert_eq!(
+///     canonical_balances(&balances).unwrap(),
+///     "CBTC:0.250000000000000000|USDA:1.000000000000000000"
+/// );
+/// assert_eq!(canonical_balances(&[]).unwrap(), "");
+/// ```
 pub fn canonical_balances(balances: &[(String, u128)]) -> Result<String> {
     let mut sorted: Vec<&(String, u128)> = balances.iter().collect();
     sorted.sort_by(|a, b| a.0.cmp(&b.0));
@@ -148,6 +238,15 @@ pub fn leaf_node_v2(
 /// Per-user salt the server can re-derive on demand: HMAC(master, user_id).
 /// The master salt rotates per snapshot day and never leaves the server;
 /// users receive only their own derived salt inside their proof.
+/// ```
+/// # use canton_solvency_merkle::*;
+/// // Deterministic, so a proof can be reissued; distinct per subject, so two
+/// // customers holding identical balances still commit to different leaves.
+/// let a = leaf_salt(b"snapshot-secret", "alice");
+/// assert_eq!(a, leaf_salt(b"snapshot-secret", "alice"));
+/// assert_ne!(a, leaf_salt(b"snapshot-secret", "bob"));
+/// assert_ne!(a, leaf_salt(b"other-snapshot", "alice"));
+/// ```
 pub fn leaf_salt(master_salt: &[u8], user_id: &str) -> [u8; 32] {
     use hmac::{Hmac, Mac};
     let mut mac = Hmac::<Sha256>::new_from_slice(master_salt).expect("hmac accepts any key length");
@@ -279,6 +378,27 @@ pub struct Proof {
 
 /// Recomputes the path from `leaf` and compares hash AND sums against the
 /// published root, so a verifier checks both inclusion and aggregation.
+/// ```
+/// # use canton_solvency_merkle::*;
+/// # fn main() -> anyhow::Result<()> {
+/// let leaves: Vec<Node> = ["a", "b", "c"]
+///     .iter()
+///     .map(|u| {
+///         let salt = leaf_salt(b"secret", u);
+///         leaf_node(&salt, u, &[("USDA".to_string(), 1_000_000_000_000_000_000)])
+///     })
+///     .collect::<anyhow::Result<_>>()?;
+/// let tree = SumTree::build(leaves.clone())?;
+///
+/// // An odd tree promotes the last node unchanged, so it is never counted
+/// // twice -- the root totals three units, not four.
+/// assert_eq!(format_amount_18dp(tree.root().sums["USDA"]), "3.000000000000000000");
+/// for (i, leaf) in leaves.iter().enumerate() {
+///     assert!(verify_proof(leaf, &tree.prove(i)?, tree.root()));
+/// }
+/// # Ok(())
+/// # }
+/// ```
 pub fn verify_proof(leaf: &Node, proof: &Proof, root: &Node) -> bool {
     let mut current = leaf.clone();
     for step in &proof.steps {

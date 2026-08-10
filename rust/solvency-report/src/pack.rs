@@ -197,6 +197,35 @@ pub fn build_pack(
 
 /// Check a delivery against its index: the signature, then that the members
 /// present are exactly the members named, byte for byte.
+/// ```
+/// use canton_solvency_report::pack::{build_pack, verify_pack, PackFailure};
+/// use canton_solvency_report::sign::ReportSigner;
+/// use std::collections::BTreeMap;
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let signer = ReportSigner::from_seed(&[1u8; 32]);
+/// let members = vec![
+///     ("report.json".to_string(), b"{}".to_vec()),
+///     ("proof-alice.json".to_string(), b"{\"a\":1}".to_vec()),
+/// ];
+/// let pack = build_pack("venue::example", "2026-01-01T00:00:00Z", "aa11", &members, &signer)
+///     .expect("distinct names");
+///
+/// let key = signer.public_key_hex();
+/// let delivered: BTreeMap<String, Vec<u8>> = members.iter().cloned().collect();
+/// assert_eq!(verify_pack(&pack, &key, &delivered), Ok(()));
+///
+/// // Drop a proof. Every file that remains is still perfectly valid -- only
+/// // the index knows one is missing.
+/// let mut short = delivered.clone();
+/// short.remove("proof-alice.json");
+/// assert_eq!(
+///     verify_pack(&pack, &key, &short),
+///     Err(PackFailure::Missing { name: "proof-alice.json".to_string() })
+/// );
+/// # Ok(())
+/// # }
+/// ```
 pub fn verify_pack(
     signed: &SignedPack,
     trusted_key: &str,

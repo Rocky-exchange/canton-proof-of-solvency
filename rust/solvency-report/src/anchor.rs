@@ -41,6 +41,27 @@ pub struct Anchor {
     pub prev_anchor: Option<String>,
 }
 
+/// ```
+/// use canton_solvency_report::anchor::{anchor_digest_hex, Anchor, ANCHOR_FORMAT_VERSION};
+///
+/// let genesis = Anchor {
+///     format_version: ANCHOR_FORMAT_VERSION.to_string(),
+///     report_digest: "aa".repeat(32),
+///     root_hash: "bb".repeat(32),
+///     snapshot_time: "2026-01-01T00:00:00Z".to_string(),
+///     ledger_offset: "000000000000000042".to_string(),
+///     publisher: "venue::example".to_string(),
+///     publisher_key: "cc".repeat(32),
+///     prev_anchor: None,
+/// };
+///
+/// // A presence byte separates genesis from an anchor naming an empty
+/// // predecessor, so a mid-history anchor cannot pose as the start of a
+/// // history.
+/// let mut empty_predecessor = genesis.clone();
+/// empty_predecessor.prev_anchor = Some(String::new());
+/// assert_ne!(anchor_digest_hex(&genesis), anchor_digest_hex(&empty_predecessor));
+/// ```
 pub fn anchor_digest(anchor: &Anchor) -> [u8; 32] {
     use sha2::{Digest, Sha256};
     let mut h = Sha256::new();

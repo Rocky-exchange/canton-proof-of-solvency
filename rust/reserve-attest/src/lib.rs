@@ -155,6 +155,38 @@ pub fn active_contracts_request(query: &HoldingsQuery) -> Result<serde_json::Val
 /// add fields, and refusing one would break on the next Canton release. That
 /// is the opposite of the rule for our own documents, where an unknown field
 /// could ride along unsigned — here the signature is ours, applied later.
+/// ```
+/// use canton_reserve_attest::{parse_holdings, totals, HoldingFields};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// // A JSON Ledger API v2 active-contracts response: a bare array of
+/// // contractEntry.JsActiveContract, with a singular createArgument.
+/// let body = r#"[
+///   {"contractEntry": {"JsActiveContract": {"createdEvent": {
+///     "contractId": "c1",
+///     "templateId": "pkg:Custody:Holding",
+///     "createArgument": {"instrument": "USDA", "quantity": "100.5"}
+///   }}}},
+///   {"contractEntry": {"JsActiveContract": {"createdEvent": {
+///     "contractId": "c2",
+///     "templateId": "pkg:Custody:Holding",
+///     "createArgument": {"instrument": "USDA", "quantity": "0.5"}
+///   }}}}
+/// ]"#;
+///
+/// let fields = HoldingFields {
+///     asset: "instrument".to_string(),
+///     amount: "quantity".to_string(),
+/// };
+/// let positions = parse_holdings(body, &fields)?;
+/// assert_eq!(positions.len(), 2);
+/// assert_eq!(
+///     canton_solvency_merkle::format_amount_18dp(totals(&positions)?["USDA"]),
+///     "101.000000000000000000"
+/// );
+/// # Ok(())
+/// # }
+/// ```
 pub fn parse_holdings(body: &str, fields: &HoldingFields) -> Result<Vec<CustodyPosition>> {
     let parsed: serde_json::Value =
         serde_json::from_str(body).context("parsing the participant's response")?;

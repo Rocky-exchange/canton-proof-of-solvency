@@ -6,6 +6,38 @@ as a format version, never as a fix.
 
 ## Unreleased
 
+Testing and documentation only. No wire bytes, no format versions, no
+behaviour change — every 0.1.0 vector still verifies.
+
+### Added
+
+- Property tests over the commitment core: nine invariants over generated
+  trees at every size from 1 to 64. Odd-node promotion is the motive —
+  duplicating the odd node instead of promoting it is the obvious
+  implementation and silently overstates liabilities. The mutation fails
+  conservation at three leaves.
+- 291 cross-implementation differential vectors covering **every hash preimage
+  the specification defines**: leaves, canonical serialization, `lpmap`, report
+  digests, tree roots, pack digests and anchor digests. Rust emits, TypeScript
+  recomputes, CI compares. The names are chosen to break assumptions — astral
+  codepoints, the private-use block, and the `:`/`|` that §2 uses as
+  delimiters — because every §6 golden vector is ASCII, which is exactly why
+  the UTF-16 sort bug survived as long as it did.
+- Eleven doctests across the four published crates, which had none.
+
+### Fixed
+
+- Two broken intra-doc links, live on docs.rs since 0.1.0: `Report` and
+  `ProofDocument` did not resolve from the crate root, and `reserve-attest`
+  carried a redundant explicit link target. rustdoc now runs in CI with
+  `-D warnings`.
+
+## 0.1.0 — 2026-08-10
+
+First release. Published to crates.io as `canton-solvency-merkle`,
+`canton-solvency-report`, `canton-solvency-verify` and
+`canton-reserve-attest`.
+
 ### Formats
 
 - `rocky-solvency-report-v2` — reports carrying a disclosure manifest (SPEC §8.5).
