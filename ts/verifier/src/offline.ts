@@ -23,7 +23,7 @@ export type ViewModel = {
   facts: Fact[];
 };
 
-import { formatAmount18dp, parseAmount18dp } from "./verify";
+import { formatAmount18dp, keysOf, parseAmount18dp } from "./verify";
 import { verifyReport, type ProofDocument, type SignedReport } from "./report";
 import { verifyChain, type GroupMembershipDocument } from "./group";
 
@@ -175,9 +175,10 @@ export async function verifyFromText(
   // statement rather than as something this browser derived.
   const manifest = report.manifest;
   if (manifest) {
+    const fields = manifest.fields;
     const byState = (want: string): string =>
-      Object.keys(manifest.fields)
-        .filter((path) => manifest.fields[path] === want)
+      keysOf(fields)
+        .filter((path) => (fields as Record<string, string>)[path] === want)
         .sort()
         .join(", ") || "(none)";
     facts.push(

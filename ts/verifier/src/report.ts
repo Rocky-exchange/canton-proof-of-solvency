@@ -382,7 +382,8 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
   if (rules.coverage) {
     // Per asset: a surplus in one asset does not excuse a shortfall in another.
     const { covering, covered } = rules.coverage;
-    for (const [key, value] of Object.entries(report.root_sums)) {
+    for (const key of keysOf(report.root_sums)) {
+      const value = (report.root_sums as Record<string, string>)[key];
       if (!key.startsWith(`${covered}/`)) continue;
       const asset = key.slice(covered.length + 1);
       const held = report.root_sums[`${covering}/${asset}`];
@@ -395,7 +396,8 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
     }
   }
   for (const mapName of rules.unanimousMaps ?? []) {
-    for (const [key, total] of Object.entries(report.root_sums)) {
+    for (const key of keysOf(report.root_sums)) {
+      const total = (report.root_sums as Record<string, string>)[key];
       if (!key.startsWith(`${mapName}/`)) continue;
       const rule = key.slice(mapName.length + 1);
       const expected = BigInt(report.leaf_count) * 10n ** 18n;

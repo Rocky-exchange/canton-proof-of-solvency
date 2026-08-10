@@ -11,6 +11,12 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **The offline verifier's manifest display threw** on a manifest whose
+  `fields` was not a map — the seventh instance of the same mistake, and the
+  one that decided the matter. A test now forbids `Object.keys` and
+  `Object.entries` applied to a document field anywhere in the TypeScript
+  sources: fixing seven instances does not stop the eighth.
+
 - **`verifyReportV2` threw on a malformed manifest or a missing disclosures
   block**, rather than failing the report. Both fields come from the document
   under examination, and `Object.keys` on a value that is not a map throws with
