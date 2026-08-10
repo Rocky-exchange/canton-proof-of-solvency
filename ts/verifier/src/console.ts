@@ -47,13 +47,45 @@ export type ConsoleModel = {
   flow: FlowNode[];
 };
 
+/**
+ * Format an amount for display, or say it is malformed.
+ *
+ * These figures come from a document supplied by the party being checked, and
+ * this renders in a page whose error console nobody is watching. A throw out
+ * of a display path leaves a blank screen, which a reader cannot tell from a
+ * broken console — strictly worse than a row that says the figure is wrong.
+ * The offline verifier had the same defect and the same fix.
+ */
+function display(amount: string): string {
+  try {
+    return formatAmount18dp(parseAmount18dp(amount));
+  } catch {
+    return "(malformed)";
+  }
+}
+
+/** Comparable only when both sides parse; an unreadable figure is not covered. */
+function coveredBy(held: string, owed: string): boolean {
+  try {
+    return parseAmount18dp(held) >= parseAmount18dp(owed);
+  } catch {
+    return false;
+  }
+}
+
 function amountRow(asset: string, held: string, owed: string): CoverageRow {
   return {
     asset,
-    held: formatAmount18dp(parseAmount18dp(held)),
-    owed: formatAmount18dp(parseAmount18dp(owed)),
-    covered: parseAmount18dp(held) >= parseAmount18dp(owed),
+    held: display(held),
+    owed: display(owed),
+    covered: coveredBy(held, owed),
   };
+}
+
+/** A map of amounts, or nothing renderable. Untrusted input is not a map. */
+function amountEntries(sums: unknown): [string, string][] {
+  if (sums === null || typeof sums !== "object" || Array.isArray(sums)) return [];
+  return Object.entries(sums as Record<string, string>);
 }
 
 /**
@@ -61,8 +93,9 @@ function amountRow(asset: string, held: string, owed: string): CoverageRow {
  * coverage question; an asset owed and held nowhere is the worst case.
  */
 export function coverageRows(custody: Report, liabilities: Report): CoverageRow[] {
-  return Object.entries(liabilities.root_sums)
-    .map(([asset, owed]) => amountRow(asset, custody.root_sums[`held/${asset}`] ?? "0", owed))
+  const held = new Map(amountEntries(custody.root_sums));
+  return amountEntries(liabilities.root_sums)
+    .map(([asset, owed]) => amountRow(asset, held.get(`held/${asset}`) ?? "0", owed))
     .sort((a, b) => a.asset.localeCompare(b.asset));
 }
 
@@ -100,11 +133,11 @@ export function flowOf(report: Report): FlowNode[] {
     },
   ];
 
-  for (const [key, total] of Object.entries(report.root_sums).sort()) {
+  for (const [key, total] of amountEntries(report.root_sums).sort()) {
     nodes.push({
       id: `total:${key}`,
       label: key,
-      detail: `${formatAmount18dp(parseAmount18dp(total))} — summed from every committed entry`,
+      detail: `${display(total)} — summed from every committed entry`,
       depth: 1,
     });
   }

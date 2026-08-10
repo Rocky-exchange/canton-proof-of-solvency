@@ -851,16 +851,35 @@
   }
 
   // src/console.ts
+  function display(amount) {
+    try {
+      return formatAmount18dp(parseAmount18dp(amount));
+    } catch {
+      return "(malformed)";
+    }
+  }
+  function coveredBy(held, owed) {
+    try {
+      return parseAmount18dp(held) >= parseAmount18dp(owed);
+    } catch {
+      return false;
+    }
+  }
   function amountRow(asset, held, owed) {
     return {
       asset,
-      held: formatAmount18dp(parseAmount18dp(held)),
-      owed: formatAmount18dp(parseAmount18dp(owed)),
-      covered: parseAmount18dp(held) >= parseAmount18dp(owed)
+      held: display(held),
+      owed: display(owed),
+      covered: coveredBy(held, owed)
     };
   }
+  function amountEntries(sums) {
+    if (sums === null || typeof sums !== "object" || Array.isArray(sums)) return [];
+    return Object.entries(sums);
+  }
   function coverageRows(custody, liabilities) {
-    return Object.entries(liabilities.root_sums).map(([asset, owed]) => amountRow(asset, custody.root_sums[`held/${asset}`] ?? "0", owed)).sort((a, b) => a.asset.localeCompare(b.asset));
+    const held = new Map(amountEntries(custody.root_sums));
+    return amountEntries(liabilities.root_sums).map(([asset, owed]) => amountRow(asset, held.get(`held/${asset}`) ?? "0", owed)).sort((a, b) => a.asset.localeCompare(b.asset));
   }
   async function historyRows(anchors) {
     const rows = [];
@@ -885,11 +904,11 @@
         depth: 0
       }
     ];
-    for (const [key, total] of Object.entries(report.root_sums).sort()) {
+    for (const [key, total] of amountEntries(report.root_sums).sort()) {
       nodes.push({
         id: `total:${key}`,
         label: key,
-        detail: `${formatAmount18dp(parseAmount18dp(total))} \u2014 summed from every committed entry`,
+        detail: `${display(total)} \u2014 summed from every committed entry`,
         depth: 1
       });
     }

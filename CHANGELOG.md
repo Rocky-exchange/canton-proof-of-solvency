@@ -43,6 +43,12 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   now carry a digest of the full identifier whenever sanitising loses
   something; identifiers needing no sanitising keep their readable name, and
   the two forms cannot collide because only the suffixed form contains a `-`.
+- **The console threw instead of reporting on a malformed amount**, in the
+  coverage table and the data-flow view, and raised a `TypeError` when
+  `root_sums` was not a map at all. Same defect as the offline verifier below
+  and found by looking for it there: a display path formatting untrusted
+  figures without a guard. Unreadable figures now render as `(malformed)` and
+  an unreadable holding is not counted as covering anything.
 - **The browser verifier threw instead of reporting on a malformed document.**
   `verifyFromText` built its display facts before checking whether
   verification had succeeded, so a report whose `root_sums` was not an amount
