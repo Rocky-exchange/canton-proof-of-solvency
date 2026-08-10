@@ -654,7 +654,10 @@ Takes the publisher out of the verification path entirely.
   Verifies a single proof or sweeps a directory, prints a report digest, emits
   `--json` for pipelines, and separates exit code `1` (a verification failed)
   from `2` (usage or I/O), so a mistyped path is never mistaken for evidence of
-  insolvency. A trusted key is mandatory — there is no mode that checks a
+  insolvency. A bare invocation with no arguments is a `2` as well: exit `0`
+  means everything verified, and a run that verified nothing must not be able
+  to say so — `verify $ARGS && echo solvent` would otherwise print `solvent`
+  on the day `$ARGS` expands to empty. A trusted key is mandatory — there is no mode that checks a
   report against the key embedded in itself.
 - **JSON Schema** for the report and proof documents, in
   [`schemas/`](schemas), validated against the golden fixtures in CI.
@@ -727,7 +730,7 @@ Turns one implementation into something the network can rely on.
 
 **Deliverables**
 
-- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §14.3. Sixteen cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings and anchor chains, each with an expected outcome. Both implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces.
+- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §14.3. 21 cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings, anchor chains and evidence packs, each with an expected outcome and a declared feature set. All three implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,

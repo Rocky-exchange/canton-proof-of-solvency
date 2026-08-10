@@ -4,6 +4,45 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
+## Unreleased
+
+### Fixed
+
+- **The browser verifier threw instead of reporting on a malformed document.**
+  `verifyFromText` built its display facts before checking whether
+  verification had succeeded, so a report whose `root_sums` was not an amount
+  map raised an exception rather than showing "Could not check this". In a page
+  with no error console, that is indistinguishable from the page being broken.
+  The verification core was already correct; only the presentation was not.
+- **TypeScript accepted amounts the producer cannot represent.** SPEC §1 bounds
+  the scaled value at 2^128 − 1, which Rust enforces with checked arithmetic.
+  JavaScript's `BigInt` has no such limit, so a report carrying a larger amount
+  verified in the browser and was rejected as malformed by the CLI — and the
+  permissive side is the one customers run. Bounded in `parseAmount18dp` and
+  `formatAmount18dp`, stated in §1, and pinned at the boundary by tests in both
+  implementations.
+
+### Changed
+
+- **`canton-solvency-verify` with no arguments now exits 2 instead of 0.** Exit
+  0 from this tool means "everything verified", and a run with no arguments
+  verified nothing. A pipeline written as
+  `canton-solvency-verify $ARGS && echo solvent` printed `solvent` on the day
+  `$ARGS` expanded to nothing. Usage is still printed; an explicitly requested
+  `--help` still exits 0, because being asked for help is not an error.
+
+### Added
+
+- Robustness suites for both implementations: truncation at every byte offset,
+  single-byte alteration at every position, wrong JSON types and malformed hex
+  in every field, malformed trusted keys, deeply nested JSON, and adversarial
+  amount strings. Nothing asserts *which* error — only that one is returned.
+  Every document these tools read comes from the party being checked, so a
+  panic is a crash on demand rather than a wrong answer.
+  The CLI suite runs the real binary across every verb, asserting the exit-code
+  contract a pipeline actually consumes: malformed input is a 2, a failed
+  verification is a 1, and neither is ever the 101 that a panic produces.
+
 ## 0.1.1 — 2026-08-10
 
 Testing and documentation only. No wire bytes, no format versions, no
@@ -16,7 +55,7 @@ behaviour change — every 0.1.0 vector still verifies.
   duplicating the odd node instead of promoting it is the obvious
   implementation and silently overstates liabilities. The mutation fails
   conservation at three leaves.
-- 291 cross-implementation differential vectors covering **every hash preimage
+- 311 cross-implementation differential vectors covering **every hash preimage
   the specification defines**: leaves, canonical serialization, `lpmap`, report
   digests, tree roots, pack digests and anchor digests. Rust emits, TypeScript
   recomputes, CI compares. The names are chosen to break assumptions — astral

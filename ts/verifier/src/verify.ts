@@ -22,6 +22,9 @@ export type SolvencyNode = {
 export type ProofStep = { sibling: SolvencyNode; siblingOnLeft: boolean };
 
 /** Non-negative decimal string -> 18dp fixed point. Mirrors Rust parse_amount_18dp. */
+/** SPEC §1: amounts are unsigned 128-bit scaled units. */
+export const MAX_AMOUNT = (1n << 128n) - 1n;
+
 export function parseAmount18dp(s: string): bigint {
   const dot = s.indexOf(".");
   const intPart = dot === -1 ? s : s.slice(0, dot);
@@ -35,12 +38,21 @@ export function parseAmount18dp(s: string): bigint {
   if (!/^[0-9]+$/.test(intPart) || (fracPart !== "" && !/^[0-9]+$/.test(fracPart))) {
     throw new Error(`amount is not a non-negative decimal: ${s}`);
   }
-  return BigInt(intPart) * SCALE + BigInt(fracPart.padEnd(FRACTION_DIGITS, "0") || "0");
+  const value = BigInt(intPart) * SCALE + BigInt(fracPart.padEnd(FRACTION_DIGITS, "0") || "0");
+  // SPEC §1 bounds an amount at 2^128 - 1 scaled units, which is what the
+  // producer can represent. JavaScript's BigInt has no such limit, so without
+  // this check the browser accepts a report the Rust verifier rejects as
+  // malformed -- and the permissive side is the one customers run.
+  if (value > MAX_AMOUNT) {
+    throw new Error(`amount exceeds the representable range: ${s}`);
+  }
+  return value;
 }
 
 /** 18dp fixed point -> canonical "int.<18 digits>" string. */
 export function formatAmount18dp(v: bigint): string {
   if (v < 0n) throw new Error("negative amount");
+  if (v > MAX_AMOUNT) throw new Error("amount exceeds the representable range");
   return `${v / SCALE}.${(v % SCALE).toString().padStart(FRACTION_DIGITS, "0")}`;
 }
 
