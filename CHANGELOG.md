@@ -11,6 +11,22 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **An attacker could choose whose balance their own proof disclosed.** A proof
+  carries its sibling's sums, and at leaf level the sibling is one other
+  customer, so whoever is paired with you learns your exact balances. The
+  reference producer ordered leaves by ascending `user_id`, which let an
+  attacker who can influence their own identifier pick that pairing: register
+  two accounts around a target, one to fix the parity of the target's index and
+  one to occupy the pair position, and the second account's proof carries the
+  target's balances. Two accounts, no special access, and it worked every time.
+  Leaves are now ordered by the derived salt — a keyed function of a
+  per-snapshot secret — which is equally stable for the producer and
+  unpredictable to everyone else. Measured over sixty snapshots the same
+  attacker was paired with the target 13% of the time, against 100% before.
+  This removes the aiming, not the disclosure; SPEC §7 and
+  `docs/SECURITY-ANALYSIS.md` say so. **Producers ordering leaves by identifier
+  should change it.** No format change: §4 always left the order to the
+  producer, and every §6 vector still verifies.
 - **Two customers could share one proof filename, and one proof overwrote the
   other.** `canton-solvency-publish` replaced every non-alphanumeric character
   with `_`, so `alice-1`, `alice_1` and `alice 1` are three customers and were
@@ -78,6 +94,21 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
+- A demonstration of the v1 join ambiguity, which SPEC §3.1 had recorded as a
+  weakness that "could in principle" exist. It exists: `{a: 1, b: 2}` and
+  `{"a:1.000000000000000000|b": 2}` share a canonical string, hence a leaf
+  hash, and — with a sibling whose names do not interfere — the same root hash.
+  A v1 root hash does not uniquely determine the book. Two things bound it, and
+  §9.1 now requires the second: the report digest is length-prefixed and
+  unambiguous, and sums must be compared as maps rather than as canonical
+  strings. Both implementations already compared maps; the requirement is
+  written down because reusing the canonical string is a natural optimisation
+  and a wrong one.
+- A measurement of what colluding proof-holders learn, answering a question
+  `docs/SECURITY-REVIEW-BRIEF.md` had left open: `k` colluders expose at most
+  `k` other customers, exactly `k` when none are already paired, with no
+  cascade above leaf level. Placement matters — spread out, 64 colluders in
+  1,024 leaves expose 64 others; arranged as adjacent pairs, zero.
 
 ## 0.1.0 — 2026-08-10
 

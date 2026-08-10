@@ -43,10 +43,26 @@ balance.
 
 **Sibling sums as a side channel (§5).** A proof discloses each sibling's
 per-asset sums. In a small or sparse tree, or for an unusual asset, that may
-identify a specific counterparty's position. How many proofs, colluding, are
-needed to reconstruct the book? The spec does not currently bound this.
+identify a specific counterparty's position.
 
-**Domain separation and preimage ambiguity (§2, §3.1, §8.1).** v2 leaves and
+We have since measured the collusion question rather than leaving it open —
+see [SECURITY-ANALYSIS.md](SECURITY-ANALYSIS.md) and
+[`examples/sibling_leakage.rs`](../rust/solvency-merkle/examples/sibling_leakage.rs).
+`k` colluders expose at most `k` other customers, exactly `k` when none are
+already paired, with no cascade above level 0. What we have *not* answered, and
+would most like an independent view on: an adversary who can influence where
+they land in the leaf ordering, which §4 leaves to the producer. Our numbers
+assume they cannot.
+
+**Domain separation and preimage ambiguity (§2, §3.1, §8.1).** We have since
+constructed the collision rather than leaving it hypothetical — see
+[SECURITY-ANALYSIS.md](SECURITY-ANALYSIS.md). A v1 root hash does not uniquely
+determine the book. Two things bound it: the report digest is length-prefixed
+and unambiguous, and verification compares sums as maps rather than as
+canonical strings. **The question we would most like answered is whether that
+containment is complete**, because it is the entire defence.
+
+Original framing: v2 leaves and
 all digests are length-prefixed. **v1 leaves and §4 node sums still use a
 `:`/`|` delimiter join** over asset names that are attacker-influenced in the
 general case. §3.1 records this as a known limitation and restricts v2 names;

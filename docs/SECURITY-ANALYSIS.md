@@ -80,12 +80,93 @@ is inherent to Merkle sum trees. Identities are not revealed and salt rotation
 prevents cross-report linkage, but a reader should not be told the scheme
 discloses nothing about others.
 
-**The v1 node join is ambiguous.** §4 canonicalises sums with a `:`/`|` join.
-An asset name containing those characters could in principle forge a boundary.
-Fixed for v2 leaves by restricting names; **not** fixed for v1, because that
-would change every node hash and invalidate every §6 vector. Deployments
-controlling their own asset naming are unaffected; one accepting arbitrary
-asset names should treat this as live.
+*How far does it go under collusion?* Measured, by
+[`examples/sibling_leakage.rs`](../rust/solvency-merkle/examples/sibling_leakage.rs),
+which reconstructs everything a colluding set can derive: their own leaves,
+every sibling subtree sum along their paths, the published root, and then the
+fixpoint of `parent = left + right` applied in both directions.
+
+| Leaves | Colluders | Other customers exposed |
+|---|---|---|
+| 1,024 | 1 | 1 |
+| 1,024 | 2 | 2 |
+| 1,024 | 128 | 128 |
+| 1,024 | 512 | 512 (the whole rest of the book) |
+
+**`k` colluders expose at most `k` others, and exactly `k` when no two of them
+are already paired.** There is no cascade: the subtree sums above level 0 leave
+too many unknowns to resolve into individual leaves. Half the book colluding
+exposes the other half, because at that density every remaining customer is
+somebody's partner.
+
+Placement changes the number and not the shape. At 1,024 leaves with 64
+colluders: spread evenly, 64 others exposed; arranged as adjacent pairs or one
+contiguous block, **zero**, because each colluder already held their partner's
+leaf and learns nothing new from it.
+
+**Leaf ordering was the exploitable part, and it is fixed.** §4 lets the
+producer order leaves as it likes, and the obvious choice — ascending
+`user_id` — is attackable. An attacker who can influence their own identifier
+registers two accounts around a target: one to fix the parity of the target's
+index, one to land in the pair position. The second account's own proof then
+carries the target's exact balances. Two accounts, no special access, and it
+worked every time.
+
+The reference producer now orders by the **derived salt**,
+`HMAC(master_salt, user_id)`, with the master salt a per-snapshot secret. It is
+equally stable and deterministic for the producer and unpredictable to everyone
+else, so nobody can aim. Measured over sixty snapshots, the same attacker was
+paired with the target in 13% of them — chance, where identifier ordering gave
+100%.
+
+What this does *not* do is stop the disclosure. An attacker still learns
+somebody's exact balances from each proof they hold, and over enough snapshots
+they will be paired with any particular customer eventually. A fixed order
+leaks the same neighbour every time; a rotating one leaks a different neighbour
+each time, and neither dominates. What is removed is **targeting**, which was
+the only part the attacker controlled.
+
+A deployment that keeps identifier ordering keeps the attack. This is a
+producer obligation rather than a format guarantee, which is why §7 states it
+and §4 does not.
+
+**The v1 node join is ambiguous — demonstrated, and bounded.** §2 and §4
+canonicalise balance maps with a `:`/`|` join. That is not merely a theoretical
+weakness, so here is the collision:
+
+```
+{ "a": 1, "b": 2 }                    ->  a:1.000000000000000000|b:2.000000000000000000
+{ "a:1.000000000000000000|b": 2 }     ->  a:1.000000000000000000|b:2.000000000000000000
+```
+
+Two different books, one canonical string, therefore one leaf hash. And it
+survives aggregation: give the sibling an asset name that shares no key with
+either reading and the two maps merge without interfering, so **every node hash
+above agrees, up to and including the root**. A v1 root hash does not uniquely
+determine the book it commits to. Pinned by
+`the_v1_join_admits_a_leaf_hash_collision` in
+`rust/solvency-merkle/tests/properties.rs`.
+
+Two things bound it, and both are load-bearing:
+
+1. **The report digest is not ambiguous.** §8.1 length-prefixes where §2 joins,
+   so the same two maps that collide above do not collide in `lpmap`. The
+   digest, and therefore the signature and the anchor chain, commit
+   unambiguously to the published totals.
+2. **Verification compares sums as maps.** §9.1 step 5 compares per asset, over
+   the union of both key sets. Comparing the *canonical strings* instead would
+   be a tempting optimisation — the string is already computed for the hash —
+   and would accept the collision. Both reference implementations compare maps;
+   §9.1 now says they must.
+
+We have not found an exploit. What we have is a commitment core that is not
+binding, contained by the envelope around it. A reviewer should push on whether
+that containment is complete, because it is the whole defence.
+
+Still not fixed for v1, for the reason it never was: restricting names would
+change every node hash and invalidate every §6 vector. v2 leaves restrict names
+(§3.1). A deployment that controls its own asset naming is unaffected; one
+accepting arbitrary asset names is relying entirely on the two bounds above.
 
 **Snapshot frequency bounds everything.** A daily report commits to daily
 states. Nothing here says anything about intra-day positions, and a venue

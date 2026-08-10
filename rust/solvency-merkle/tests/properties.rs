@@ -198,6 +198,29 @@ fn amounts_round_trip_through_the_canonical_render() {
     }
 }
 
+/// The privacy fact every customer should be told: your proof's first sibling
+/// *is* another customer's leaf, so you learn their exact per-asset balances.
+///
+/// This is inherent to a sum tree, not a defect — a node carries its children's
+/// totals, and at level 0 a child is one customer. It is asserted here so it
+/// cannot stop being true quietly, and because a reader of
+/// docs/SECURITY-ANALYSIS.md should be able to find the line that checks it.
+#[test]
+fn a_proofs_first_sibling_is_another_customers_exact_balance() {
+    let g = tree_of(77, 8);
+    let (tree, leaves) = (&g.tree, &g.leaves);
+
+    for i in 0..leaves.len() {
+        let proof = tree.prove(i).expect("index in range");
+        let first = proof.steps.first().expect("a tree of eight has a partner");
+        let partner = i ^ 1;
+        assert_eq!(
+            first.sibling.sums, leaves[partner].sums,
+            "leaf {i}'s first sibling should be leaf {partner}'s exact balances"
+        );
+    }
+}
+
 /// §1 bounds the scaled value at 2^128 - 1. Pinned on both sides: the
 /// TypeScript verifier parses with BigInt, which has no such limit, and
 /// accepted amounts this producer cannot represent until the bound was
@@ -217,6 +240,95 @@ fn the_largest_representable_amount_is_the_boundary_both_implementations_use() {
 }
 
 const SCALE_TEST: u128 = 1_000_000_000_000_000_000;
+
+/// The §2 join is ambiguous, demonstrated rather than asserted.
+///
+/// `{a: 1, b: 2}` and `{"a:1.000000000000000000|b": 2}` are different balance
+/// maps with the same canonical string, so they have the same leaf hash — and
+/// because §4 canonicalises node sums the same way, the collision survives all
+/// the way to the root hash. A root hash therefore does not uniquely determine
+/// the book it commits to.
+///
+/// SPEC §3.1 records this as a known limitation of v1 and fixes it for v2 by
+/// restricting names. This test pins what it actually costs, so the security
+/// analysis can describe a demonstrated property rather than a hypothetical.
+#[test]
+fn the_v1_join_admits_a_leaf_hash_collision() {
+    let honest = vec![
+        ("a".to_string(), parse_amount_18dp("1").unwrap()),
+        ("b".to_string(), parse_amount_18dp("2").unwrap()),
+    ];
+    let forged = vec![(
+        "a:1.000000000000000000|b".to_string(),
+        parse_amount_18dp("2").unwrap(),
+    )];
+
+    assert_eq!(
+        canonical_balances(&honest).unwrap(),
+        canonical_balances(&forged).unwrap(),
+        "the join should be ambiguous — if this fails, v1 was fixed and the \
+         security analysis needs updating"
+    );
+
+    let salt = [3u8; 32];
+    assert_eq!(
+        leaf_hash(&salt, "u", &honest).unwrap(),
+        leaf_hash(&salt, "u", &forged).unwrap(),
+        "so the leaf hash collides"
+    );
+
+    // And it reaches the root: a sibling sharing no asset name lets the two
+    // maps merge without interfering, so every node hash above agrees too.
+    let sibling = leaf_node(&[9u8; 32], "other", &[("z".to_string(), 7)]).unwrap();
+    let published = SumTree::build(vec![
+        leaf_node(&salt, "u", &forged).unwrap(),
+        sibling.clone(),
+    ])
+    .unwrap();
+    let recomputed =
+        SumTree::build(vec![leaf_node(&salt, "u", &honest).unwrap(), sibling]).unwrap();
+    assert_eq!(
+        published.root().hash,
+        recomputed.root().hash,
+        "the collision survives aggregation"
+    );
+
+    // What contains it: the sums are compared as maps, and these differ.
+    assert_ne!(
+        published.root().sums,
+        recomputed.root().sums,
+        "an implementation comparing canonical strings instead of maps would \
+         accept this"
+    );
+}
+
+/// The ambiguity stops at the report envelope, which is what the signature
+/// covers. §8.1 length-prefixes where §2 joins, so the same two maps that
+/// collide above do not collide here.
+#[test]
+fn the_length_prefixed_encoding_is_not_ambiguous_where_the_join_is() {
+    let honest: BTreeMap<String, u128> = [
+        ("a".to_string(), parse_amount_18dp("1").unwrap()),
+        ("b".to_string(), parse_amount_18dp("2").unwrap()),
+    ]
+    .into_iter()
+    .collect();
+    let forged: BTreeMap<String, u128> = [(
+        "a:1.000000000000000000|b".to_string(),
+        parse_amount_18dp("2").unwrap(),
+    )]
+    .into_iter()
+    .collect();
+
+    let as_pairs =
+        |m: &BTreeMap<String, u128>| -> Vec<(String, u128)> { m.clone().into_iter().collect() };
+    assert_eq!(
+        canonical_balances(&as_pairs(&honest)).unwrap(),
+        canonical_balances(&as_pairs(&forged)).unwrap(),
+        "§2 collides"
+    );
+    assert_ne!(lpmap(&honest), lpmap(&forged), "§8.1 must not");
+}
 
 /// §8.1: length prefixes exist so that no two distinct inputs share a
 /// preimage. An asset literally named `A|B:0.000…001` must not be able to

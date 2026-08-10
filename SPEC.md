@@ -141,8 +141,11 @@ hash  = SHA-256( "rocky-solvency-node-v1"
                ‖ utf8(canonical(sums)) )
 ```
 
-- Leaves are paired left-to-right in a stable order chosen by the producer
-  (reference deployment: ascending `user_id`).
+- Leaves are paired left-to-right in a stable order chosen by the producer.
+  The order MUST be stable within a snapshot; it SHOULD NOT be predictable from
+  the identifiers. See §7 — this is the difference between a customer learning
+  a random other customer's balances and an attacker learning a chosen one's.
+  The reference deployment orders by the derived salt (§3).
 - An **odd node is promoted** to the next level unchanged — never duplicated,
   so no value is counted twice.
 - The **root's `sums` are the published liability totals**: a verifier that
@@ -190,6 +193,16 @@ proof(u2)  = 2 steps; step₀ sibling = leaf(u1), sibling_on_left = true
 ```
 
 ## 7. Producer obligations (informative)
+
+**Order leaves unpredictably.** §5 discloses each sibling's sums, so at leaf
+level whoever is paired with a customer learns that customer's exact balances.
+If leaves are ordered by identifier, an attacker who can influence their own
+identifier chooses their pair: register two accounts around a target, one to
+fix the parity of the target's index and one to occupy the pair position, and
+the second account's proof discloses the target's balances. Ordering by the
+derived salt of §3 — a keyed function of a per-snapshot secret — is equally
+stable for the producer and unpredictable to everyone else. It does not stop
+the disclosure, only the aiming.
 
 The tree alone does not make a solvency claim. A conforming producer also
 publishes, per report: the snapshot timestamp and ledger high-water mark, the
@@ -404,6 +417,15 @@ comparison of the folded sums against the published ones detects it.
 
 Absent and zero are the same claim: an asset missing from one side and zero on
 the other is not a mismatch.
+
+**Sums MUST be compared as maps, per asset, over the union of both key sets.**
+Comparing the §2 canonical strings instead is not equivalent, and the
+difference is exploitable. The join is ambiguous: `{a: 1, b: 2}` and
+`{"a:1.000000000000000000|b": 2}` render identically, so they share a leaf
+hash and — given a sibling whose asset names do not interfere — the same root
+hash. The per-asset comparison is what separates them. The canonical string is
+already computed for hashing, which makes reusing it for the comparison a
+natural optimisation and a wrong one.
 
 JSON Schema: [`schemas/proof-v1.schema.json`](schemas/proof-v1.schema.json).
 
