@@ -716,12 +716,32 @@ prevent. Making the leaf the trade puts atomicity in the structure: a
 committed trade missing a leg is rejected when its own proof is checked.
 
 **Why `eligibility.holder` sums an indicator.** Each attested rule carries the
-value `1` in every leaf, so `attested/R` totalling exactly `leaf_count` proves
-every committed holder satisfied R. That is provable from a published report,
-where an eligibility claim otherwise requires the full holder register — the
-thing an issuer cannot disclose. Inflating one holder's indicator to fake
-unanimity fails too: the tree commits to the leaves, so the padded total no
-longer matches the fold.
+value `1` in every leaf, so `attested/R` totalling exactly `leaf_count` is
+consistent with every committed holder having satisfied R. That is checkable
+from a published report, where an eligibility claim otherwise requires the full
+holder register — the thing an issuer cannot disclose. Inflating one holder's
+indicator fails: the tree commits to the leaves, so the padded total no longer
+matches the fold.
+
+> **What unanimity rests on, and does not prove.** The argument is
+> `total == leaf_count` and each leaf contributes `0` or `1`, therefore every
+> leaf contributed `1`. It is sound given `leaf_count`. But **`leaf_count` is
+> signed metadata, not a recomputed quantity**: it enters the §8.2 digest, so
+> it cannot be altered after signing, and no inclusion proof can check it
+> against the tree. A publisher committing ten holders, eight of them
+> compliant, may assert `leaf_count = 8` and publish `attested/R = 8`; the
+> check passes and the conclusion is false.
+>
+> No amount of arithmetic in this format closes that. An inclusion proof
+> attests to one leaf, and a claim about *every* leaf cannot follow from it —
+> the same limit that stops §5 from proving liabilities complete. Requiring a
+> `present` indicator does not help: the same publisher sets it to `0` on the
+> leaves they are hiding.
+>
+> What does close it is full disclosure. `recompute` (§10 tooling) rebuilds the
+> tree from a complete leaf dump and so verifies `leaf_count` directly. A
+> unanimity claim is therefore as strong as the auditor's access, and a report
+> published without one is asserting unanimity rather than proving it.
 
 **Why a `fund.nav` leaf is a shareholder, not a holding line item.** A
 holdings tree would prove what the fund owns, but no investor could find

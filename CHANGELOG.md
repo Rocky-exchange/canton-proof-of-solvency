@@ -94,6 +94,14 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
+- A correction to SPEC §14: unanimity is "consistent with" a universal claim,
+  not a proof of one. The argument sums an indicator against `leaf_count`,
+  which is signed but never recomputed, so a publisher committing ten holders
+  can assert eight and satisfy the check while the conclusion is false. Not
+  fixable in arithmetic — an inclusion proof attests to one leaf, so no
+  statement about every leaf follows from it, which is the completeness limit
+  reappearing. `recompute` over a full leaf dump is what verifies `leaf_count`,
+  so a unanimity claim is as strong as the auditor's access.
 - A demonstration of the v1 join ambiguity, which SPEC §3.1 had recorded as a
   weakness that "could in principle" exist. It exists: `{a: 1, b: 2}` and
   `{"a:1.000000000000000000|b": 2}` share a canonical string, hence a leaf

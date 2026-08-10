@@ -74,6 +74,14 @@ attacker can actually construct.
 second-preimage or shape-confusion attack — can two different leaf multisets
 produce one root, given promotion and the sums binding?
 
+**Universal claims (§14 unanimity).** A profile can assert a property of every
+subject by summing an indicator against `leaf_count`. We have since shown the
+premise is unverified — `leaf_count` is signed but not recomputed, so a
+publisher can assert a smaller one, satisfy the check, and have the conclusion
+be false. Documented rather than fixed, because we do not believe it is
+fixable from an inclusion proof at all. That judgement is the thing we would
+most like checked.
+
 **Verification order (§9.1, §15.3).** Both specify a fixed order and "fail on
 the first that does not hold". Is any step skippable, or does any earlier
 failure mask a later one that matters?
