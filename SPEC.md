@@ -418,6 +418,15 @@ comparison of the folded sums against the published ones detects it.
 Absent and zero are the same claim: an asset missing from one side and zero on
 the other is not a mismatch.
 
+A verifier **MUST** return a verification failure for a document that is
+malformed, not raise out of band. A field required to be an amount map may
+arrive as `null`, a string or an array, and in languages where map access on
+such a value throws implicitly this turns a rejection into a crash — leaving a
+reader unable to tell an unverified report from a broken tool. The corpus
+covers documents that are *wrong*; documents that are *not documents* are the
+implementer's own test to write, and `docs/INTEGRATORS.md` says what ours
+found.
+
 **Sums MUST be compared as maps, per asset, over the union of both key sets.**
 Comparing the §2 canonical strings instead is not equivalent, and the
 difference is exploitable. The join is ambiguous: `{a: 1, b: 2}` and

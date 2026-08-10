@@ -77,6 +77,38 @@ it cost us: a case that looked like a test of the sums comparison was being
 rejected a step earlier by the digest binding, so removing the sums comparison
 entirely left every case still passing.
 
+## The mistake we made six times
+
+Worth a paragraph because it cost us more than anything else in this project,
+and it is invisible until someone hands you a document that is not a document.
+
+Every input here is untrusted: a report comes from the venue being checked, a
+proof from whoever handed it to you, a manifest from whoever exported it. The
+conformance corpus tests documents that are *wrong* — a tampered balance, a
+stale binding, understated totals. It does not test documents that are
+*malformed*, where a field that should be a map is `null`, a string, or an
+array.
+
+In a language where map access on such a value throws implicitly, that turns a
+verification failure into a crash. We found it six times: in the browser
+verifier, the console, the disclosure designer, the group path, and twice in v2
+verification. Each one was a function whose signature promised a result and
+which could instead throw, so callers written against the signature were wrong
+through no fault of their own.
+
+Rust did not have the bug, and not because that code was written more
+carefully — its equivalents return `Result` and the compiler refuses to let a
+caller ignore it. If you are implementing in TypeScript, Python, or anything
+else where the failure is implicit, budget for this: write the tests that feed
+your entry points a truncated file, a field of the wrong type, and a document
+that is `null`, and assert they return rather than raise. Ours are in
+`ts/verifier/src/*robustness*.test.ts` if a worked example helps.
+
+A verifier that crashes is worse than one that rejects. In a browser it leaves
+a reader looking at a blank page, which they cannot distinguish from a page
+that is simply broken — so the venue's report is neither verified nor visibly
+unverified.
+
 ## Showing interop in both directions
 
 One-directional interop is the easy half and proves less than it appears. Both
