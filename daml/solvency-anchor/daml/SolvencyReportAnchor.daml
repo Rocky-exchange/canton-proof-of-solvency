@@ -9,6 +9,9 @@
 -- exists to keep private, to everyone the contract is disclosed to.
 module SolvencyReportAnchor where
 
+import DA.List (dedup)
+import DA.Text (explode)
+
 -- | Digests and offsets as published in the off-ledger documents.
 type Hex = Text
 

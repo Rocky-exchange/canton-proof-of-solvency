@@ -23,6 +23,23 @@ jobs:
       - run: cargo clippy --manifest-path rust/reserve-attest/Cargo.toml --all-targets -- -D warnings
       - run: cargo fmt --manifest-path rust/reserve-attest/Cargo.toml --check
 
+  daml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install the Daml SDK
+        run: |
+          curl -sSL https://get.daml.com | sh -s 2.10.4
+          echo "$HOME/.daml/bin" >> "$GITHUB_PATH"
+      - run: daml build
+        working-directory: daml/solvency-anchor
+      - run: daml test
+        working-directory: daml/solvency-anchor
+
   ts:
     runs-on: ubuntu-latest
     steps:

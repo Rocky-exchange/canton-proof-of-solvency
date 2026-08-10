@@ -477,7 +477,7 @@ checkable by everyone else.
 |---|---|---|---|
 | 0 | Foundation | [Report & Proof Documents](#milestone-0--report--proof-documents) | The commitment becomes a signed document others can consume — **done** |
 | 1 | Prove | [Canton Reserve Verification](#milestone-1--canton-reserve-verification) | The asset side becomes proven, not asserted — *format and client shipped* |
-| 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly — *chain shipped* |
+| 2 | Prove | [On-ledger Anchoring](#milestone-2--on-ledger-anchoring) | Past reports cannot be restated or dropped quietly — *chain and Daml package shipped* |
 | 3 | Prove | [Selective Disclosure Profiles](#milestone-3--selective-disclosure-profiles) | One format covers repo, funds, settlement, and eligibility — *hierarchy shipped* |
 | 4 | Use | [Disclosure Console](#milestone-4--disclosure-console) | Institutions publish, and counterparties verify, without writing code — *viewer shipped* |
 | 5 | Use | [Independent Verification Toolkit](#milestone-5--independent-verification-toolkit) | Anyone can verify without the publisher's software — *CLI shipped* |
@@ -540,7 +540,7 @@ past report.
 
 **Deliverables**
 
-- ~~**Hash-linked history and verification**~~ — **delivered**, [SPEC.md](SPEC.md) §12. Anchors carry digests and offsets only, never balances. A dropped day, a fork, a rewound offset, a restated instant, or an edited past report all break the chain, and the `anchors` CLI verb walks a history from disk. **Not yet built:** the Daml package in [`daml/`](daml) is a reviewed design that has never been compiled or run — that needs the Daml SDK and a participant node. *Original scope:*
+- ~~**Hash-linked history and verification**~~ — **delivered**, [SPEC.md](SPEC.md) §12. Anchors carry digests and offsets only, never balances. A dropped day, a fork, a rewound offset, a restated instant, or an edited past report all break the chain, and the `anchors` CLI verb walks a history from disk. **Package compiles and is tested:** [`daml/`](daml) builds a DAR and passes 8 Daml Script tests covering the `ensure` rules and the disclose-only-widens property. **Not deployed** — uploading it and creating anchors writes to a ledger, and the only participant available serves a live exchange. *Original scope:*
 - **Daml package `SolvencyReportAnchor`** — one immutable contract per report
   carrying `{format_version, report_root, root_sums_hash, snapshot_time,
   ledger_offset, publisher, prev_anchor}`, with an observer set the venue can
