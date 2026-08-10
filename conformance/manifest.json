@@ -202,6 +202,54 @@
       ]
     },
     {
+      "description": "a field declared published that the report does not carry",
+      "expect": "reject",
+      "failure": "manifest_inconsistent",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "report-v2-published-but-absent",
+      "kind": "proof",
+      "requires": [
+        "report-v2",
+        "proof-v1",
+        "manifest"
+      ]
+    },
+    {
+      "description": "a v1 report carrying a manifest it has no envelope for",
+      "expect": "reject",
+      "failure": "manifest_presence",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "report-v1-carrying-a-manifest",
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "manifest"
+      ]
+    },
+    {
+      "description": "a v2 report with no manifest at all",
+      "expect": "reject",
+      "failure": "manifest_presence",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "report-v2-without-a-manifest",
+      "kind": "proof",
+      "requires": [
+        "report-v2",
+        "proof-v1",
+        "manifest"
+      ]
+    },
+    {
       "description": "a settled trade carrying both of its legs",
       "expect": "accept",
       "failure": null,

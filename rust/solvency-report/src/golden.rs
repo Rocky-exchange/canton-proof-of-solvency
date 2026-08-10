@@ -92,6 +92,58 @@ pub fn manifest() -> crate::manifest::Manifest {
     }
 }
 
+/// The three §8.5 manifest rules the corpus did not reach.
+///
+/// Returns, in order: a report declaring a field published that it does not
+/// carry, with its proof; a v1 report carrying a manifest; and a v2 report
+/// carrying none.
+///
+/// The corpus had one manifest case, and it covered the opposite direction —
+/// a field declared withheld that the report publishes anyway. Consistency is
+/// checked both ways, and only one way was checked.
+pub fn manifest_edge_fixtures() -> (SignedReport, ProofDocument, SignedReport, SignedReport) {
+    use crate::manifest::{Disclosure, Manifest};
+
+    // Declares mark_prices published, and publishes none. A manifest is a
+    // claim about what the report shows, so promising a figure and omitting it
+    // is as inconsistent as printing one you called withheld.
+    let mut fields = manifest().fields.clone();
+    fields.insert("mark_prices".to_string(), Disclosure::Published);
+    let published_but_absent = publish(
+        &leaves(),
+        &ReportMetadata {
+            mark_prices: BTreeMap::new(),
+            manifest: Some(Manifest {
+                audience: "public".to_string(),
+                fields,
+            }),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+
+    // A v1 report carrying a manifest. The v1 digest does not cover the
+    // manifest, so the signature and the proof binding both still hold — which
+    // is exactly why the presence rule has to exist as its own check rather
+    // than falling out of the digest.
+    let (mut v1_with_manifest, _) = fixture();
+    v1_with_manifest.report.manifest = Some(manifest());
+
+    // A v2 report with the manifest removed. Here the digest *would* catch it,
+    // but only after §9.1 has already refused it on presence — the earlier and
+    // clearer answer.
+    let (mut v2_without_manifest, _) = fixture_v2();
+    v2_without_manifest.report.manifest = None;
+
+    (
+        published_but_absent.signed_report.clone(),
+        published_but_absent.proofs[1].clone(),
+        v1_with_manifest,
+        v2_without_manifest,
+    )
+}
+
 pub fn fixture_v2() -> (SignedReport, ProofDocument) {
     let published = publish(
         &leaves(),
