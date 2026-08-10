@@ -1,6 +1,6 @@
 [package]
 name = "canton-reserve-attest"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
@@ -15,8 +15,8 @@ categories = ["cryptography", "finance"]
 # supplies, so request construction and response parsing stay unit-testable
 # and this crate stays as small as the rest.
 [dependencies]
-canton-solvency-merkle = { path = "../solvency-merkle", version = "0.1.0" }
-canton-solvency-report = { path = "../solvency-report", version = "0.1.0" }
+canton-solvency-merkle = { path = "../solvency-merkle", version = "0.1.1" }
+canton-solvency-report = { path = "../solvency-report", version = "0.1.1" }
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

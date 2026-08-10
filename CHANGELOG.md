@@ -4,7 +4,7 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
-## Unreleased
+## 0.1.1 — 2026-08-10
 
 Testing and documentation only. No wire bytes, no format versions, no
 behaviour change — every 0.1.0 vector still verifies.
@@ -31,6 +31,11 @@ behaviour change — every 0.1.0 vector still verifies.
   `ProofDocument` did not resolve from the crate root, and `reserve-attest`
   carried a redundant explicit link target. rustdoc now runs in CI with
   `-D warnings`.
+
+Released for the documentation alone. 0.1.0's docs.rs pages show broken links
+and no examples, and the main open ask on this project is that other people
+implement against it — so the reference an implementer reads first is worth a
+patch release on its own.
 
 ## 0.1.0 — 2026-08-10
 
