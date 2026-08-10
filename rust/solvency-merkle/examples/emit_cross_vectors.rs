@@ -1,6 +1,10 @@
 //! Emits cross-implementation differential vectors.
 //!
-//! Usage: cargo run --example emit_cross_vectors -- fixtures/cross-vectors.json
+//! Usage: cargo run --example emit_cross_vectors -- conformance/cross-vectors.json
+//!
+//! Lives beside the conformance corpus rather than in `fixtures/`, where every
+//! file is required to be a schema-validated wire document. This is generated
+//! test data, not a document any producer emits.
 //!
 //! The golden vectors in SPEC §6 pin three hand-written cases, all with ASCII
 //! asset names. That is exactly why the TypeScript verifier could sort keys by
@@ -57,7 +61,7 @@ const NAMES: &[&str] = &[
 fn main() -> anyhow::Result<()> {
     let out: PathBuf = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "fixtures/cross-vectors.json".into())
+        .unwrap_or_else(|| "conformance/cross-vectors.json".into())
         .into();
 
     let mut rng = Rng(0x5EED_1234_5678_9ABC);

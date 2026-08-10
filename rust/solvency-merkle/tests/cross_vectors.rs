@@ -11,7 +11,8 @@ use std::path::PathBuf;
 
 #[test]
 fn the_checked_in_vectors_match_what_this_implementation_computes() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cross-vectors.json");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/cross-vectors.json");
     let text = std::fs::read_to_string(&path).expect("the vectors are checked in");
     let doc: serde_json::Value = serde_json::from_str(&text).expect("valid JSON");
     assert_eq!(doc["format_version"], "canton-solvency-cross-vectors-v1");
@@ -63,7 +64,8 @@ fn the_checked_in_vectors_match_what_this_implementation_computes() {
 /// ASCII-only names it would still pass while testing nothing new.
 #[test]
 fn the_corpus_actually_exercises_non_ascii_names() {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cross-vectors.json");
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/cross-vectors.json");
     let doc: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
 

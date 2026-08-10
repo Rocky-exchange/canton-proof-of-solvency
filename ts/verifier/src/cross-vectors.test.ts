@@ -22,7 +22,7 @@ import { lpmap } from "./report";
  * venue's browser.
  */
 const vectors = JSON.parse(
-  readFileSync(fileURLToPath(new URL("../../../fixtures/cross-vectors.json", import.meta.url)), "utf8")
+  readFileSync(fileURLToPath(new URL("../../../conformance/cross-vectors.json", import.meta.url)), "utf8")
 );
 
 describe("cross-implementation differential vectors", () => {
