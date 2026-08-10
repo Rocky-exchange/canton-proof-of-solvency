@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Package and verify without publishing"
+        description: "Test and package without publishing"
         type: boolean
         default: true
 
@@ -27,22 +27,45 @@ jobs:
             cargo test --manifest-path "rust/$c/Cargo.toml"
           done
 
-      - name: Verify each crate packages
-        run: |
-          for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
-            cargo package --manifest-path "rust/$c/Cargo.toml"
-          done
+      # Only the dependency-free crate can be packaged ahead of time. The
+      # others resolve canton-solvency-merkle from the index, which does not
+      # have it until the first publish — verifying them here would fail every
+      # first release. `cargo publish` verifies each crate itself, after its
+      # dependencies are live.
+      - name: Verify the root crate packages
+        run: cargo package --manifest-path rust/solvency-merkle/Cargo.toml
 
-      # Dependency order matters: a crate cannot publish before the crates it
-      # depends on are on the index.
       - name: Publish in dependency order
         if: github.event_name == 'push' || inputs.dry_run == false
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
-          set -e
+          set -euo pipefail
+
+          # crates.io needs a moment before a newly published version can be
+          # resolved as a dependency. Poll for it rather than guessing a sleep:
+          # a fixed wait is either too short on a bad day or wasted on a good
+          # one, and too short means the next crate fails to resolve.
+          await_index() {
+            name="$1"; version="$2"
+            for attempt in $(seq 1 60); do
+              if curl -sf -A "canton-pos-release" \
+                   "https://crates.io/api/v1/crates/${name}/${version}" > /dev/null; then
+                echo "  ${name} ${version} is on the index"
+                return 0
+              fi
+              sleep 10
+            done
+            echo "::error::${name} ${version} did not appear on the index" >&2
+            return 1
+          }
+
+          version=$(grep -m1 '^version' rust/solvency-merkle/Cargo.toml | cut -d'"' -f2)
+          echo "publishing version ${version}"
+
           for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
+            name=$(grep -m1 '^name' "rust/$c/Cargo.toml" | cut -d'"' -f2)
+            echo "publishing ${name}"
             cargo publish --manifest-path "rust/$c/Cargo.toml"
-            # The index needs a moment before a dependent crate can resolve it.
-            sleep 45
+            await_index "${name}" "${version}"
           done
