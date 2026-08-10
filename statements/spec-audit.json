@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "221efc37818f3fefd9d70b1606bf8e40393a1b2b2bc121558245ad190159914c",
+  "corpus_digest": "9b8bc362de0314d50e6ddc77d16342c5910ecb06d7852d150fed9bf5e3099877",
   "results": [
     {
       "id": "proof-valid",
@@ -86,6 +86,16 @@
     },
     {
       "id": "anchors-broken-link",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "chain-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "chain-substituted-entity",
       "expected": "reject",
       "outcome": "skip"
     },

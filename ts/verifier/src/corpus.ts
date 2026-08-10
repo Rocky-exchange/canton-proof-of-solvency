@@ -110,6 +110,15 @@ export async function failureKind(c: Case, KEY: string): Promise<string | undefi
   if (c.kind === "proof") result = await verifyReport(f("report.json"), f("proof.json"), KEY);
   else if (c.kind === "proof-v2")
     result = await verifyReportV2(f("report.json"), f("proof.json"), KEY);
+  else if (c.kind === "chain")
+    result = await verifyGroupChain(
+      f("group-report.json"),
+      f("membership.json"),
+      f("entity-report.json"),
+      f("proof.json"),
+      KEY,
+      KEY
+    );
   else return undefined; // the other kinds are checked structurally, not by kind
   return result.ok ? undefined : result.failure.kind;
 }
@@ -121,6 +130,19 @@ export async function runCase(c: Case, KEY: string): Promise<boolean> {
       return (await verifyReport(f("report.json"), f("proof.json"), KEY)).ok;
     case "proof-v2":
       return (await verifyReportV2(f("report.json"), f("proof.json"), KEY)).ok;
+    case "chain":
+      // §13.4 step 3 is the whole point: steps 1 and 2 pass independently for
+      // a membership belonging to a different entity than the report.
+      return (
+        await verifyGroupChain(
+          f("group-report.json"),
+          f("membership.json"),
+          f("entity-report.json"),
+          f("proof.json"),
+          KEY,
+          KEY
+        )
+      ).ok;
     case "membership":
       return (await verifyMembership(f("group-report.json"), f("membership.json"), KEY)).ok;
     case "coverage": {
