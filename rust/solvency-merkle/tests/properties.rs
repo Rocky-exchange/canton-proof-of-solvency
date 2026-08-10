@@ -35,9 +35,9 @@ impl Rng {
 
 const ASSETS: [&str; 4] = ["USDA", "CBTC", "ETH", "a.b-c_1"];
 
-fn balances(rng: &mut Rng) -> Vec<(String, u128)> {
+fn balances(rng: &mut Rng) -> Balances {
     let count = rng.below(ASSETS.len() as u64 + 1) as usize;
-    let mut chosen: Vec<(String, u128)> = Vec::new();
+    let mut chosen: Balances = Vec::new();
     for asset in ASSETS.iter().take(count) {
         // Values large enough to catch a mis-scaled amount, small enough that
         // a million-leaf sum cannot overflow u128 and turn a real bug into an
@@ -48,7 +48,17 @@ fn balances(rng: &mut Rng) -> Vec<(String, u128)> {
     chosen
 }
 
-fn tree_of(seed: u64, leaf_count: usize) -> (SumTree, Vec<Vec<(String, u128)>>, Vec<Node>) {
+/// One asset's holdings for one leaf, before commitment.
+type Balances = Vec<(String, u128)>;
+
+/// A generated tree, the balances that went into it, and its leaf nodes.
+struct Generated {
+    tree: SumTree,
+    balances: Vec<Balances>,
+    leaves: Vec<Node>,
+}
+
+fn tree_of(seed: u64, leaf_count: usize) -> Generated {
     let mut rng = Rng::new(seed);
     let mut all = Vec::new();
     let mut nodes = Vec::new();
@@ -59,11 +69,11 @@ fn tree_of(seed: u64, leaf_count: usize) -> (SumTree, Vec<Vec<(String, u128)>>, 
         nodes.push(leaf_node(&salt, &user_id, &b).expect("distinct assets"));
         all.push(b);
     }
-    (
-        SumTree::build(nodes.clone()).expect("non-empty"),
-        all,
-        nodes,
-    )
+    Generated {
+        tree: SumTree::build(nodes.clone()).expect("non-empty"),
+        balances: all,
+        leaves: nodes,
+    }
 }
 
 /// The root totals are exactly what the leaves hold. This is the claim the
@@ -73,9 +83,10 @@ fn tree_of(seed: u64, leaf_count: usize) -> (SumTree, Vec<Vec<(String, u128)>>, 
 fn the_root_sums_every_leaf_exactly_once() {
     for leaf_count in 1..=64usize {
         for seed in [1u64, 42, 7919] {
-            let (tree, all, _) = tree_of(seed, leaf_count);
+            let g = tree_of(seed, leaf_count);
+            let (tree, all) = (&g.tree, &g.balances);
             let mut expected: BTreeMap<String, u128> = BTreeMap::new();
-            for b in &all {
+            for b in all {
                 for (asset, v) in b {
                     *expected.entry(asset.clone()).or_insert(0) += v;
                 }
@@ -99,7 +110,8 @@ fn the_root_sums_every_leaf_exactly_once() {
 #[test]
 fn every_leaf_verifies_at_every_tree_size() {
     for leaf_count in 1..=48usize {
-        let (tree, _, nodes) = tree_of(31, leaf_count);
+        let g = tree_of(31, leaf_count);
+        let (tree, nodes) = (&g.tree, &g.leaves);
         for (i, leaf) in nodes.iter().enumerate() {
             let proof = tree.prove(i).expect("index in range");
             assert!(
@@ -115,7 +127,8 @@ fn every_leaf_verifies_at_every_tree_size() {
 #[test]
 fn a_proof_does_not_verify_a_different_leaf() {
     for leaf_count in 2..=24usize {
-        let (tree, _, nodes) = tree_of(99, leaf_count);
+        let g = tree_of(99, leaf_count);
+        let (tree, nodes) = (&g.tree, &g.leaves);
         for i in 0..leaf_count {
             let proof = tree.prove(i).expect("index in range");
             for (j, other) in nodes.iter().enumerate() {
@@ -137,14 +150,15 @@ fn a_proof_does_not_verify_a_different_leaf() {
 #[test]
 fn changing_any_single_balance_changes_the_root() {
     for leaf_count in 1..=32usize {
-        let (tree, all, _) = tree_of(1234, leaf_count);
+        let g = tree_of(1234, leaf_count);
+        let (tree, all) = (&g.tree, &g.balances);
         let before = tree.root().hash;
 
         for target in 0..leaf_count {
             if all[target].is_empty() {
                 continue; // nothing to perturb
             }
-            let mut nodes = Vec::new();
+            let mut nodes: Vec<Node> = Vec::new();
             for (i, b) in all.iter().enumerate() {
                 let mut b = b.clone();
                 if i == target {
@@ -255,7 +269,8 @@ fn identical_balances_under_different_users_hash_differently() {
 /// it is the case an implementer is most likely to special-case wrongly.
 #[test]
 fn a_single_leaf_tree_is_its_own_root() {
-    let (tree, _, nodes) = tree_of(5, 1);
+    let g = tree_of(5, 1);
+    let (tree, nodes) = (&g.tree, &g.leaves);
     assert_eq!(tree.root(), &nodes[0]);
     let proof = tree.prove(0).unwrap();
     assert!(proof.steps.is_empty(), "a lone leaf needs no siblings");
