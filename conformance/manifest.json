@@ -174,6 +174,54 @@
       ],
       "id": "anchors-broken-link",
       "kind": "anchors"
+    },
+    {
+      "description": "a complete, unaltered delivery",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json"
+      ],
+      "id": "pack-valid",
+      "kind": "pack"
+    },
+    {
+      "description": "a delivery with a customer's proof removed",
+      "expect": "reject",
+      "failure": "pack_missing",
+      "files": [
+        "pack.json",
+        "report.json"
+      ],
+      "id": "pack-dropped-proof",
+      "kind": "pack"
+    },
+    {
+      "description": "a member whose bytes differ from the index",
+      "expect": "reject",
+      "failure": "pack_altered",
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json"
+      ],
+      "id": "pack-altered-member",
+      "kind": "pack"
+    },
+    {
+      "description": "a file the index does not name",
+      "expect": "reject",
+      "failure": "pack_unlisted",
+      "files": [
+        "pack.json",
+        "report.json",
+        "proof.json",
+        "proof-mallory.json"
+      ],
+      "id": "pack-unlisted-member",
+      "kind": "pack"
     }
   ],
   "description": "Cases any implementation must agree on to claim compatibility with this format.",

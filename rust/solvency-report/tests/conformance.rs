@@ -51,6 +51,23 @@ fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
                 Err("shortfall".to_string())
             }
         }
+        "pack" => {
+            // The delivery is read off disk rather than from the manifest's
+            // file list: a runner that trusted the list could not notice a
+            // file the index does not name.
+            let signed: canton_solvency_report::pack::SignedPack = load(&dir.join("pack.json"))?;
+            let mut members = std::collections::BTreeMap::new();
+            for entry in std::fs::read_dir(dir).map_err(|e| e.to_string())? {
+                let path = entry.map_err(|e| e.to_string())?.path();
+                let name = path.file_name().unwrap().to_string_lossy().into_owned();
+                if !path.is_file() || name == "pack.json" {
+                    continue;
+                }
+                members.insert(name, std::fs::read(&path).map_err(|e| e.to_string())?);
+            }
+            canton_solvency_report::pack::verify_pack(&signed, key, &members)
+                .map_err(|e| e.to_string())
+        }
         "anchors" => {
             let history: Vec<Anchor> = load(&dir.join("history.json"))?;
             verify_chain(&history).map_err(|e| e.to_string())

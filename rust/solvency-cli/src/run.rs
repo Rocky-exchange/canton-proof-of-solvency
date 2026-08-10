@@ -237,6 +237,7 @@ pub fn run(command: &Command) -> Result<Summary> {
             })
         }
         Command::Coverage { .. } => anyhow::bail!("handled by run_coverage"),
+        Command::VerifyPack { .. } => anyhow::bail!("handled by run_pack"),
         Command::Anchors { .. } => anyhow::bail!("handled by run_anchors"),
         Command::Recompute { .. } => anyhow::bail!("handled by run_recompute"),
         Command::ManifestDiff { .. } => anyhow::bail!("handled by run_diff"),
@@ -258,6 +259,9 @@ fn hex_digest(signed: &SignedReport) -> String {
 /// writing an anchor into the same directory; the sweep then failed on a
 /// perfectly valid output directory.
 fn is_sibling_document(text: &str) -> bool {
+    if serde_json::from_str::<canton_solvency_report::pack::SignedPack>(text).is_ok() {
+        return true;
+    }
     serde_json::from_str::<SignedReport>(text).is_ok()
         || serde_json::from_str::<canton_solvency_report::anchor::Anchor>(text).is_ok()
         || serde_json::from_str::<GroupMembershipDocument>(text).is_ok()

@@ -624,8 +624,16 @@ adopted infrastructure.
 - **Verification stays in the client** — the viewer recomputes proofs in the
   browser; the server is a delivery mechanism, never an authority. A hosted
   instance and a self-hostable build ship together.
-- **Evidence pack export** — a signed archive re-verifiable offline by the CLI
-  (M5), with no dependency on the publisher.
+- ~~**Evidence pack export**~~ — **delivered**, [SPEC.md](SPEC.md) §15. Every
+  document here verifies on its own, which is not the same as a *delivery*
+  verifying: hand an auditor a folder with one customer's proof deleted and
+  `verify` reports "2 of 2 proofs verified" and exits 0, because nothing in a
+  proof says what else was meant to be there. A pack is a signed index of the
+  member files and their digests, so the *set* is committed rather than only
+  its elements, and `verify-pack` catches the dropped proof, an altered byte,
+  or a file slipped in. Both implementations run it, and the contrast above is
+  a checked-in test rather than a claim. `canton-solvency-publish` emits
+  `pack.json` alongside the report, so this costs a publisher nothing.
 - **Non-technical onboarding path** — a documented walkthrough from participant
   node to first published report without writing code, plus a demo instance
   loaded with synthetic repo, fund, and settlement data.
@@ -673,12 +681,18 @@ Takes the publisher out of the verification path entirely.
 
 **Still to come**
 
-- CLI verbs for coverage reports (M1), anchor chains (M2), and disclosure
-  manifests (M3) — deliberately absent until those documents exist, because a
-  verifier that silently skips a check is worse than one that does not offer
-  it.
+- ~~CLI verbs for coverage reports (M1), anchor chains (M2), and disclosure
+  manifests (M3)~~ — **delivered**: `coverage`, `anchors`, `manifest-diff`,
+  and `verify-pack`. They were deliberately absent until those documents
+  existed, because a verifier that silently skips a check is worse than one
+  that does not offer it.
 - ~~Recomputing a root from a full leaf dump~~ — **delivered**: the `recompute` verb rebuilds the tree from a dump and compares root *and* totals. An inclusion proof cannot show a tree contains only the entries it should; a dump can, at the cost of all privacy, which is why it is an auditor's tool under engagement rather than something a venue publishes.
-- Schemas for the coverage, manifest, and profile documents.
+- ~~Schemas for the coverage and pack documents~~ — **delivered**,
+  [`schemas/`](schemas): custody report, coverage statement, anchor, group
+  membership, and evidence pack, each validated against the corpus in CI. The
+  disclosure manifest is schema'd inside `report-v2`, where it lives; a
+  profile is a registry entry rather than a document, so it has no schema to
+  publish.
 - crates.io release and prebuilt binaries.
 - **Reference producer integration** — a documented snapshot → equity → tree →
   publish path with a sample dataset, alongside the live Rocky deployment.

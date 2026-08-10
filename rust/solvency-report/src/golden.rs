@@ -226,6 +226,34 @@ pub fn group_fixture() -> (SignedReport, crate::group::GroupMembershipDocument) 
 /// Cross-implementation wire-format pin (SPEC §10). The TypeScript verifier
 /// asserts these same bytes against the same fixture files. Changing any value
 /// here is a format version bump, not a refactor.
+/// The golden report and proof packaged as an evidence pack (SPEC §15),
+/// signed by the same key, so a conformance runner can check a whole delivery.
+///
+/// The member bytes are the pretty-printed documents a publisher writes, since
+/// the index pins bytes on disk rather than any re-serialisation of them.
+pub fn pack_fixture() -> (crate::pack::SignedPack, Vec<(String, Vec<u8>)>) {
+    let (report, proof) = fixture();
+    let members = vec![
+        (
+            "report.json".to_string(),
+            format!("{}\n", serde_json::to_string_pretty(&report).unwrap()).into_bytes(),
+        ),
+        (
+            "proof.json".to_string(),
+            format!("{}\n", serde_json::to_string_pretty(&proof).unwrap()).into_bytes(),
+        ),
+    ];
+    let signed = crate::pack::build_pack(
+        &report.report.publisher,
+        &report.report.snapshot_time,
+        &crate::digest::report_digest_hex(&report.report),
+        &members,
+        &signer(),
+    )
+    .expect("the golden members are distinct");
+    (signed, members)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

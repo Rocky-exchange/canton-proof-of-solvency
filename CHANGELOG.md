@@ -13,6 +13,7 @@ as a format version, never as a fix.
 - `rocky-solvency-entity-v1` — group entity leaves (SPEC §13.1).
 - `rocky-solvency-anchor-v1` — report history anchors (SPEC §12).
 - `canton-solvency-coverage-v1` — coverage statements (SPEC §11.1).
+- `rocky-solvency-pack-v1` — evidence pack indexes (SPEC §15).
 
 v1 leaves, nodes and reports are unchanged. Every §6 and §10 vector still
 verifies, and both implementations still assert them.
@@ -26,6 +27,9 @@ verifies, and both implementations still assert them.
 - Hierarchical group commitments and full-chain verification.
 - Coverage: custody reports paired to liabilities by digest.
 - Tamper-evident report history via hash-linked anchors.
+- Evidence packs: a signed index over a delivery, so omitting a proof is
+  detectable. Without one, a folder with a customer's proof deleted verifies
+  exactly as cleanly as the complete folder.
 - `canton-solvency-verify` CLI: `verify`, `verify-group`, `verify-chain`,
   `coverage`, `anchors`, `recompute`, `manifest-diff`, `digest`.
 - `canton-reserve-attest`: Ledger API request construction, response parsing

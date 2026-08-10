@@ -42,6 +42,7 @@ fn main() -> anyhow::Result<()> {
     let (group_report, membership) = golden::group_fixture();
     let (custody, statement) = golden::coverage_fixture();
     let anchor = golden::anchor_fixture();
+    let (pack, pack_members) = golden::pack_fixture();
     let key = golden::signer().public_key_hex();
 
     let report_j = serde_json::to_value(&report)?;
@@ -321,6 +322,77 @@ fn main() -> anyhow::Result<()> {
             ]),
         )],
     )?;
+
+    // --- evidence packs (SPEC §15) ---
+    // A pack case is a directory of raw member files plus the signed index.
+    // The runner reads the directory itself, because what is under test is
+    // whether the delivery matches the index — not whether a named file parses.
+    {
+        let pack_j = serde_json::to_value(&pack)?;
+        let write_pack = |id: &str,
+                          drop: Option<&str>,
+                          alter: Option<&str>,
+                          extra: bool|
+         -> anyhow::Result<Vec<String>> {
+            let dir = out.join(id);
+            std::fs::create_dir_all(&dir)?;
+            let mut names = vec!["pack.json".to_string()];
+            std::fs::write(
+                dir.join("pack.json"),
+                format!("{}\n", serde_json::to_string_pretty(&pack_j)?),
+            )?;
+            for (name, bytes) in &pack_members {
+                if drop == Some(name.as_str()) {
+                    continue;
+                }
+                let bytes = if alter == Some(name.as_str()) {
+                    // One trailing newline. The document still parses and
+                    // still verifies on its own — which is exactly the point:
+                    // only the index notices.
+                    let mut altered = bytes.clone();
+                    altered.push(b'\n');
+                    altered
+                } else {
+                    bytes.clone()
+                };
+                std::fs::write(dir.join(name), &bytes)?;
+                names.push(name.clone());
+            }
+            if extra {
+                std::fs::write(dir.join("proof-mallory.json"), b"{}\n")?;
+                names.push("proof-mallory.json".to_string());
+            }
+            Ok(names)
+        };
+
+        let files = write_pack("pack-valid", None, None, false)?;
+        cases.push(json!({
+            "id": "pack-valid", "kind": "pack",
+            "description": "a complete, unaltered delivery",
+            "expect": "accept", "failure": null, "files": files,
+        }));
+
+        let files = write_pack("pack-dropped-proof", Some("proof.json"), None, false)?;
+        cases.push(json!({
+            "id": "pack-dropped-proof", "kind": "pack",
+            "description": "a delivery with a customer's proof removed",
+            "expect": "reject", "failure": "pack_missing", "files": files,
+        }));
+
+        let files = write_pack("pack-altered-member", None, Some("proof.json"), false)?;
+        cases.push(json!({
+            "id": "pack-altered-member", "kind": "pack",
+            "description": "a member whose bytes differ from the index",
+            "expect": "reject", "failure": "pack_altered", "files": files,
+        }));
+
+        let files = write_pack("pack-unlisted-member", None, None, true)?;
+        cases.push(json!({
+            "id": "pack-unlisted-member", "kind": "pack",
+            "description": "a file the index does not name",
+            "expect": "reject", "failure": "pack_unlisted", "files": files,
+        }));
+    }
 
     write(
         out,

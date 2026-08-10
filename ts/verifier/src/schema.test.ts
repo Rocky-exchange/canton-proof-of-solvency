@@ -24,6 +24,7 @@ const validateCoverageStatement = ajv.compile(
   json("schemas/coverage-statement-v1.schema.json") as object
 );
 const validateAnchor = ajv.compile(json("schemas/anchor-v1.schema.json") as object);
+const validatePack = ajv.compile(json("schemas/pack-v1.schema.json") as object);
 const validateMembership = ajv.compile(
   json("schemas/group-membership-v1.schema.json") as object
 );
@@ -234,5 +235,31 @@ describe("anchor schema", () => {
       delete doc[field];
       expect(validateAnchor(doc), `${field} was optional`).toBe(false);
     }
+  });
+});
+
+describe("evidence pack schema", () => {
+  const pack = (): any => json("conformance/pack-valid/pack.json");
+
+  it("accepts the conformance pack index", () => {
+    expect(validatePack(pack())).toBe(true);
+  });
+
+  it("rejects a member name that is a path", () => {
+    const doc = pack();
+    doc.pack.entries[0].name = "../escape.json";
+    expect(validatePack(doc)).toBe(false);
+  });
+
+  it("rejects an unknown field, matching the strict Rust parser", () => {
+    const doc = pack();
+    doc.pack.surprise = 1;
+    expect(validatePack(doc)).toBe(false);
+  });
+
+  it("rejects a member digest that is not a hash", () => {
+    const doc = pack();
+    doc.pack.entries[0].sha256 = "nope";
+    expect(validatePack(doc)).toBe(false);
   });
 });

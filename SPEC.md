@@ -735,3 +735,89 @@ A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
 separate two v2 profiles from each other. A fund proof presented against a
 repo report is caught by the commitment itself — the report digests
 differently, so the binding in §9.2 fails.
+
+## 15. Evidence packs
+
+Every document in this format verifies on its own. That is not the same as a
+*delivery* verifying.
+
+A proof says nothing about what else was sent alongside it. Hand an auditor a
+folder with one customer's proof removed and it verifies exactly as cleanly as
+the complete folder: every remaining file is valid, the report is correctly
+signed, the totals are right, and nothing anywhere records that a file is
+absent. The same holds for a coverage statement swapped for an older one, or
+an anchor quietly dropped from a history.
+
+An evidence pack closes that gap. It is a signed index naming every member of
+a delivery and its digest, so the *set* is committed rather than only its
+elements.
+
+### 15.1 The index
+
+```
+pack.json = { pack, signature }
+pack      = { format_version, publisher, snapshot_time, report_digest, entries }
+entry     = { name, sha256 }
+```
+
+`format_version` is `canton-solvency-pack-v1`. `report_digest` is the §8.2
+digest of the report the pack is evidence for, so a pack cannot be lifted onto
+a different report. `entries` is sorted by `name`, so the same files assembled
+in any order produce the same pack.
+
+`name` MUST be a plain file name: not empty, `.`, `..`, and containing neither
+`/` nor `\`. A pack describes one directory; a name that could escape it would
+be a delivery instruction rather than an integrity claim. Producers MUST
+refuse to build such an index and verifiers MUST refuse to accept one — a name
+edited in transit breaks the signature, so the only way one arrives signed is
+a publisher that meant it.
+
+`sha256` is the digest of the member's bytes **as delivered**, not of any
+re-serialisation of them. A verifier that reformatted a member before hashing
+it would report every honest delivery as altered.
+
+### 15.2 Pack digest
+
+```
+sha256( "rocky-solvency-pack-v1"
+      ‖ lp(format_version) ‖ lp(publisher) ‖ lp(snapshot_time)
+      ‖ lp(report_digest)
+      ‖ u64le(entry_count)
+      ‖ (lp(name) ‖ lp(sha256))* )
+```
+
+`lp` and `u64le` are as in §8.1. The entry count is committed before the
+entries: without it a pack over two members and a pack over one longer member
+could be made to agree, and the number of files is part of the claim.
+
+The signature is detached, over this digest, in the §8.3 block.
+
+### 15.3 Verification
+
+In order:
+
+1. `format_version` is `canton-solvency-pack-v1`.
+2. The signature verifies under a **caller-supplied trusted key** — never the
+   key the pack carries, which is present for display only.
+3. Every entry's name is safe (§15.1).
+4. Every entry names a file that is present, whose bytes hash to `sha256`.
+5. No file in the delivery is absent from the index.
+
+Named-but-absent is reported before present-but-unnamed, because a dropped
+proof is the failure this exists to catch.
+
+A verifier MUST NOT verify a delivery's contents once the index has failed.
+Reporting that the 999 proofs which did arrive all verified is true and
+beside the point, and reads as a clean run.
+
+### 15.4 What a pack does not do
+
+A pack proves a delivery is the one that was signed. It does not establish who
+should have signed it — that is the trusted key's job, and the honest source
+for that key is an anchor (§8.4), which is independent of whoever assembled
+the archive.
+
+Nor does a pack say a delivery is *sufficient*. A publisher may sign an index
+over a genuinely partial set. What the pack removes is the ability to reduce a
+delivery after the fact without leaving a record: the omission has to be
+declared and signed rather than simply performed.

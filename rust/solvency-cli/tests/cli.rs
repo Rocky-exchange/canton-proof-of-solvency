@@ -280,3 +280,118 @@ fn help_exits_zero_and_documents_the_exit_codes() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(stdout.contains("EXIT CODES"), "got {stdout}");
 }
+
+/// The golden signing seed is 32 bytes of 0x01, so a pack built here is
+/// signed by the same key as the golden report and one `--key` covers both.
+fn packed_golden_dir() -> tempfile::TempDir {
+    use canton_solvency_report::pack::build_pack;
+    use canton_solvency_report::sign::ReportSigner;
+
+    let dir = tempfile::tempdir().unwrap();
+    let members = vec![
+        (
+            "report.json".to_string(),
+            fixture("report.golden.json").into_bytes(),
+        ),
+        (
+            "proof-u2.json".to_string(),
+            fixture("proof.golden.json").into_bytes(),
+        ),
+    ];
+    for (name, bytes) in &members {
+        std::fs::write(dir.path().join(name), bytes).unwrap();
+    }
+    let signed = build_pack(
+        "venue::golden",
+        "2026-01-01T00:00:00Z",
+        GOLDEN_DIGEST,
+        &members,
+        &ReportSigner::from_seed(&[1u8; 32]),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("pack.json"),
+        serde_json::to_string_pretty(&signed).unwrap(),
+    )
+    .unwrap();
+    dir
+}
+
+#[test]
+fn an_intact_pack_exits_zero() {
+    let dir = packed_golden_dir();
+    let out = run(&[
+        "verify-pack",
+        "--pack-dir",
+        dir.path().to_str().unwrap(),
+        "--key",
+        KEY,
+    ]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "stdout: {stdout}");
+    assert!(stdout.contains("complete and unaltered"), "got {stdout}");
+    assert!(stdout.contains("1 of 1"), "got {stdout}");
+}
+
+/// The reason `verify-pack` exists. `verify` over the same folder is content
+/// with what remains and exits 0; only the pack index knows a proof is gone.
+#[test]
+fn a_delivery_missing_a_proof_fails_the_pack_but_passes_plain_verify() {
+    let dir = packed_golden_dir();
+    std::fs::remove_file(dir.path().join("proof-u2.json")).unwrap();
+
+    let packed = run(&[
+        "verify-pack",
+        "--pack-dir",
+        dir.path().to_str().unwrap(),
+        "--key",
+        KEY,
+    ]);
+    let stdout = String::from_utf8_lossy(&packed.stdout);
+    assert_eq!(packed.status.code(), Some(1), "stdout: {stdout}");
+    assert!(stdout.contains("proof-u2.json"), "got {stdout}");
+
+    let plain = run(&[
+        "verify",
+        "--report",
+        &path(dir.path(), "report.json"),
+        "--proof-dir",
+        dir.path().to_str().unwrap(),
+        "--key",
+        KEY,
+    ]);
+    assert_eq!(
+        plain.status.code(),
+        Some(0),
+        "plain verify cannot see an absent proof -- that is what packs are for"
+    );
+}
+
+#[test]
+fn a_pack_directory_that_has_no_index_exits_two_not_one() {
+    let dir = golden_dir();
+    let out = run(&[
+        "verify-pack",
+        "--pack-dir",
+        dir.path().to_str().unwrap(),
+        "--key",
+        KEY,
+    ]);
+    assert_eq!(out.status.code(), Some(2));
+}
+
+#[test]
+fn pack_json_output_is_machine_readable() {
+    let dir = packed_golden_dir();
+    let out = run(&[
+        "verify-pack",
+        "--pack-dir",
+        dir.path().to_str().unwrap(),
+        "--key",
+        KEY,
+        "--json",
+    ]);
+    let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).expect("valid JSON");
+    assert_eq!(parsed["ok"], serde_json::Value::Bool(true));
+    assert_eq!(parsed["members"], serde_json::json!(2));
+}

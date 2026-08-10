@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Rocky-exchange/canton-proof-of-solvency/schemas/pack-v1.schema.json",
+  "title": "Canton solvency evidence pack v1",
+  "description": "The signed index of an evidence pack (SPEC.md §15). Every document in this format verifies on its own, which is not the same as a delivery being complete: a proof says nothing about what else was sent, so a folder with one customer's proof removed verifies exactly as cleanly as the whole one. This index commits to the set, so an omission is a detectable act rather than an unremarkable absence.",
+  "type": "object",
+  "required": ["pack", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "pack": {
+      "type": "object",
+      "required": [
+        "format_version",
+        "publisher",
+        "snapshot_time",
+        "report_digest",
+        "entries"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "format_version": {
+          "const": "canton-solvency-pack-v1"
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "snapshot_time": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+        },
+        "report_digest": {
+          "$ref": "#/$defs/hash256",
+          "description": "The report this pack is evidence for (SPEC.md §8.2). Bound into the pack digest, so a pack cannot be lifted onto a different report."
+        },
+        "entries": {
+          "type": "array",
+          "description": "Sorted by name, so the same files assembled in any order produce the same pack. The count is committed alongside the entries.",
+          "items": {
+            "type": "object",
+            "required": ["name", "sha256"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The file name as delivered. Never a path: a pack describes one directory, and a member that could escape it would be a delivery instruction rather than an integrity claim.",
+                "pattern": "^[^/\\\\]+$"
+              },
+              "sha256": {
+                "$ref": "#/$defs/hash256"
+              }
+            }
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "public_key", "value"],
+      "additionalProperties": false,
+      "description": "Detached signature over the pack digest. The embedded key is for display; verification requires a caller-supplied trusted key, ideally taken from an anchor (SPEC.md §8.4).",
+      "properties": {
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "public_key": {
+          "$ref": "#/$defs/hash256"
+        },
+        "value": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{128}$"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hash256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

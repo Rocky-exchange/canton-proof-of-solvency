@@ -75,6 +75,37 @@ async function runCase(c: Case): Promise<boolean> {
       }
       return true;
     }
+    case "pack": {
+      // The delivery is whatever is in the directory, minus the index. Reading
+      // it from disk rather than from the manifest is deliberate: a runner
+      // that trusted the manifest's file list could not detect a file the
+      // index does not name.
+      const { verifyPack } = await import("./pack");
+      const { verifyEd25519 } = await import("./report");
+      const { packDigestHex } = await import("./pack");
+      const dir = fileURLToPath(new URL(`../../../conformance/${c.id}`, import.meta.url));
+      const signed = f("pack.json");
+      const members = new Map<string, Uint8Array>();
+      for (const name of readdirSync(dir)) {
+        if (name === "pack.json") continue;
+        members.set(
+          name,
+          new Uint8Array(
+            readFileSync(fileURLToPath(new URL(`../../../conformance/${c.id}/${name}`, import.meta.url)))
+          )
+        );
+      }
+      // Signature first: it is what forces this implementation's pack digest
+      // to agree with the Rust one byte for byte. Without it the cases would
+      // only prove the two agree about SHA-256 of a file.
+      const signatureValid = await verifyEd25519(
+        KEY,
+        await packDigestHex(signed.pack),
+        signed.signature.value
+      );
+      if (!signatureValid) return false;
+      return (await verifyPack(signed, members)).ok;
+    }
     case "anchors":
       return checkAnchors(f("history.json"));
     default:

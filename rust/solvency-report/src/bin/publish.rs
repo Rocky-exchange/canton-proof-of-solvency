@@ -12,6 +12,7 @@ use anyhow::{bail, Context, Result};
 use canton_solvency_report::anchor::{anchor_report, Anchor};
 use canton_solvency_report::document::Disclosures;
 use canton_solvency_report::manifest::Manifest;
+use canton_solvency_report::pack::build_pack;
 use canton_solvency_report::produce::{publish, LeafInput, ReportMetadata};
 use canton_solvency_report::sign::ReportSigner;
 use std::collections::BTreeMap;
@@ -161,11 +162,14 @@ fn main() -> Result<()> {
     let anchor = anchor_report(&published.signed_report, previous.as_ref());
 
     std::fs::create_dir_all(&args.out)?;
-    let write = |name: &str, value: serde_json::Value| -> Result<()> {
-        std::fs::write(
-            args.out.join(name),
-            format!("{}\n", serde_json::to_string_pretty(&value)?),
-        )?;
+    // Every file is remembered as it is written, so the pack index commits to
+    // exactly the bytes that landed on disk rather than to a re-serialisation
+    // of them.
+    let mut members: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut write = |name: &str, value: serde_json::Value| -> Result<()> {
+        let bytes = format!("{}\n", serde_json::to_string_pretty(&value)?).into_bytes();
+        std::fs::write(args.out.join(name), &bytes)?;
+        members.push((name.to_string(), bytes));
         Ok(())
     };
     write(
@@ -182,6 +186,21 @@ fn main() -> Result<()> {
             .collect();
         write(&format!("proof-{safe}.json"), serde_json::to_value(proof)?)?;
     }
+
+    // The evidence pack (SPEC §15). Without it an auditor cannot tell a
+    // complete delivery from one with a customer's proof quietly removed:
+    // every file that did arrive verifies either way.
+    let pack = build_pack(
+        &published.signed_report.report.publisher,
+        &published.signed_report.report.snapshot_time,
+        &canton_solvency_report::digest::report_digest_hex(&published.signed_report.report),
+        &members,
+        &signer,
+    )?;
+    std::fs::write(
+        args.out.join("pack.json"),
+        format!("{}\n", serde_json::to_string_pretty(&pack)?),
+    )?;
 
     println!("users        : {}", published.proofs.len());
     println!(
@@ -201,9 +220,10 @@ fn main() -> Result<()> {
             "genesis"
         }
     );
+    println!("pack         : {} members, signed", pack.pack.entries.len());
     println!(
         "wrote {} files to {}",
-        published.proofs.len() + 2,
+        published.proofs.len() + 3,
         args.out.display()
     );
     Ok(())
