@@ -21,6 +21,7 @@ install step, and read the whole verifier in one sitting.
 Usage:
     python3 spec-audit/verify_from_spec.py            # golden vectors + corpus
     python3 spec-audit/verify_from_spec.py --verbose
+    python3 spec-audit/verify_from_spec.py --statement   # §14.5 compat statement
 """
 
 from __future__ import annotations
@@ -507,6 +508,32 @@ def check_golden_vectors(log) -> list[str]:
 SUPPORTED = {"report-v1", "proof-v1", "pack-v1"}
 
 
+def run_case(directory: Path, kind: str, key: str) -> None:
+    """Run one corpus case. Returns on accept, raises on reject.
+
+    Shared by the corpus check and the §14.5 statement builder, so a statement
+    can never report an outcome the check would not have produced.
+    """
+    if kind == "proof":
+        verify_proof(
+            json.loads((directory / "report.json").read_text()),
+            json.loads((directory / "proof.json").read_text()),
+            key,
+        )
+    elif kind == "pack":
+        members = {
+            f.name: f.read_bytes()
+            for f in directory.iterdir()
+            if f.is_file() and f.name != "pack.json"
+        }
+        verify_pack(json.loads((directory / "pack.json").read_text()), key, members)
+    else:
+        raise AssertionError(
+            f"kind {kind} has no runner, yet its case declares only supported "
+            "features -- SUPPORTED and the runners disagree"
+        )
+
+
 def check_conformance(log) -> list[str]:
     """The §14.3 corpus, for the cases this verifier declares support for."""
     corpus = REPO / "conformance"
@@ -515,44 +542,21 @@ def check_conformance(log) -> list[str]:
     failures, ran, skipped = [], 0, 0
 
     for case in manifest["cases"]:
-        kind, cid, expect = case["kind"], case["id"], case["expect"]
-        directory = corpus / cid
-
+        cid, expect = case["id"], case["expect"]
         missing = set(case["requires"]) - SUPPORTED
         if missing:
             log(f"  skip {cid} (needs {', '.join(sorted(missing))})")
             skipped += 1
             continue
 
-        if kind == "proof":
-            def run() -> None:
-                verify_proof(
-                    json.loads((directory / "report.json").read_text()),
-                    json.loads((directory / "proof.json").read_text()),
-                    key,
-                )
-        elif kind == "pack":
-            def run() -> None:
-                members = {
-                    f.name: f.read_bytes()
-                    for f in directory.iterdir()
-                    if f.is_file() and f.name != "pack.json"
-                }
-                verify_pack(
-                    json.loads((directory / "pack.json").read_text()), key, members
-                )
-        else:
-            raise AssertionError(
-                f"case {cid} declares only supported features but kind {kind} "
-                "has no runner -- SUPPORTED and the runners disagree"
-            )
-
         ran += 1
         try:
-            run()
+            run_case(corpus / cid, case["kind"], key)
             outcome = "accept"
         except Rejected:
             outcome = "reject"
+        except AssertionError:
+            raise
         except Exception as e:  # a malformed document is a rejection too
             outcome = f"reject ({type(e).__name__})"
 
@@ -561,11 +565,96 @@ def check_conformance(log) -> list[str]:
         else:
             failures.append(f"{cid}: expected {expect}, got {outcome}")
 
-    log(f"  ran {ran} cases; skipped {skipped} requiring features this verifier does not implement")
+    log(
+        f"  ran {ran} cases; skipped {skipped} requiring features this "
+        "verifier does not implement"
+    )
+
+    # A statement that disagreed with the run above would be worse than none.
+    statement = build_statement()
+    for defect in statement_defects(statement, manifest["cases"]):
+        failures.append(f"§14.5 statement: {defect}")
     return failures
 
 
+# --------------------------------------------------------------------------
+# §14.5 Compatibility statements
+# --------------------------------------------------------------------------
+CORPUS_DOMAIN = b"rocky-solvency-corpus-v1"
+
+
+def corpus_digest(cases: list[dict]) -> str:
+    """§14.5. Binds a statement to the exact corpus it was produced against —
+    two statements over different corpora are not comparable, and without this
+    that would not be visible."""
+    out = CORPUS_DOMAIN + u64le(len(cases))
+    for case in cases:
+        out += lp(case["id"]) + lp(case["expect"])
+        out += u64le(len(case["requires"]))
+        for name in case["requires"]:
+            out += lp(name)
+    return hashlib.sha256(out).hexdigest()
+
+
+def statement_defects(statement: dict, cases: list[dict]) -> list[str]:
+    """The three §14.5 rules that make a statement mean something.
+
+    Checked here rather than only produced, because the point of the format is
+    that a *reader* can hold a statement to account."""
+    supports = set(statement["supports"])
+    by_id = {r["id"]: r for r in statement["results"]}
+    defects = []
+    for case in cases:
+        cid = case["id"]
+        result = by_id.get(cid)
+        if result is None:
+            defects.append(f"{cid}: no result reported")
+            continue
+        needed = set(case["requires"])
+        skipped = result["outcome"] == "skip"
+        if needed <= supports and skipped:
+            claimed = ", ".join(sorted(needed))
+            defects.append(f"{cid}: claims {claimed} but skipped the case")
+        if not needed <= supports and not skipped:
+            missing = ", ".join(sorted(needed - supports))
+            defects.append(
+                f"{cid}: reported {result['outcome']} but does not claim {missing}"
+            )
+    return defects
+
+
+def build_statement() -> dict:
+    """This verifier's own §14.5 statement."""
+    corpus = json.loads((REPO / "conformance/manifest.json").read_text())
+    cases = corpus["cases"]
+    key = corpus["trusted_key"]
+    results = []
+    for case in cases:
+        cid = case["id"]
+        if not set(case["requires"]) <= SUPPORTED:
+            results.append({"id": cid, "expected": case["expect"], "outcome": "skip"})
+            continue
+        try:
+            run_case(REPO / "conformance" / cid, case["kind"], key)
+            outcome = "accept"
+        except Exception:
+            outcome = "reject"
+        results.append({"id": cid, "expected": case["expect"], "outcome": outcome})
+    return {
+        "format_version": "canton-solvency-compat-v1",
+        "implementation": "spec-audit/verify_from_spec.py",
+        "version": "1.1",
+        "supports": sorted(SUPPORTED),
+        "corpus_digest": corpus_digest(cases),
+        "results": results,
+    }
+
+
 def main() -> int:
+    if "--statement" in sys.argv:
+        print(json.dumps(build_statement(), indent=2))
+        return 0
+
     verbose = "--verbose" in sys.argv
     log = print if verbose else (lambda *_: None)
 

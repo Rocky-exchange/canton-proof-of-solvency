@@ -64,3 +64,4 @@ jobs:
         with:
           python-version: "3.11"
       - run: python3 spec-audit/verify_from_spec.py --verbose
+      - run: python3 spec-audit/test_statement.py

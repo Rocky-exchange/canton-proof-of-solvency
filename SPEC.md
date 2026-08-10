@@ -736,21 +736,6 @@ the same treatment: a decision about what a leaf is, what the root asserts,
 and which rules are checked rather than asserted. An unregistered profile is
 rejected outright (§14.1), so a half-considered entry is worse than none.
 
-### 14.4 Audience-scoped packaging
-
-One commitment may be packaged for several audiences. Every packaging commits
-to the same leaves, so the root hash, the totals and the leaf count are
-identical; only the manifest (§8.5) differs.
-
-Two packagings therefore have **different digests and different signatures**,
-which is correct: they are different statements about the same commitment.
-A verifier comparing two packagings checks that the root, totals and leaf
-count agree — without that check a venue could hand two audiences genuinely
-different books, and each would verify in isolation.
-
-Producers **MUST NOT** emit two packagings naming the same audience: one would
-silently stand in for the other.
-
 ### 14.3 Conformance corpus
 
 [`conformance/`](conformance) holds the cases an implementation must agree on
@@ -782,6 +767,67 @@ A v2 proof belongs to *any* v2-leaf profile, so the leaf-kind gate cannot
 separate two v2 profiles from each other. A fund proof presented against a
 repo report is caught by the commitment itself — the report digests
 differently, so the binding in §9.2 fails.
+
+### 14.4 Audience-scoped packaging
+
+One commitment may be packaged for several audiences. Every packaging commits
+to the same leaves, so the root hash, the totals and the leaf count are
+identical; only the manifest (§8.5) differs.
+
+Two packagings therefore have **different digests and different signatures**,
+which is correct: they are different statements about the same commitment.
+A verifier comparing two packagings checks that the root, totals and leaf
+count agree — without that check a venue could hand two audiences genuinely
+different books, and each would verify in isolation.
+
+Producers **MUST NOT** emit two packagings naming the same audience: one would
+silently stand in for the other.
+
+### 14.5 Compatibility statements
+
+The corpus establishes what an implementation does. A **compatibility
+statement** is how it says so, in a form another party can check rather than
+take on trust.
+
+```
+statement = { format_version, implementation, version, supports[],
+              corpus_digest, results[] }
+result    = { id, expected, outcome }
+```
+
+`format_version` is `canton-solvency-compat-v1`. `supports` lists §14.3
+`requires` names — the feature set the implementation claims. `results` covers
+**every** case in the corpus, including skipped ones, whose outcome is `skip`.
+
+Three rules make a statement meaningful rather than decorative:
+
+- A case whose `requires` are a subset of `supports` **MUST NOT** be reported
+  as `skip`. Claiming a feature and then skipping its cases is the failure
+  mode this exists to catch.
+- A case whose `requires` are *not* a subset of `supports` **MUST** be
+  reported as `skip`, never as a pass. A verifier that rejects a document
+  because it does not implement that document's version has not tested
+  anything, and a rejection for the wrong reason is indistinguishable from a
+  correct one at this level of detail.
+- `corpus_digest` binds the statement to the exact corpus it was produced
+  against:
+
+```
+corpus_digest = SHA-256( "rocky-solvency-corpus-v1"
+                       ‖ u64le(case_count)
+                       ‖ ( lp(id) ‖ lp(expect)
+                         ‖ u64le(requires_count) ‖ lp(requires_i)* )* )
+```
+
+with cases in manifest order and `requires` in the order listed. Two
+statements over different corpora are not comparable, and without this binding
+that would not be visible.
+
+An implementation MAY sign a statement with the §8.3 block over the statement
+digest. Nothing here depends on it: a statement is a claim by its author, and
+a reader who wants assurance runs the corpus themselves. Its value is that
+disagreement becomes *locatable* — two implementations' statements differ at a
+named case rather than in an unreproducible report of "we tested it".
 
 ## 15. Evidence packs
 

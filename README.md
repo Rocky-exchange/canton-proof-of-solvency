@@ -731,7 +731,14 @@ Turns one implementation into something the network can rely on.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,
-  ours verify under theirs.
+  ours verify under theirs. **Needs a counterparty, and everything on our side
+  is ready:** [`docs/INTEGRATORS.md`](docs/INTEGRATORS.md) is the build order,
+  the declarable feature set, and the acceptance criteria; §14.5 defines a
+  **compatibility statement** so two implementations disagree at a *named
+  case* rather than in a prose report, with the three rules that stop a
+  statement being decorative — claim a feature and you may not skip its cases,
+  skip what you do not claim rather than reporting a pass, and bind the whole
+  thing to a corpus digest. `verify_from_spec.py --statement` emits one.
 - ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
   coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
   and the document is frozen against the conformance corpus: every normative
@@ -755,8 +762,23 @@ Turns one implementation into something the network can rely on.
   below: same author, same repository.
 - **Third-party security review** — external review of the commitment core,
   salt derivation, and verifier; findings and remediations published in-repo.
+  **Needs a reviewer; the engagement is scoped:**
+  [`docs/SECURITY-REVIEW-BRIEF.md`](docs/SECURITY-REVIEW-BRIEF.md) states the
+  five claims, ranks where to press hardest (salt derivation, sibling sums as
+  a side channel, the v1 join ambiguity we knowingly did not fix, tree-shape
+  confusion, verification order, and whether our key-distribution framing is
+  overclaimed), and lists the documented non-goals so a reviewer does not
+  spend the engagement rediscovering them.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
   Proposal process, with the conformance suite as its normative tests.
+
+**Status.** The conformance suite, specification v1.1, the implementability
+audit and the CIP draft are delivered. The two remaining deliverables each
+need a party outside this project — a second implementer and a security
+reviewer — so what is shipped is everything that does not: the corpus, the
+statement format, the integrator guide, and the review brief. We are not
+counting our own third implementation toward the two: same author, same
+repository.
 
 **Done when:** two independent implementations pass the conformance suite; the
 security review and its remediations are public; and the CIP is submitted with
