@@ -719,6 +719,14 @@ count, which is why a tenfold larger book costs 20% more per proof rather than
 tenfold. Reproduce with
 `cargo run --release --example bench_scale -- 1000000`.
 
+Read the third significant figure with suspicion. Re-running the million-leaf
+row three times gave 0.048, 0.052 and 0.063 ms per proof — the last on a
+machine still warm from the previous run. The table reports single runs, and
+run-to-run spread is roughly ±20%. What the numbers are good for is the shape:
+per-proof cost grows with the log of the book, and a million-customer report
+verifies one customer in well under a millisecond. What they are not good for
+is comparing two builds a few percent apart.
+
 A `#[test]` asserts every sampled proof still verifies at 10,000 leaves, with
 a `--ignored` variant at 100,000. Neither asserts a wall-clock threshold: a
 timing bound in CI is a flake waiting to happen, so the numbers above are
