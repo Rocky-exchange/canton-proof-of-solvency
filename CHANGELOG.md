@@ -94,6 +94,14 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
+- A conformance case for the sums comparison (§9.1 step 5), which nothing
+  exercised. Removing that check entirely from the reference verifier left all
+  21 existing cases passing — so an implementation could omit the one defence
+  §9.1 names against a publisher who commits a truthful tree and prints
+  understated totals, and still be certified conforming. The existing
+  `proof-understated-totals` case edits the report after signing, so the digest
+  binding catches it first and the sums comparison never runs. The new case has
+  the publisher sign the lie.
 - A correction to SPEC §14: unanimity is "consistent with" a universal claim,
   not a proof of one. The argument sums an indicator against `leaf_count`,
   which is signed but never recomputed, so a publisher committing ten holders
