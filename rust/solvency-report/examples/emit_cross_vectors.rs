@@ -18,8 +18,10 @@
 //! ordering, encoding, or canonicalisation surfaces as a failing test rather
 //! than as one venue's report failing in one browser.
 use canton_solvency_merkle::*;
+use canton_solvency_report::anchor::{anchor_digest, Anchor, ANCHOR_FORMAT_VERSION};
 use canton_solvency_report::digest::report_digest;
 use canton_solvency_report::document::{Disclosures, Report};
+use canton_solvency_report::pack::{pack_digest, Pack, PackEntry, PACK_FORMAT_VERSION};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -161,6 +163,91 @@ fn main() -> anyhow::Result<()> {
         }));
     }
 
+    // --- §4 tree roots ---
+    // combine() joins the summed map with `:` and `|` just as §2 does, so a
+    // multi-asset internal node is a second place the two implementations
+    // could order keys differently. Trees of 2..=12 leaves also exercise
+    // odd-node promotion at several levels.
+    let mut trees = Vec::new();
+    for size in 2..=12usize {
+        let mut leaves = Vec::new();
+        let mut nodes: Vec<Node> = Vec::new();
+        for i in 0..size {
+            let n = 1 + (rng.next() % 3) as usize;
+            let balances = pick(&mut rng, n);
+            let user_id = format!("tree-{size}-leaf-{i}");
+            let salt = leaf_salt(b"cross-vector-master-salt", &user_id);
+            let pairs: Vec<(String, u128)> = balances.clone().into_iter().collect();
+            nodes.push(leaf_node(&salt, &user_id, &pairs)?);
+            leaves.push(serde_json::json!({
+                "user_id": user_id,
+                "salt": hex::encode(salt),
+                "balances": balances.iter()
+                    .map(|(a, v)| (a.clone(), format_amount_18dp(*v)))
+                    .collect::<BTreeMap<String, String>>(),
+                "leaf_hash": hex::encode(leaf_hash(&salt, &user_id, &pairs)?),
+            }));
+        }
+        let tree = SumTree::build(nodes)?;
+        let root = tree.root();
+        trees.push(serde_json::json!({
+            "leaves": leaves,
+            "root_hash": hex::encode(root.hash),
+            "root_sums": root.sums.iter()
+                .map(|(a, v)| (a.clone(), format_amount_18dp(*v)))
+                .collect::<BTreeMap<String, String>>(),
+        }));
+    }
+
+    // --- §15.2 pack digests and §12 anchor digests ---
+    // Both commit to length-prefixed strings; neither was exercised by any
+    // generated vector until now.
+    let mut packs = Vec::new();
+    for i in 0..20 {
+        let count = 1 + (rng.next() % 5) as usize;
+        let entries: Vec<PackEntry> = (0..count)
+            .map(|j| PackEntry {
+                name: format!("proof-{j}.json"),
+                sha256: hex::encode([(i + j) as u8; 32]),
+            })
+            .collect();
+        let pack = Pack {
+            format_version: PACK_FORMAT_VERSION.to_string(),
+            publisher: format!("venue\u{1F3E6}::{i}"),
+            snapshot_time: "2026-01-01T00:00:00Z".to_string(),
+            report_digest: hex::encode([i as u8; 32]),
+            entries,
+        };
+        packs.push(serde_json::json!({
+            "pack": serde_json::to_value(&pack)?,
+            "pack_digest": hex::encode(pack_digest(&pack)),
+        }));
+    }
+
+    let mut anchors = Vec::new();
+    for i in 0..20u8 {
+        let anchor = Anchor {
+            format_version: ANCHOR_FORMAT_VERSION.to_string(),
+            report_digest: hex::encode([i; 32]),
+            root_hash: hex::encode([i.wrapping_add(1); 32]),
+            snapshot_time: "2026-01-01T00:00:00Z".to_string(),
+            ledger_offset: format!("{:018}", i),
+            publisher: format!("venue\u{1F3E6}::{i}"),
+            publisher_key: hex::encode([i.wrapping_add(2); 32]),
+            // Half genesis, half linked: the presence byte is what stops a
+            // mid-history anchor posing as the start of a history.
+            prev_anchor: if i % 2 == 0 {
+                None
+            } else {
+                Some(hex::encode([i.wrapping_add(3); 32]))
+            },
+        };
+        anchors.push(serde_json::json!({
+            "anchor": serde_json::to_value(&anchor)?,
+            "anchor_digest": hex::encode(anchor_digest(&anchor)),
+        }));
+    }
+
     if let Some(parent) = out.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -175,14 +262,20 @@ fn main() -> anyhow::Result<()> {
                 "master_salt": "cross-vector-master-salt",
                 "vectors": vectors,
                 "reports": reports,
+                "trees": trees,
+                "packs": packs,
+                "anchors": anchors,
             }))?
         ),
     )?;
     println!(
-        "wrote {} ({} leaf vectors, {} report digests)",
+        "wrote {} ({} leaves, {} reports, {} trees, {} packs, {} anchors)",
         out.display(),
         vectors.len(),
-        reports.len()
+        reports.len(),
+        trees.len(),
+        packs.len(),
+        anchors.len()
     );
     Ok(())
 }

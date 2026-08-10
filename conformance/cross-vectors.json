@@ -1,7 +1,705 @@
 {
+  "anchors": [
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000000",
+        "publisher": "venue🏦::0",
+        "publisher_key": "0202020202020202020202020202020202020202020202020202020202020202",
+        "report_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "root_hash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "906cefaea4bc0ea3aa28af296e29a2e89282db60c95e7cb141f9999630941888"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000001",
+        "prev_anchor": "0404040404040404040404040404040404040404040404040404040404040404",
+        "publisher": "venue🏦::1",
+        "publisher_key": "0303030303030303030303030303030303030303030303030303030303030303",
+        "report_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+        "root_hash": "0202020202020202020202020202020202020202020202020202020202020202",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "ba0cb281ba18f24186a3b541790f60fc80b8db12f43bfa9fff33f84c0b71d74c"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000002",
+        "publisher": "venue🏦::2",
+        "publisher_key": "0404040404040404040404040404040404040404040404040404040404040404",
+        "report_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+        "root_hash": "0303030303030303030303030303030303030303030303030303030303030303",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "70e0009bce094a30537bbf6ef04cb8861e446b6c75afc0c53c38b8cb0951feac"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000003",
+        "prev_anchor": "0606060606060606060606060606060606060606060606060606060606060606",
+        "publisher": "venue🏦::3",
+        "publisher_key": "0505050505050505050505050505050505050505050505050505050505050505",
+        "report_digest": "0303030303030303030303030303030303030303030303030303030303030303",
+        "root_hash": "0404040404040404040404040404040404040404040404040404040404040404",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "ecd3fbe93b129106e3d67c1a1e4a2f2d3c8100c10c9169f3b12b4353304c28ca"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000004",
+        "publisher": "venue🏦::4",
+        "publisher_key": "0606060606060606060606060606060606060606060606060606060606060606",
+        "report_digest": "0404040404040404040404040404040404040404040404040404040404040404",
+        "root_hash": "0505050505050505050505050505050505050505050505050505050505050505",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "8de3e29e11db6bc49e8c1f3b0e7dba70903bb43027e5dc5814e5d4c2144d62ef"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000005",
+        "prev_anchor": "0808080808080808080808080808080808080808080808080808080808080808",
+        "publisher": "venue🏦::5",
+        "publisher_key": "0707070707070707070707070707070707070707070707070707070707070707",
+        "report_digest": "0505050505050505050505050505050505050505050505050505050505050505",
+        "root_hash": "0606060606060606060606060606060606060606060606060606060606060606",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "c958c0d80ee5197652fbca454d54227102261597bf92e4a60d64d0ea66d8c9b3"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000006",
+        "publisher": "venue🏦::6",
+        "publisher_key": "0808080808080808080808080808080808080808080808080808080808080808",
+        "report_digest": "0606060606060606060606060606060606060606060606060606060606060606",
+        "root_hash": "0707070707070707070707070707070707070707070707070707070707070707",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "1fbe8522e140e3c12293710ffe26c104db0fa226525484cba1430a6e1322e8b0"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000007",
+        "prev_anchor": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "publisher": "venue🏦::7",
+        "publisher_key": "0909090909090909090909090909090909090909090909090909090909090909",
+        "report_digest": "0707070707070707070707070707070707070707070707070707070707070707",
+        "root_hash": "0808080808080808080808080808080808080808080808080808080808080808",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "2396fea2ad9498069747b38bd5c4d2373d16b5cb9ffa9da9512480b14af7c1f1"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000008",
+        "publisher": "venue🏦::8",
+        "publisher_key": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "report_digest": "0808080808080808080808080808080808080808080808080808080808080808",
+        "root_hash": "0909090909090909090909090909090909090909090909090909090909090909",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "3c6e607f133d9145273792f5d774afa57b4903f0447fe1dd8127656acbb425a1"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000009",
+        "prev_anchor": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "publisher": "venue🏦::9",
+        "publisher_key": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "report_digest": "0909090909090909090909090909090909090909090909090909090909090909",
+        "root_hash": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "838e3a566f91de3e26b5174b94556fece579a71c73c130da60662208396c8400"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000010",
+        "publisher": "venue🏦::10",
+        "publisher_key": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "report_digest": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "root_hash": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "a8ad0f975c2fe42e8dc4c27862ab1c73a416b6ae57e8260ab7c3367f76e0a661"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000011",
+        "prev_anchor": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "publisher": "venue🏦::11",
+        "publisher_key": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "report_digest": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "root_hash": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "9f5328b28863facddc610f9176186a8885eaa8378fe109c097384139ba09314f"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000012",
+        "publisher": "venue🏦::12",
+        "publisher_key": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "report_digest": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "root_hash": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "cab204907b9de05b519dc55cd11cc0422fccbd10755fb3cf3c05175b3de8b423"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000013",
+        "prev_anchor": "1010101010101010101010101010101010101010101010101010101010101010",
+        "publisher": "venue🏦::13",
+        "publisher_key": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "report_digest": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "root_hash": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "5368c892aec6137fe64c4db0f21303713ed752de5ac02e1663cb6d13f94809f7"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000014",
+        "publisher": "venue🏦::14",
+        "publisher_key": "1010101010101010101010101010101010101010101010101010101010101010",
+        "report_digest": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "root_hash": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "4bb506aeaee2e99df36ac3c26778e772e0906881c8b0e4f61798955b9f0ceb5e"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000015",
+        "prev_anchor": "1212121212121212121212121212121212121212121212121212121212121212",
+        "publisher": "venue🏦::15",
+        "publisher_key": "1111111111111111111111111111111111111111111111111111111111111111",
+        "report_digest": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "root_hash": "1010101010101010101010101010101010101010101010101010101010101010",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "ab9d2a6cf63a99193e5ba6a8979276f243ed32ae01581d8f0b11db13b21fd18a"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000016",
+        "publisher": "venue🏦::16",
+        "publisher_key": "1212121212121212121212121212121212121212121212121212121212121212",
+        "report_digest": "1010101010101010101010101010101010101010101010101010101010101010",
+        "root_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "9191c888d74b9ab0cbb95ecae1af53bd8177609cb52c5f08549f42b9e96a9663"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000017",
+        "prev_anchor": "1414141414141414141414141414141414141414141414141414141414141414",
+        "publisher": "venue🏦::17",
+        "publisher_key": "1313131313131313131313131313131313131313131313131313131313131313",
+        "report_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "root_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "2ecad6945294f80b7d5d8f6f3896caf35f21abf81f1d8a9278689bc04557576a"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000018",
+        "publisher": "venue🏦::18",
+        "publisher_key": "1414141414141414141414141414141414141414141414141414141414141414",
+        "report_digest": "1212121212121212121212121212121212121212121212121212121212121212",
+        "root_hash": "1313131313131313131313131313131313131313131313131313131313131313",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "1025fe10bdc8c64f1f45bacbc1e41ec62f070141f2eaa698a2af9447a89202c6"
+    },
+    {
+      "anchor": {
+        "format_version": "canton-solvency-anchor-v1",
+        "ledger_offset": "000000000000000019",
+        "prev_anchor": "1616161616161616161616161616161616161616161616161616161616161616",
+        "publisher": "venue🏦::19",
+        "publisher_key": "1515151515151515151515151515151515151515151515151515151515151515",
+        "report_digest": "1313131313131313131313131313131313131313131313131313131313131313",
+        "root_hash": "1414141414141414141414141414141414141414141414141414141414141414",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "anchor_digest": "5325a1624849355bd13ed2f43f9e4f3af76c37987432167342eb11908ef1f7bf"
+    }
+  ],
   "description": "Generated differential vectors (SPEC §1–§3, §8.1). Both implementations must reproduce every field.",
   "format_version": "canton-solvency-cross-vectors-v1",
   "master_salt": "cross-vector-master-salt",
+  "packs": [
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0101010101010101010101010101010101010101010101010101010101010101"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0202020202020202020202020202020202020202020202020202020202020202"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0303030303030303030303030303030303030303030303030303030303030303"
+          },
+          {
+            "name": "proof-4.json",
+            "sha256": "0404040404040404040404040404040404040404040404040404040404040404"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::0",
+        "report_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "242c257f3c5ec467c08cdd92ec58f996c8cd72c38490a936f0fe443e26ef8f36"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0101010101010101010101010101010101010101010101010101010101010101"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0202020202020202020202020202020202020202020202020202020202020202"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::1",
+        "report_digest": "0101010101010101010101010101010101010101010101010101010101010101",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "dcce98285909f9234c9670bfa7e97eb8761b65f83ac84c7b73a9d32c07c10657"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0202020202020202020202020202020202020202020202020202020202020202"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0303030303030303030303030303030303030303030303030303030303030303"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::2",
+        "report_digest": "0202020202020202020202020202020202020202020202020202020202020202",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "0a9074bcc1acc8065e088ad27bafe4c86b238a330538b95c1f4d11bdf2caa5e2"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0303030303030303030303030303030303030303030303030303030303030303"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0404040404040404040404040404040404040404040404040404040404040404"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0505050505050505050505050505050505050505050505050505050505050505"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0606060606060606060606060606060606060606060606060606060606060606"
+          },
+          {
+            "name": "proof-4.json",
+            "sha256": "0707070707070707070707070707070707070707070707070707070707070707"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::3",
+        "report_digest": "0303030303030303030303030303030303030303030303030303030303030303",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "8edbc5772577e4b77f1fe5ebe303b37be0d3306c7892b863f8008b0985a6189e"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0404040404040404040404040404040404040404040404040404040404040404"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::4",
+        "report_digest": "0404040404040404040404040404040404040404040404040404040404040404",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "8b8291ea454a272e5cbccee38984833a32f6b3bb808781ef6b25bdc6c79fc485"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0505050505050505050505050505050505050505050505050505050505050505"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0606060606060606060606060606060606060606060606060606060606060606"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0707070707070707070707070707070707070707070707070707070707070707"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::5",
+        "report_digest": "0505050505050505050505050505050505050505050505050505050505050505",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "03769f01d13de856789e06149edc3296d7502ede82d29da344c4b6b672f94761"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0606060606060606060606060606060606060606060606060606060606060606"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0707070707070707070707070707070707070707070707070707070707070707"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0808080808080808080808080808080808080808080808080808080808080808"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0909090909090909090909090909090909090909090909090909090909090909"
+          },
+          {
+            "name": "proof-4.json",
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::6",
+        "report_digest": "0606060606060606060606060606060606060606060606060606060606060606",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "77bbd63b604d62ba4254e58487b6e4f8016501160bcb574754f104e0530d4afc"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0707070707070707070707070707070707070707070707070707070707070707"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0808080808080808080808080808080808080808080808080808080808080808"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0909090909090909090909090909090909090909090909090909090909090909"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::7",
+        "report_digest": "0707070707070707070707070707070707070707070707070707070707070707",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "77bac09b38a3021df0fbd0e28d988b20911d84d799e4d25f32be818adb2e2ed4"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0808080808080808080808080808080808080808080808080808080808080808"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0909090909090909090909090909090909090909090909090909090909090909"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::8",
+        "report_digest": "0808080808080808080808080808080808080808080808080808080808080808",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "5c03c10da1f09223cd15d1fe1a3e8447cf79cee117ea6b00639554ccb111022f"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0909090909090909090909090909090909090909090909090909090909090909"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::9",
+        "report_digest": "0909090909090909090909090909090909090909090909090909090909090909",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "3bd7c0ebb73851c90d93d90392cc7e96af42b264f271db79c881ad511e0acdcc"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::10",
+        "report_digest": "0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "18b6abb9c59b61c553f3dcece5d69fcce94dd3b4d083ea8a77b0358f578ea191"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e"
+          },
+          {
+            "name": "proof-4.json",
+            "sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::11",
+        "report_digest": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "943c1543da52a76c26b6b1961e6784111131d8db63e23df988302293331a9292"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::12",
+        "report_digest": "0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "d0cee4d86b5385d21600aeb6165b01b6f5ae61e850ad28c4725ed27132995530"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::13",
+        "report_digest": "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "564e31c6390b14d065555d92d8bc4fa4145bb7538a86a49c90dd150deb70eff5"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::14",
+        "report_digest": "0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "7386704211cfbfd749151f7bb720860365762f1f6215376e2cc3daa37fc581c0"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "1010101010101010101010101010101010101010101010101010101010101010"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::15",
+        "report_digest": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "0fd285082ce583ac84ba543c07560cd6dc085db292d6647310306ed106e2d48e"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "1010101010101010101010101010101010101010101010101010101010101010"
+          },
+          {
+            "name": "proof-1.json",
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "name": "proof-2.json",
+            "sha256": "1212121212121212121212121212121212121212121212121212121212121212"
+          },
+          {
+            "name": "proof-3.json",
+            "sha256": "1313131313131313131313131313131313131313131313131313131313131313"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::16",
+        "report_digest": "1010101010101010101010101010101010101010101010101010101010101010",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "dac0170637170fd85c6e1d0717e58b0dc223dcf785dfb91fe136e5c666adfde9"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::17",
+        "report_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "81e0c08de4d57580967889070100e5dce91300a1ff72d2ce0e3aea5c27443bd0"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "1212121212121212121212121212121212121212121212121212121212121212"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::18",
+        "report_digest": "1212121212121212121212121212121212121212121212121212121212121212",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "7a40408dcf5e0528499f31edb9fda46a48be54a0645e24f86d01c5516429fefa"
+    },
+    {
+      "pack": {
+        "entries": [
+          {
+            "name": "proof-0.json",
+            "sha256": "1313131313131313131313131313131313131313131313131313131313131313"
+          }
+        ],
+        "format_version": "canton-solvency-pack-v1",
+        "publisher": "venue🏦::19",
+        "report_digest": "1313131313131313131313131313131313131313131313131313131313131313",
+        "snapshot_time": "2026-01-01T00:00:00Z"
+      },
+      "pack_digest": "e61db1fbac0393d541706f0370bf2e6f00e2583c2542e9d32f4e7b4bb4945ecd"
+    }
+  ],
   "reports": [
     {
       "report": {
@@ -1645,6 +2343,869 @@
         "snapshot_time": "2026-01-01T00:00:00Z"
       },
       "report_digest": "87b37f9eaf735b70076a8a543cff8465235e7a6ce18a145f6f3c87546be55c87"
+    }
+  ],
+  "trees": [
+    {
+      "leaves": [
+        {
+          "balances": {
+            "Z": "5.281417358208950549",
+            "！": "4.251165370344981214",
+            "𐀀": "8.024609357540067866"
+          },
+          "leaf_hash": "e638fd13cf7cd96f507530dcb09f95ac762a46cd5f6da2dbd4af6cea4235b2f2",
+          "salt": "28082e328def819225699696e6c5382020368d7d9923ccd6c443cbea37966961",
+          "user_id": "tree-2-leaf-0"
+        },
+        {
+          "balances": {
+            "A:B": "18.325964713764744571",
+            "A|B": "15.277867631275921071",
+            "Z": "12.485579754501571575"
+          },
+          "leaf_hash": "3b232cffd729d2433ee8e8c210111326951d1bb07f311084fb0f4614368b0122",
+          "salt": "1d2b3024f3c5640ad066f32f1a17f14948d7987237c84ad0abb3b1aee62ac4f8",
+          "user_id": "tree-2-leaf-1"
+        }
+      ],
+      "root_hash": "46d5c0eca4e754b04c5faa4ec0d8df6fcbe814c6a91569640d53d8a3f94b43fc",
+      "root_sums": {
+        "A:B": "18.325964713764744571",
+        "A|B": "15.277867631275921071",
+        "Z": "17.766997112710522124",
+        "！": "4.251165370344981214",
+        "𐀀": "8.024609357540067866"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "AAA": "4.953262368037681516",
+            "": "13.170304203004339337"
+          },
+          "leaf_hash": "a1b62679d64087e21ab179be13069b96cc5785e5541c2ddf527f12c0b525c52f",
+          "salt": "3c0d3a772d924af39fd6a411af1d5773a4590ac512df0228a52a9c3cfb3c05c1",
+          "user_id": "tree-3-leaf-0"
+        },
+        {
+          "balances": {
+            "a.b-c_1": "16.167134428041667991"
+          },
+          "leaf_hash": "da251bfb35d944812aa62b25327bf6475a1241b32a99883e3678a4a018bb767b",
+          "salt": "df5c0c12deb29a9f5373a49df3abcd5930f6b9b4ed640e48b7f79552aa2c8ba0",
+          "user_id": "tree-3-leaf-1"
+        },
+        {
+          "balances": {
+            "Z": "0.370509731705281943",
+            "": "7.936267255225590818"
+          },
+          "leaf_hash": "4d32cddd2e08e950cb74c543984876c7031bd3bdb8ea481f5dce87075a3235fd",
+          "salt": "202d430838f7e702ecc921c7c8cff5da13ac4a1018ea58cba0ab418f1b1a4491",
+          "user_id": "tree-3-leaf-2"
+        }
+      ],
+      "root_hash": "a68eb5e8cd8d909eda1fed854650e1a2515412f427e4acb7429c4110062ed5fe",
+      "root_sums": {
+        "AAA": "4.953262368037681516",
+        "Z": "0.370509731705281943",
+        "a.b-c_1": "16.167134428041667991",
+        "": "21.106571458229930155"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "a": "1.937642983591896789",
+            "a.b-c_1": "14.712079215863654824"
+          },
+          "leaf_hash": "40d24d49b1285aa63284303f3d849937dbef55241670a8c0b74b76d669ce8353",
+          "salt": "1c845c16159585b789876844882c802cd8b0cfa7e26dfb4d1a6e271a826eac47",
+          "user_id": "tree-4-leaf-0"
+        },
+        {
+          "balances": {
+            "AA": "1.277116399595423700",
+            "CBTC": "14.951844980368318771"
+          },
+          "leaf_hash": "6daaa9c911eecafdf53118754dbb4eb48eeea9d9a124c5fc179770018218924d",
+          "salt": "f84182d449f114f7c46553d03fc46301370f8ce666c09a0c25ad8eebc1b4da5f",
+          "user_id": "tree-4-leaf-1"
+        },
+        {
+          "balances": {
+            "AAA": "10.435730147868406638",
+            "A|B": "3.301732153379546822"
+          },
+          "leaf_hash": "17ff4a73af8da4ceb39d9b21efb9e5697407dbf76c166d9396f12960e9e041db",
+          "salt": "6c7d74a95564819c7545bc336e9e13117a2d1ecd2a3c75606e3ac8cdfe9070bc",
+          "user_id": "tree-4-leaf-2"
+        },
+        {
+          "balances": {
+            "a": "10.534166022993528626"
+          },
+          "leaf_hash": "2024032158879c389070278eb40380631b15c1f87087b96b7be4a4b064541311",
+          "salt": "4e59e0ef46f9d0e5430fabc829b0a06fe2fc0a99ace9ae1cd41df40a9ad1dad5",
+          "user_id": "tree-4-leaf-3"
+        }
+      ],
+      "root_hash": "b0b0959fc1778539cc281faeb233cb04b7847772adeb459e746c2bd01d25fb59",
+      "root_sums": {
+        "AA": "1.277116399595423700",
+        "AAA": "10.435730147868406638",
+        "A|B": "3.301732153379546822",
+        "CBTC": "14.951844980368318771",
+        "a": "12.471809006585425415",
+        "a.b-c_1": "14.712079215863654824"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "A|B": "0.456108967735108698",
+            "𐀀": "5.368393127070668387"
+          },
+          "leaf_hash": "0a499a6840a5ee65713039107d9f22f1b59ec39d86680e8cb712d31fc72b0dcb",
+          "salt": "0f5c0ecc776d0f794b1532cc624888dfa5d35506f1f74436c9a5e34733040e14",
+          "user_id": "tree-5-leaf-0"
+        },
+        {
+          "balances": {
+            "a.b-c_1": "10.960181643812905893",
+            "": "3.370441376717714961"
+          },
+          "leaf_hash": "8bcf70582cc2b742ce30a24b93bf31b47b614a1ea9784bd586c5fdc41eebfc14",
+          "salt": "a27712caed7bc71655c13990c466ce846ebb451d3a3d1d55b5b24909d216f294",
+          "user_id": "tree-5-leaf-1"
+        },
+        {
+          "balances": {
+            "Z": "0.528562315165855247"
+          },
+          "leaf_hash": "33ab55eadc3d0c4f7b8ef35459fe324f378af453c317ee8b692e6ef348ac73be",
+          "salt": "c9d78d75a671f4447c2f7949bdb47e7dde470ff8ab3bfd7a9a847e5b39b22dcd",
+          "user_id": "tree-5-leaf-2"
+        },
+        {
+          "balances": {
+            "𐀀": "2.231364052238423098"
+          },
+          "leaf_hash": "bb1ec43fafb120a980ab05629e81354f05d07e676cb6f1468051095183085771",
+          "salt": "ac9d923f7daf11c4e34c189491f5c18e20433848506958ea27162370ded59495",
+          "user_id": "tree-5-leaf-3"
+        },
+        {
+          "balances": {
+            "A|B:0.000000000000000001": "1.302522068818892134",
+            "𐀀": "16.441015996985627054"
+          },
+          "leaf_hash": "d2032fa8c8164f36bd907e2ecd3dc34a85b995a26ea369db04c0f8fbc597e993",
+          "salt": "8882e7951577e3d2689e83d778367a6adcd8c144a57c1f5fb5f379fb208a9d96",
+          "user_id": "tree-5-leaf-4"
+        }
+      ],
+      "root_hash": "e29d8b87ffbf302e99aaf073e1937a17603d2eb0aa6de978542d9b433c30b032",
+      "root_sums": {
+        "A|B": "0.456108967735108698",
+        "A|B:0.000000000000000001": "1.302522068818892134",
+        "Z": "0.528562315165855247",
+        "a.b-c_1": "10.960181643812905893",
+        "": "3.370441376717714961",
+        "𐀀": "24.040773176294718539"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "a.b-c_1": "14.218568321230195158",
+            "": "3.103733075304541772"
+          },
+          "leaf_hash": "43c36405bba04e5c5f8fa7aa384f8b6df27d9ac6060d68f4777456f005bdd3d3",
+          "salt": "d3b98272682116fc46acebf297d1bf9e81c816e1c30ae12ad90c23adb3a2f4fc",
+          "user_id": "tree-6-leaf-0"
+        },
+        {
+          "balances": {
+            "！": "17.163741909623941064"
+          },
+          "leaf_hash": "76c5a6a35c1d4ed3aa20c122de6873ff6852343e778e64ca2ad34f512c9adf0e",
+          "salt": "356cf77a364fbd691fee17c452c327e5ff76471be7c9205f04c1af34d27447ea",
+          "user_id": "tree-6-leaf-1"
+        },
+        {
+          "balances": {
+            "Z": "1.188403750807267481",
+            "": "0.190542966786014394",
+            "！": "18.070723290464986329"
+          },
+          "leaf_hash": "42b9d5b1e7c234fcbf4ec4009e18a60ab08bbb20d12ba85b98144fbc9141093e",
+          "salt": "d0b4d3fbe1f898a4f673eafab6978787f2abe90941e7cd42c7fab49a510763ea",
+          "user_id": "tree-6-leaf-2"
+        },
+        {
+          "balances": {
+            "😀": "5.867735373060474748"
+          },
+          "leaf_hash": "e3db68938197d24009789b584597e24e4a8767ba9fe4940954784eb36d516712",
+          "salt": "746af34f1b68d05d8da4b8f9dde4c4a50d8d2948f38d2cccce1cdad1a8ffcdd0",
+          "user_id": "tree-6-leaf-3"
+        },
+        {
+          "balances": {
+            "": "14.243070325641422709",
+            "！": "10.889720051272661238"
+          },
+          "leaf_hash": "3800a83868fa36d468a3a9bae13f7cec10a3a8e7cc883153f7887f1fe3c2f616",
+          "salt": "e517bbd692643db965e9aac32b34c3f219d9f231520a27ac3fa588aaf91a2e59",
+          "user_id": "tree-6-leaf-4"
+        },
+        {
+          "balances": {
+            "A:B": "12.201588440491496463",
+            "": "11.063561025769761659"
+          },
+          "leaf_hash": "13ffed69cf4fca34b3c5286ba54f244cbae9940a6218b7ddb1ea3118e29eed02",
+          "salt": "cdd861459d56c84f5e534aff3fe77f23a1f95245120ab7e1458c0bb3390cc684",
+          "user_id": "tree-6-leaf-5"
+        }
+      ],
+      "root_hash": "2e62b77fd9e629a227703aee8fe2df9390e2dc47dfe1b977fb630f5a0ba164bd",
+      "root_sums": {
+        "A:B": "12.201588440491496463",
+        "Z": "1.188403750807267481",
+        "a.b-c_1": "14.218568321230195158",
+        "": "28.600907393501740534",
+        "！": "46.124185251361588631",
+        "😀": "5.867735373060474748"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "😀": "18.248943124515426479"
+          },
+          "leaf_hash": "ac6fcc7e2222a96db058a8a871379f0082b524d730369f4e64af234356e1ceed",
+          "salt": "eea77404e7b7db48389743f618f50330b7f64dba26afa3f8230e4e9c1e9ad989",
+          "user_id": "tree-7-leaf-0"
+        },
+        {
+          "balances": {
+            "A|B": "18.057222258165104994",
+            "USDA": "9.129477644865294657",
+            "𐀀": "0.256815240427593236"
+          },
+          "leaf_hash": "11815e4ab77d2f1f6e433049234b8c3db6f4411c71da6c70a0f6dccf20541532",
+          "salt": "6d8ff9b441364d756e318c4a2805a72d05389a5e96285ad61ea237c89638f031",
+          "user_id": "tree-7-leaf-1"
+        },
+        {
+          "balances": {
+            "A|B": "6.119108872085445300"
+          },
+          "leaf_hash": "11b9ffc5616e54986377dbfc831d385ece381ca9ec8ec64ebaa745d31ebb82cc",
+          "salt": "74a2a169ba2c80fa7f82a22c7a4dff9cf750c6a69b57012ed22dcfc8e600e648",
+          "user_id": "tree-7-leaf-2"
+        },
+        {
+          "balances": {
+            "a.b-c_1": "15.595772298164000477",
+            "": "16.185526010211829366",
+            "！": "0.343333993425946075"
+          },
+          "leaf_hash": "5a7758514037a9ae521f53df9dc0ccee7c382d54c579072cea6ce8509ab6b147",
+          "salt": "9e763e733af35d26e5f24ed77df193adaf511bdd340e69eab02973f908ef17d0",
+          "user_id": "tree-7-leaf-3"
+        },
+        {
+          "balances": {
+            "a": "1.677521823692856634",
+            "！": "5.009121370159309585"
+          },
+          "leaf_hash": "e2ee4f259357c92b104ac326127c725db5cf43782d40817a0f219dfe2cac81c6",
+          "salt": "b7418b42d7c4e6a1feca8c29d4be11baa4e85f497ead38f039ac3375a5199fa0",
+          "user_id": "tree-7-leaf-4"
+        },
+        {
+          "balances": {
+            "AA": "17.551381514374178593"
+          },
+          "leaf_hash": "139ec55da4a4f6b29d7ac0440c0a7e1503953ceb35ad041e7856bdd6b47cebc8",
+          "salt": "3a87c96fa2b3facb55ec1f4764f18f599e15e8d13d8924de3ccaeea4bb7c12d0",
+          "user_id": "tree-7-leaf-5"
+        },
+        {
+          "balances": {
+            "Z": "17.879287581796624255",
+            "𐀀": "14.139782927480932919",
+            "😀": "4.030948125512479913"
+          },
+          "leaf_hash": "5f6b5026bc6152f53aa556751094cd04119d8e77cb1d9db8f84880b54164af0b",
+          "salt": "2ecbdd783e76ddb6d2c5c00e6ba8976191940f8c87763a1fdf59b82f07dc5c4c",
+          "user_id": "tree-7-leaf-6"
+        }
+      ],
+      "root_hash": "21e339e731afb79fbc2e300779dab21fd8ddde560678272063110441a846e285",
+      "root_sums": {
+        "AA": "17.551381514374178593",
+        "A|B": "24.176331130250550294",
+        "USDA": "9.129477644865294657",
+        "Z": "17.879287581796624255",
+        "a": "1.677521823692856634",
+        "a.b-c_1": "15.595772298164000477",
+        "": "16.185526010211829366",
+        "！": "5.352455363585255660",
+        "𐀀": "14.396598167908526155",
+        "😀": "22.279891250027906392"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "USDA": "8.959485271330848890",
+            "Z": "0.964398057912435807",
+            "": "7.907136724689057491"
+          },
+          "leaf_hash": "68d41145a66d6458fe3904c85f56cc2283992c169dbc0ceae5e8638c772b2be3",
+          "salt": "81490e3434fc1abb52bbdbce581efb0ff585c534eaceecb12eee11cbf1cd5224",
+          "user_id": "tree-8-leaf-0"
+        },
+        {
+          "balances": {
+            "A:B": "10.132382709446961159"
+          },
+          "leaf_hash": "9f9503e9e6ae5fdd7d4015ed712f8d65c6c16ae9d0323c68dee5e1041b819b27",
+          "salt": "fe428cd6c9951ccef5f97b9e680939a366daaaf71de7e768ce4ad9721db13209",
+          "user_id": "tree-8-leaf-1"
+        },
+        {
+          "balances": {
+            "AA": "0.553976949165840253"
+          },
+          "leaf_hash": "c5bb9132b0535c4f5623f34eb153da8bb5cbb67e8f3cd5f5fe0fac65e460e05e",
+          "salt": "6af4dbedc27567eedd344954e16345689ff04f490841e48c5b95868a7cb2329a",
+          "user_id": "tree-8-leaf-2"
+        },
+        {
+          "balances": {
+            "A|B": "6.163059724869942446",
+            "Z": "5.988001029429572453",
+            "a": "4.346358465137111735"
+          },
+          "leaf_hash": "3d71039e62387d34fcca342972d7ca8ee2eaf8e5493f1d1e87dee2f8b33ed0b8",
+          "salt": "368c20770bb2f61c770aefd10d8fd930b71bcdd7505e0419f992772bb1e061db",
+          "user_id": "tree-8-leaf-3"
+        },
+        {
+          "balances": {
+            "Z": "9.587149329310498367",
+            "！": "2.327147916232221439"
+          },
+          "leaf_hash": "36c685f46a02ad1a9250d5620a6dd5e020a7d9d386f40d207b904f4bcf9ce5dc",
+          "salt": "8ddd855cc71b49de24088ad202f2efbb467b433ed9ea0e3b54f2b1537bae6306",
+          "user_id": "tree-8-leaf-4"
+        },
+        {
+          "balances": {
+            "a.b-c_1": "15.397093631770113278"
+          },
+          "leaf_hash": "6a0f609c5e39f951e439802b4a3c85186cffee251d449697a9ac6da3694a43fa",
+          "salt": "669a47ef09ba7af2444bf1b43b0e2b505f22bbf84e42da07b921a9a4e56fd82d",
+          "user_id": "tree-8-leaf-5"
+        },
+        {
+          "balances": {
+            "AAA": "2.738436386093613653",
+            "USDA": "2.605476173916729531",
+            "": "5.122628970102971151"
+          },
+          "leaf_hash": "ed9332d7b5e361972db59107e6bf8aa998f09d76935a7beeed90fd4664b992cb",
+          "salt": "91f9e8bfa06c3eedfda9a0a43c669c6839ff720198d6a049ef8c486cd3679c1b",
+          "user_id": "tree-8-leaf-6"
+        },
+        {
+          "balances": {
+            "AAB": "10.512475831383111236"
+          },
+          "leaf_hash": "8b29fced3fa231e60ca7890c8d337469a50fbf7c377787e15bdacc26b08f7a3f",
+          "salt": "ceae1216f88381eb4ddc12c445683939c24fac84e8bc6234e39e4164c3871a2e",
+          "user_id": "tree-8-leaf-7"
+        }
+      ],
+      "root_hash": "d3796d4ca43c1712b730de1d9e5c8eca7ccd6c420a2108ee8f066dc48ccb4785",
+      "root_sums": {
+        "A:B": "10.132382709446961159",
+        "AA": "0.553976949165840253",
+        "AAA": "2.738436386093613653",
+        "AAB": "10.512475831383111236",
+        "A|B": "6.163059724869942446",
+        "USDA": "11.564961445247578421",
+        "Z": "16.539548416652506627",
+        "a": "4.346358465137111735",
+        "a.b-c_1": "15.397093631770113278",
+        "": "13.029765694792028642",
+        "！": "2.327147916232221439"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "A|B:0.000000000000000001": "9.585621398581784441",
+            "": "11.994735163523172963",
+            "𐀀": "1.394700210737042227"
+          },
+          "leaf_hash": "464c1554a0e3af035555ddad1d9ff9b30b109bbca4582e9337ef5b7e88b1c012",
+          "salt": "645e1c9a3fa9832fe914b41a4c3d13babcc7d9de37ba58660a7b8615e10c044d",
+          "user_id": "tree-9-leaf-0"
+        },
+        {
+          "balances": {
+            "AA": "0.533777242598308602",
+            "": "12.980523683467895118"
+          },
+          "leaf_hash": "fa286f6dba613ae6944cc16dc7b22a9d8cbb20eeb646f3d8e9d4be4fcaf867b7",
+          "salt": "73fa27a5ef47713f899ffca7600cdf9b04ebf26a9b0f80606eccd51dfcdb8079",
+          "user_id": "tree-9-leaf-1"
+        },
+        {
+          "balances": {
+            "USDA": "5.316536945221706889"
+          },
+          "leaf_hash": "7f630505798e9c0b3ba22bb6d6a1bef0af04d671d983f19ae104b06b50bd4488",
+          "salt": "c1b09ef9878ee6fa39f15d98ab0a4bfe81c62eed1f728101bb827de0a59219b2",
+          "user_id": "tree-9-leaf-2"
+        },
+        {
+          "balances": {
+            "AAA": "3.793722127555292641",
+            "CBTC": "16.667043463819128987",
+            "Z": "17.417317649776654450"
+          },
+          "leaf_hash": "16f14256932f27b19ccd25e573933c51f859d35bf561f4d950d4619f22b0ab41",
+          "salt": "b343d5e89a3f1092b32be143f3ba05df2c7c765a585877285532ccd98f42dfba",
+          "user_id": "tree-9-leaf-3"
+        },
+        {
+          "balances": {
+            "A:B": "1.998410954450037751",
+            "Z": "11.729942418103713936",
+            "😀": "0.797550863231204085"
+          },
+          "leaf_hash": "80103a8353f2d644b75b3278fe8e866aafc313d6f4718692a6a6a4f8e8b35e81",
+          "salt": "478690f6884ee51c7d43bc28a2aedccb83b119987d17a0fc8486e7c056063058",
+          "user_id": "tree-9-leaf-4"
+        },
+        {
+          "balances": {
+            "𐀀": "11.682669030028029511"
+          },
+          "leaf_hash": "3e68e4b4cc4b7139e92eb8cd8a3503247b3db6660062a8d53c85f8ba997eefe2",
+          "salt": "9e03d3ebddb09a3dfe6e87e629eecc16f1051486bf8d42e2deff35b7c34a7181",
+          "user_id": "tree-9-leaf-5"
+        },
+        {
+          "balances": {
+            "Z": "15.596676180566140524",
+            "𐀀": "13.693375011617901895",
+            "😀": "2.418223437279136293"
+          },
+          "leaf_hash": "10756a670bbdec4778eb5548eb383fdddbbf34d2f00f706f7c34d15642fc88df",
+          "salt": "556e9dec09e40adcc2f76a7e18bad6c665011e17acf7377fb5a4d86e9050bbb9",
+          "user_id": "tree-9-leaf-6"
+        },
+        {
+          "balances": {
+            "USDA": "12.476726542988129400"
+          },
+          "leaf_hash": "9ba3fc5e523924bd5af55587795d64283a5188d8d042c1b175f521c662ffa49c",
+          "salt": "bb274868f36ad40b79f87b7d81b1b19c1345b25fdca268ed72f57eb0709141dc",
+          "user_id": "tree-9-leaf-7"
+        },
+        {
+          "balances": {
+            "A:B": "12.288471550483847051",
+            "": "17.385296622241284985"
+          },
+          "leaf_hash": "7b009c9be0d78ae58cf44e9f1b9e90b85be602a5a3e46bdeb49153686d4115ce",
+          "salt": "3435d38497158adb947a83f2f8ff603a73b73fe4b290fceab10c2bc137303f75",
+          "user_id": "tree-9-leaf-8"
+        }
+      ],
+      "root_hash": "9c8d1f6bb1178f1052ec36afc6de819e03e27f38df690fe525b1c4d679c6add9",
+      "root_sums": {
+        "A:B": "14.286882504933884802",
+        "AA": "0.533777242598308602",
+        "AAA": "3.793722127555292641",
+        "A|B:0.000000000000000001": "9.585621398581784441",
+        "CBTC": "16.667043463819128987",
+        "USDA": "17.793263488209836289",
+        "Z": "44.743936248446508910",
+        "": "42.360555469232353066",
+        "𐀀": "26.770744252382973633",
+        "😀": "3.215774300510340378"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "USDA": "4.256839793589081033"
+          },
+          "leaf_hash": "cda5661e6848f5f3d0c530a3478e1413bd3ebec5e469254560089bcf8496b24a",
+          "salt": "0729c09cc44beacd6cf7a8996641ccf8b1159ee72c460a9df0f008304f869aa3",
+          "user_id": "tree-10-leaf-0"
+        },
+        {
+          "balances": {
+            "A:B": "3.562477890854747545",
+            "A|B:0.000000000000000001": "5.960176045674051605"
+          },
+          "leaf_hash": "94640c2ddfa6691707c2354a80e6090f72debb617b74847fda32c64856a5f9c5",
+          "salt": "8b3305cd0759c3fc77979179b2d8ae10fef841d0fe1c55f12df8b25c9b6434fc",
+          "user_id": "tree-10-leaf-1"
+        },
+        {
+          "balances": {
+            "A|B": "15.194195700160555239"
+          },
+          "leaf_hash": "427cdb1f539933e884ea2903fbe2324ad0da0f6daf2ebae28c0f97340f42213f",
+          "salt": "9370a7efb191b50a475cabcd385944f773272a12879d7724ee65df2858e274f2",
+          "user_id": "tree-10-leaf-2"
+        },
+        {
+          "balances": {
+            "Z": "3.243387315572970465"
+          },
+          "leaf_hash": "0b83b6c7fd4125f10b9640b0c1f25fb391deccccbf368f43165af8616765da69",
+          "salt": "f007bdae22868f5ef4e0cb6b0b2a6f6ba6d43eed1cd24c594bb09f186ef1993d",
+          "user_id": "tree-10-leaf-3"
+        },
+        {
+          "balances": {
+            "AAA": "5.837617166393118345",
+            "😀": "17.714871726921870155"
+          },
+          "leaf_hash": "cc6b081cba29612949beb80c4a2552b214e02bad89b30558d68c4ba8916b4389",
+          "salt": "a6038f65abc920007ccd222814f4289da76a1a8f8b71a8eaf11727b1c01f9a33",
+          "user_id": "tree-10-leaf-4"
+        },
+        {
+          "balances": {
+            "AAB": "2.450258833677397996",
+            "A|B": "10.748357939107431452"
+          },
+          "leaf_hash": "1809fe4470fcf2b1a7e60fcd9b948336b9a4878c732fea228bcd5663c08da996",
+          "salt": "ff9ac25aaaa6fbc56417e564e893720ff1ebb1542aec1accb1aa6376ff4d9b4e",
+          "user_id": "tree-10-leaf-5"
+        },
+        {
+          "balances": {
+            "A:B": "1.436672909302928948",
+            "Z": "1.028506692588028713"
+          },
+          "leaf_hash": "50b6217d33d98cd28a6b38956a1644f5df60ede9a3e7b55fba7698da0dafc376",
+          "salt": "a79d8bd4d5d17f574bd5dbe8169a8d3a1b7d943c1390a8c2d36f5e5d76eb0035",
+          "user_id": "tree-10-leaf-6"
+        },
+        {
+          "balances": {
+            "AA": "18.211028902406780005",
+            "a.b-c_1": "3.793273684037359337",
+            "😀": "9.696585556949418072"
+          },
+          "leaf_hash": "58b5f698de5db6443d8556d14d91c4d066f6156e0c4746e57ac8f35b358f2939",
+          "salt": "23c2689654965ebc05872db96215f6c008742681badce6161383ad0a6ae29a7b",
+          "user_id": "tree-10-leaf-7"
+        },
+        {
+          "balances": {
+            "AA": "8.507830560572684490",
+            "！": "15.319521703280768761",
+            "😀": "11.282560272793582394"
+          },
+          "leaf_hash": "4f848161949a32c39cb881ef9025982ae60875cf8197c19c0e3bebf89df452b1",
+          "salt": "9352f70ed1809cabdde664af7a8d9bf669bc0f9e55520db882fe2d3508681f0e",
+          "user_id": "tree-10-leaf-8"
+        },
+        {
+          "balances": {
+            "😀": "13.179783833003787652"
+          },
+          "leaf_hash": "75aee109644fcda4fd88d3a6d946a5ab57cc45d631f6181224ec358cae701223",
+          "salt": "2dee7ce1fddcdd88f4dd864057584ff943f67eafcee426f71c9a4a14796e4890",
+          "user_id": "tree-10-leaf-9"
+        }
+      ],
+      "root_hash": "aa413e842ac4a055c96d0f31b9230c3b408df25e7b9d2c8a140918af4604610e",
+      "root_sums": {
+        "A:B": "4.999150800157676493",
+        "AA": "26.718859462979464495",
+        "AAA": "5.837617166393118345",
+        "AAB": "2.450258833677397996",
+        "A|B": "25.942553639267986691",
+        "A|B:0.000000000000000001": "5.960176045674051605",
+        "USDA": "4.256839793589081033",
+        "Z": "4.271894008160999178",
+        "a.b-c_1": "3.793273684037359337",
+        "！": "15.319521703280768761",
+        "😀": "51.873801389668658273"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "USDA": "9.393993253074614912"
+          },
+          "leaf_hash": "cf163f9acca1ef5b7a41bc6c940074769aef13bd1bd9428f613e592e928ad98a",
+          "salt": "a451fe1efa7c0cb39376e62632cb3a61df2174fc90420cd50bc5663bd92b645c",
+          "user_id": "tree-11-leaf-0"
+        },
+        {
+          "balances": {
+            "A:B": "17.286586143416551636",
+            "AAB": "15.269768801555427292"
+          },
+          "leaf_hash": "bb9fe6b4164087b2d7d49197561fc809a6c6b2586e0ab500c35cca453b82e612",
+          "salt": "7e27a3c70fde9b78a27262e3eaabdc5e8fac497ddb9590121a43bd2a394879aa",
+          "user_id": "tree-11-leaf-1"
+        },
+        {
+          "balances": {
+            "AA": "0.745401975369425665",
+            "😀": "9.117233100200066357"
+          },
+          "leaf_hash": "f1cb6703e6684cb5baa1e3633666ce331a1673336fe20db5c2688b0a3ebb04d3",
+          "salt": "4404e92a0b8835120ac79365d619ebe6dcde85cbeaf81f43ce4706274b2c9934",
+          "user_id": "tree-11-leaf-2"
+        },
+        {
+          "balances": {
+            "A|B:0.000000000000000001": "5.086400356169061025",
+            "CBTC": "1.540256483658735987",
+            "！": "6.772891035042819242"
+          },
+          "leaf_hash": "dceea6eda3c97e3dab251ff51f1af1f7f5bc0dda46f586d9fb0d61d8c4c2156f",
+          "salt": "6c823011e07f777f584c775045b0a935b0cce7639b4e2a0d4e7d4ddd30fbbec5",
+          "user_id": "tree-11-leaf-3"
+        },
+        {
+          "balances": {
+            "A:B": "14.527258672589537568",
+            "a": "1.156614508762238614",
+            "": "8.319115341425632325"
+          },
+          "leaf_hash": "6c3b27852097af4217f4e1908f6e3c821a3741e89fb98763386b2f12b8624f54",
+          "salt": "1c6e8e84ac9130fedac9e51c48a90eb7006e9181a208f973a2a6fd53c96d1a5c",
+          "user_id": "tree-11-leaf-4"
+        },
+        {
+          "balances": {
+            "A|B": "13.366071693984406935",
+            "USDA": "4.812703648957116057",
+            "！": "11.258693493353690537"
+          },
+          "leaf_hash": "8758d80ea196bf5c570eae4dcf2ce03ff6cdf111f4e6e8eaf7d6ad5dfe8d94bd",
+          "salt": "0de9e51fafe8e9774d8f4e47e768b2a2a35bd8d48fb50898284982ea123129ac",
+          "user_id": "tree-11-leaf-5"
+        },
+        {
+          "balances": {
+            "A|B": "12.813898490830053459",
+            "USDA": "10.406868978575462791",
+            "a.b-c_1": "18.046221135340995230"
+          },
+          "leaf_hash": "39f628e1a28ddbc291ca83cf7bab736d6e3fdaa85b0a9ea21f68bc91f89a294b",
+          "salt": "e30bfac126a7d5de0983833db9e548af84c138938b3ca681e023e42d738525be",
+          "user_id": "tree-11-leaf-6"
+        },
+        {
+          "balances": {
+            "AA": "4.896542293512945769",
+            "AAB": "11.067275594037848094"
+          },
+          "leaf_hash": "ac2b70e584a7d24d6967efbaae160a27a5e1b601406bcd3e8c2f74f6307f38c5",
+          "salt": "6a12804ec9e63a88ce02827fc0555c44cb1c4469c1436c38d121e0d7fcd45700",
+          "user_id": "tree-11-leaf-7"
+        },
+        {
+          "balances": {
+            "CBTC": "17.938980007742089735",
+            "": "9.196554907649713173"
+          },
+          "leaf_hash": "62ad641ff0f414510412cfe9a1e2bdd0e77ea3e6d3d832ae252291f8a75e4ec4",
+          "salt": "36869908678856533a0c7f0f0c845367fad247e7f1dca7419851b7ca2a012e63",
+          "user_id": "tree-11-leaf-8"
+        },
+        {
+          "balances": {
+            "AA": "6.562381667227852229",
+            "a": "5.413787182357517645",
+            "！": "10.456737312532826684"
+          },
+          "leaf_hash": "66102c2110db420dee2c422df266ad041483f19f2292024c05c31ebcfddb82fa",
+          "salt": "e30badcee0d26529ee1ca9e5f5dae241bdec6cca19264726dc0af7c77ec42f16",
+          "user_id": "tree-11-leaf-9"
+        },
+        {
+          "balances": {
+            "AAA": "12.036166659072437062",
+            "A|B": "1.650736879593354970",
+            "CBTC": "3.867272946897442894"
+          },
+          "leaf_hash": "9907c45e10ab2388e03176fe57671933f94d0ac5b4df4f980aeed39aeb0c7fbb",
+          "salt": "0a7bcbced2f02440ab66419fb99a73754d44bfa7d9261c6ca50355c6ce2e5ae1",
+          "user_id": "tree-11-leaf-10"
+        }
+      ],
+      "root_hash": "a60f9e54d0d18ee77610d14037216557be7974cca7a15ea979facddb03bec3bc",
+      "root_sums": {
+        "A:B": "31.813844816006089204",
+        "AA": "12.204325936110223663",
+        "AAA": "12.036166659072437062",
+        "AAB": "26.337044395593275386",
+        "A|B": "27.830707064407815364",
+        "A|B:0.000000000000000001": "5.086400356169061025",
+        "CBTC": "23.346509438298268616",
+        "USDA": "24.613565880607193760",
+        "a": "6.570401691119756259",
+        "a.b-c_1": "18.046221135340995230",
+        "": "17.515670249075345498",
+        "！": "28.488321840929336463",
+        "😀": "9.117233100200066357"
+      }
+    },
+    {
+      "leaves": [
+        {
+          "balances": {
+            "AA": "16.641671824788307393",
+            "": "7.154639520564416109"
+          },
+          "leaf_hash": "b43836a924c1a7ac2b22103b616e964efc75c634a4579f722dc9432d5b0ad5de",
+          "salt": "9df3a53fe42739b48672b5f717593e8738f9d65d066bcee5542883f4b01a6a8e",
+          "user_id": "tree-12-leaf-0"
+        },
+        {
+          "balances": {
+            "AAA": "1.827038377620392537",
+            "𐀀": "18.151625585235950615",
+            "😀": "15.785431698770909003"
+          },
+          "leaf_hash": "a545e331ac61544e451ef9c91411623ce863d6ae70521be0200232c1fed7cfcd",
+          "salt": "20bcf275b7d46622a3ec2715dd0d4a798907ea2c9c71f87bf3b74b2aa245d085",
+          "user_id": "tree-12-leaf-1"
+        },
+        {
+          "balances": {
+            "A:B": "8.107889581569658534",
+            "Z": "2.831818961541809034"
+          },
+          "leaf_hash": "06df3d61ab9d2c14e1fe4ad6e8ccb3a6ef30935422f9411bb377edb63e08c940",
+          "salt": "7bfa21173ae413e7110fccd7ef4b582570f95b40efcf6fa0b5cb1e73cad0b71a",
+          "user_id": "tree-12-leaf-2"
+        },
+        {
+          "balances": {
+            "A:B": "2.273303823363745676",
+            "a.b-c_1": "13.181604365716534634",
+            "𐀀": "3.193375185922834434"
+          },
+          "leaf_hash": "83e5ec06d8fefdda8ea9a02779ea48b1a0774a2246caa6575bc9f18fad3261aa",
+          "salt": "b91e07c80ea3a665cf91740a01d9bb263c82534be04d398d052269201c9560d2",
+          "user_id": "tree-12-leaf-3"
+        },
+        {
+          "balances": {
+            "！": "16.273658782864272500"
+          },
+          "leaf_hash": "f35d432189b09fdf53e557e1ffd6f515c2c6bacce6ecc2bbf9d22f1e7268d305",
+          "salt": "808aee666ff7ca70d6670a2a414feeacc807f844a6a3c787f45b1c79acc3571e",
+          "user_id": "tree-12-leaf-4"
+        },
+        {
+          "balances": {
+            "AA": "11.290230557693491585"
+          },
+          "leaf_hash": "3cff4ec5c3538516ddb9e9602d977f2ec2e94a220bdec2b3add886e635c9dff2",
+          "salt": "eba305e10034fee5cc1ee01bb07f7a76fb19cffbac85e7d7e792d28b1a72e7ec",
+          "user_id": "tree-12-leaf-5"
+        },
+        {
+          "balances": {
+            "AA": "2.409791481366314604"
+          },
+          "leaf_hash": "4ab2c4053717fe5c8d4e8b2633cddfc38902f8ad85d57539b0f9f3cf51692f6b",
+          "salt": "6cc8dd3c25f2d3d7cdeea0865e47ef65b4e470413a8c2c0ee76904cdfcc896d6",
+          "user_id": "tree-12-leaf-6"
+        },
+        {
+          "balances": {
+            "AA": "9.883787850296002181",
+            "𐀀": "14.543757830644942619"
+          },
+          "leaf_hash": "78df951e695dd2a31dbfef771719f3e36746f48c855196ec77fe219c6df0223c",
+          "salt": "b23ef09a25e74078ecf811db900e3b7b062da273eadcdc330660820b0176e179",
+          "user_id": "tree-12-leaf-7"
+        },
+        {
+          "balances": {
+            "USDA": "17.187742003602346653"
+          },
+          "leaf_hash": "7b8ee5e28e2745c1c9430ae7258d3fc14926188c3a563efd08ba1d74075b31d1",
+          "salt": "ca18f10fa2144d104a45b6f1361ef29bdf0750c0a0f11b251e5192ecc31dcebd",
+          "user_id": "tree-12-leaf-8"
+        },
+        {
+          "balances": {
+            "A|B:0.000000000000000001": "4.478887238877780667",
+            "CBTC": "2.476574021897364794",
+            "USDA": "17.238300258555594555"
+          },
+          "leaf_hash": "469359d187376668bb2fdddc786615903597d12e5f2b4e348ac2a23e90543234",
+          "salt": "735785fa2d530b40235fb85820d23d7d94b2746622ee280b7839725cce57098c",
+          "user_id": "tree-12-leaf-9"
+        },
+        {
+          "balances": {
+            "A|B:0.000000000000000001": "12.086053929753817796"
+          },
+          "leaf_hash": "69ba3b20bb9aae3a1022819ab924b4c055f13851515006d5f148aa0566361744",
+          "salt": "e58062954c0f5b018332b5b58bd8f4ee8680c3f34f6a6a6b0d048cdc314d6e61",
+          "user_id": "tree-12-leaf-10"
+        },
+        {
+          "balances": {
+            "AAA": "10.941984411212105586"
+          },
+          "leaf_hash": "8eee103389b7371fa8dcc5897b06972806876f46641ead1b07725604e9f31e53",
+          "salt": "6c1347e2bae131a61116919f4f88eff4f9315f7b1442d30726908e5fc2dbf6b2",
+          "user_id": "tree-12-leaf-11"
+        }
+      ],
+      "root_hash": "51f0dbfb9b177964b6ca66d08363e9b7fe376d69d92751089e626eb31842bb39",
+      "root_sums": {
+        "A:B": "10.381193404933404210",
+        "AA": "40.225481714144115763",
+        "AAA": "12.769022788832498123",
+        "A|B:0.000000000000000001": "16.564941168631598463",
+        "CBTC": "2.476574021897364794",
+        "USDA": "34.426042262157941208",
+        "Z": "2.831818961541809034",
+        "a.b-c_1": "13.181604365716534634",
+        "": "7.154639520564416109",
+        "！": "16.273658782864272500",
+        "𐀀": "35.888758601803727668",
+        "😀": "15.785431698770909003"
+      }
     }
   ],
   "vectors": [
