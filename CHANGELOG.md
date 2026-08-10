@@ -4,7 +4,10 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
-## Unreleased
+## 0.1.1 — unreleased
+
+Testing and documentation, plus four defects those tests found. No wire
+bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
@@ -30,6 +33,11 @@ as a format version, never as a fix.
   permissive side is the one customers run. Bounded in `parseAmount18dp` and
   `formatAmount18dp`, stated in §1, and pinned at the boundary by tests in both
   implementations.
+
+- Two broken intra-doc links, live on docs.rs since 0.1.0: `Report` and
+  `ProofDocument` did not resolve from the crate root, and `reserve-attest`
+  carried a redundant explicit link target. rustdoc now runs in CI with
+  `-D warnings`.
 
 ### Changed
 
@@ -57,14 +65,6 @@ as a format version, never as a fix.
   The CLI suite runs the real binary across every verb, asserting the exit-code
   contract a pipeline actually consumes: malformed input is a 2, a failed
   verification is a 1, and neither is ever the 101 that a panic produces.
-
-## 0.1.1 — 2026-08-10
-
-Testing and documentation only. No wire bytes, no format versions, no
-behaviour change — every 0.1.0 vector still verifies.
-
-### Added
-
 - Property tests over the commitment core: nine invariants over generated
   trees at every size from 1 to 64. Odd-node promotion is the motive —
   duplicating the odd node instead of promoting it is the obvious
@@ -78,18 +78,6 @@ behaviour change — every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
-
-### Fixed
-
-- Two broken intra-doc links, live on docs.rs since 0.1.0: `Report` and
-  `ProofDocument` did not resolve from the crate root, and `reserve-attest`
-  carried a redundant explicit link target. rustdoc now runs in CI with
-  `-D warnings`.
-
-Released for the documentation alone. 0.1.0's docs.rs pages show broken links
-and no examples, and the main open ask on this project is that other people
-implement against it — so the reference an implementer reads first is worth a
-patch release on its own.
 
 ## 0.1.0 — 2026-08-10
 
