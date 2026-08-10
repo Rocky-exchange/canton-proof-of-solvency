@@ -8,6 +8,7 @@
  */
 
 import {
+  keysOf,
   bytewiseCompare,
   combineNodes,
   leafNodeV2,
@@ -208,7 +209,7 @@ export async function reportDigestHex(report: Report): Promise<string> {
   const manifestParts: Uint8Array[] = [];
   if (v2 && report.manifest) {
     manifestParts.push(lp(report.manifest.audience));
-    const paths = Object.keys(report.manifest.fields).sort(bytewiseCompare);
+    const paths = keysOf(report.manifest.fields).sort(bytewiseCompare);
     manifestParts.push(u64le(paths.length));
     for (const path of paths) {
       manifestParts.push(lp(path), lp(report.manifest.fields[path]));
@@ -302,17 +303,21 @@ export function checkReportVersionAndManifest(report: Report): VerificationResul
     });
   }
 
+  // A v2 report whose disclosures block is missing entirely still has to be
+  // rejected rather than crash the verifier.
+  const disclosures = (report.disclosures ?? {}) as Record<string, unknown>;
   const carriesData: Record<string, boolean> = {
-    root_sums: Object.keys(report.root_sums).length > 0,
-    mark_prices: Object.keys(report.mark_prices).length > 0,
-    "disclosures.bad_debt": Object.keys(report.disclosures.bad_debt).length > 0,
-    "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
-    "disclosures.excluded_house_totals":
-      Object.keys(report.disclosures.excluded_house_totals).length > 0,
+    root_sums: keysOf(report.root_sums).length > 0,
+    mark_prices: keysOf(report.mark_prices).length > 0,
+    "disclosures.bad_debt": keysOf(disclosures.bad_debt).length > 0,
+    "disclosures.excluded_house_accounts":
+      Number(disclosures.excluded_house_accounts ?? 0) > 0,
+    "disclosures.excluded_house_totals": keysOf(disclosures.excluded_house_totals).length > 0,
   };
 
-  for (const path of Object.keys(manifest.fields).sort(bytewiseCompare)) {
-    const state = manifest.fields[path];
+  const fields = (manifest.fields ?? {}) as Record<string, Disclosure>;
+  for (const path of keysOf(fields).sort(bytewiseCompare)) {
+    const state = fields[path];
     if (!KNOWN_FIELDS.includes(path)) {
       return fail({
         kind: "manifest_inconsistent",
@@ -349,12 +354,24 @@ export function expectLeafKind(report: Report, wanted: LeafKind): VerificationRe
   if (!rules) {
     return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
   }
+  // `report` is untrusted at this point: it is whatever JSON the caller was
+  // handed. Reading Object.keys off a field that is null, a string or an array
+  // throws a TypeError out of a function whose contract is to return a
+  // VerificationResult, and this runs before the fold's try/catch in both
+  // entry points. A report whose aggregates are not maps carries none of the
+  // aggregates its profile requires, which is a profile failure and not a
+  // crash.
+  const keysOf = (value: unknown): string[] =>
+    value !== null && typeof value === "object" && !Array.isArray(value)
+      ? Object.keys(value as Record<string, unknown>)
+      : [];
+
   for (const aggregate of rules.requiredAggregates) {
     const present = aggregate.endsWith("/*")
-      ? Object.keys(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1)))
+      ? keysOf(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1)))
       : aggregate === "root_sums"
-        ? Object.keys(report.root_sums).length > 0
-        : Object.keys(report.mark_prices).length > 0;
+        ? keysOf(report.root_sums).length > 0
+        : keysOf(report.mark_prices).length > 0;
     if (!present) {
       return fail({
         kind: "profile",

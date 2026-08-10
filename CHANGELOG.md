@@ -11,6 +11,14 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **`verifyReportV2` threw on a malformed manifest or a missing disclosures
+  block**, rather than failing the report. Both fields come from the document
+  under examination, and `Object.keys` on a value that is not a map throws with
+  nothing in the type system to warn of it. This is the sixth instance of that
+  single mistake — four browser surfaces, the group path, and now v2
+  verification — so the guard is one exported `keysOf` in `verify.ts` rather
+  than a copy per module.
+
 - **The disclosure designer threw on a half-written manifest.** A manifest with
   no `audience` crashed the screen, because the check for a missing audience
   read `.trim()` off it — so the most ordinary in-progress document produced a
@@ -43,6 +51,21 @@ bytes, no format versions: every 0.1.0 vector still verifies.
   now carry a digest of the full identifier whenever sanitising loses
   something; identifiers needing no sanitising keep their readable name, and
   the two forms cannot collide because only the suffixed form contains a `-`.
+- **The console threw instead of reporting on a malformed amount**, in the
+  coverage table and the data-flow view, and raised a `TypeError` when
+  `root_sums` was not a map at all. Same defect as the offline verifier below
+  and found by looking for it there: a display path formatting untrusted
+  figures without a guard. Unreadable figures now render as `(malformed)` and
+  an unreadable holding is not counted as covering anything.
+- **`verifyReport` and `verifyMembership` threw on aggregates that were not
+  maps.** Both call `expectLeafKind`, which read `Object.keys` off
+  `root_sums` and `mark_prices` before either entry point's try/catch, so a
+  report whose aggregates were `null`, a string or an array raised a
+  `TypeError` out of a function whose signature promises a
+  `VerificationResult`. The offline verifier survived it only because it
+  catches at its own boundary; a caller reading the signature would not. A
+  report carrying no aggregate map now fails its profile check, which is what
+  it is.
 - **The browser verifier threw instead of reporting on a malformed document.**
   `verifyFromText` built its display facts before checking whether
   verification had succeeded, so a report whose `root_sums` was not an amount

@@ -162,22 +162,22 @@
   var encoder2 = new TextEncoder();
 
   // src/publisher.ts
-  function keysOf(value) {
+  function keysOf2(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
   }
   function carriesData(report, path) {
     const disclosures = report.disclosures ?? {};
     switch (path) {
       case "root_sums":
-        return keysOf(report.root_sums).length > 0;
+        return keysOf2(report.root_sums).length > 0;
       case "mark_prices":
-        return keysOf(report.mark_prices).length > 0;
+        return keysOf2(report.mark_prices).length > 0;
       case "disclosures.bad_debt":
-        return keysOf(disclosures.bad_debt).length > 0;
+        return keysOf2(disclosures.bad_debt).length > 0;
       case "disclosures.excluded_house_accounts":
         return Number(disclosures.excluded_house_accounts ?? 0) > 0;
       case "disclosures.excluded_house_totals":
-        return keysOf(disclosures.excluded_house_totals).length > 0;
+        return keysOf2(disclosures.excluded_house_totals).length > 0;
       default:
         return false;
     }

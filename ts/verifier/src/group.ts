@@ -59,6 +59,9 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 function parseSums(sums: AmountMap): Record<string, bigint> {
+  if (sums === null || typeof sums !== "object" || Array.isArray(sums)) {
+    throw new Error("sums must be an object mapping asset to amount");
+  }
   return Object.fromEntries(Object.entries(sums).map(([a, v]) => [a, parseAmount18dp(v)]));
 }
 
@@ -143,7 +146,17 @@ export async function verifyMembership(
 
   if (current.hashHex !== report.root_hash) return fail({ kind: "root_hash_mismatch" });
 
-  const published = parseSums(report.root_sums);
+  // Outside the fold's try/catch this threw rather than failing: a report whose
+  // root_sums is not an amount map at all raised a TypeError out of an entry
+  // point whose contract is to return a VerificationResult. Callers that trust
+  // that contract -- the console among them -- would surface it as a broken
+  // page rather than a rejected document.
+  let published: Record<string, bigint>;
+  try {
+    published = parseSums(report.root_sums);
+  } catch (e) {
+    return fail({ kind: "malformed", detail: String(e) });
+  }
   for (const asset of new Set([...Object.keys(current.sums), ...Object.keys(published)])) {
     if ((current.sums[asset] ?? 0n) !== (published[asset] ?? 0n)) {
       return fail({ kind: "root_sums_mismatch", asset });
