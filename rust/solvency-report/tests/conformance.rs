@@ -37,6 +37,8 @@ fn expected_text(failure: &str) -> &'static str {
         "profile" => "profile ",
         "not_genesis" => "names a predecessor",
         "broken" => "does not name the one before it",
+        "publisher_changed" => "publisher",
+        "went_backwards" => "backwards",
         "pack_missing" => "which is not present",
         "pack_altered" => "does not match the digest",
         "pack_unlisted" => "does not name it",

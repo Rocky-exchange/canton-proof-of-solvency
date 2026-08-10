@@ -228,6 +228,45 @@
       ]
     },
     {
+      "description": "a history that changes publisher part-way through",
+      "expect": "reject",
+      "failure": "publisher_changed",
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-publisher-changed",
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
+    },
+    {
+      "description": "a successor whose snapshot time does not advance",
+      "expect": "reject",
+      "failure": "went_backwards",
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-restated-instant",
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
+    },
+    {
+      "description": "a successor whose ledger offset moves backwards",
+      "expect": "reject",
+      "failure": "went_backwards",
+      "files": [
+        "history.json"
+      ],
+      "id": "anchors-rewound-offset",
+      "kind": "anchors",
+      "requires": [
+        "anchor-v1"
+      ]
+    },
+    {
       "description": "an anchor not naming its predecessor",
       "expect": "reject",
       "failure": "broken",

@@ -14,7 +14,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "221efc37818f3fefd9d70b1606bf8e40393a1b2b2bc121558245ad190159914c",
+  "corpus_digest": "3ae88cfd4c5026f2fd59853c2eb1ec7f8bfa5019a93c98eda531de63acfaa5fa",
   "results": [
     {
       "id": "proof-valid",
@@ -88,6 +88,21 @@
     },
     {
       "id": "anchors-suffix",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "anchors-publisher-changed",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "anchors-restated-instant",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "anchors-rewound-offset",
       "expected": "reject",
       "outcome": "reject"
     },
