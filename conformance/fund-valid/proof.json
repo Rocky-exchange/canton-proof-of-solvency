@@ -1,0 +1,26 @@
+{
+  "format_version": "canton-solvency-proof-v2",
+  "leaf": {
+    "maps": {
+      "entitlement": {
+        "USDA": "2500.000000000000000000"
+      },
+      "units": {
+        "CLASS_A": "1000.000000000000000000"
+      }
+    },
+    "salt": "17636fbbbf165972640ef827f4021d8577a96d0f3427f7711fe9308a4e9b29d1",
+    "subject_id": "holder-a"
+  },
+  "report_digest": "f62f4ed66ba3658afc35894331af04554e8d69a41ffac98e1c10ea31397f6a7e",
+  "steps": [
+    {
+      "sibling_hash": "a45a81a1fb2991ece56b376b3e419356ece455af40cbb5e4e8e72d8e82345276",
+      "sibling_on_left": false,
+      "sibling_sums": {
+        "entitlement/USDA": "1000.000000000000000000",
+        "units/CLASS_A": "400.000000000000000000"
+      }
+    }
+  ]
+}

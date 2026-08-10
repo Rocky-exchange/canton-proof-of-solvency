@@ -261,6 +261,149 @@ pub fn understated_fixture() -> (SignedReport, ProofDocument) {
 ///
 /// The member bytes are the pretty-printed documents a publisher writes, since
 /// the index pins bytes on disk rather than any re-serialisation of them.
+/// An `eligibility.holder` report, and one where a holder did not comply.
+///
+/// §14's unanimity rule: each attested rule carries `1` in every leaf, so the
+/// total equalling `leaf_count` is consistent with every holder having
+/// satisfied it. The second report has three holders and one that did not,
+/// so the total falls a whole unit short of the count.
+///
+/// §14 already qualifies what this proves — `leaf_count` is signed but never
+/// recomputed, so a publisher who understates it satisfies the arithmetic. The
+/// case pins what the check does catch, which is a publisher who reports the
+/// count honestly and the indicator honestly.
+pub fn eligibility_fixture() -> (
+    SignedReport,
+    crate::document::ProofDocumentV2,
+    SignedReport,
+    crate::document::ProofDocumentV2,
+) {
+    use crate::produce::{publish_v2, LeafInputV2};
+    let one = 1_000_000_000_000_000_000u128;
+
+    let holder = |id: &str, complies: bool| LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, id),
+        subject_id: id.to_string(),
+        maps: [(
+            "attested".to_string(),
+            amounts(&[("accredited", if complies { one } else { 0 })]),
+        )]
+        .into_iter()
+        .collect(),
+    };
+    let meta = || ReportMetadata {
+        profile: "eligibility.holder".to_string(),
+        ..metadata()
+    };
+
+    let all_comply = publish_v2(
+        &[
+            holder("holder-1", true),
+            holder("holder-2", true),
+            holder("holder-3", true),
+        ],
+        &meta(),
+        &signer(),
+    )
+    .unwrap();
+    let one_does_not = publish_v2(
+        &[
+            holder("holder-1", true),
+            holder("holder-2", true),
+            holder("holder-3", false),
+        ],
+        &meta(),
+        &signer(),
+    )
+    .unwrap();
+
+    // The rejecting pair gets its own proof, so the digest binding passes and
+    // the unanimity total is the only thing left to fail. Pairing it with the
+    // other report's proof rejects on the binding instead, which is a
+    // different check and would have made the case worthless.
+    (
+        all_comply.signed_report,
+        all_comply.proofs[0].clone(),
+        one_does_not.signed_report,
+        one_does_not.proofs[0].clone(),
+    )
+}
+
+/// A `fund.nav` report: units outstanding and total entitlement, per holder.
+///
+/// The profile requires both `units/*` and `entitlement/*` aggregates, so a
+/// report publishing only one of them asserts half its statement and is
+/// refused as vacuous.
+pub fn fund_fixture() -> (
+    SignedReport,
+    crate::document::ProofDocumentV2,
+    SignedReport,
+    crate::document::ProofDocumentV2,
+) {
+    use crate::produce::{publish_v2, LeafInputV2};
+    let one = 1_000_000_000_000_000_000u128;
+    let leaves: Vec<LeafInputV2> = [("holder-a", 1_000u128, 2_500u128), ("holder-b", 400, 1_000)]
+        .into_iter()
+        .map(|(id, units, entitlement)| LeafInputV2 {
+            salt: leaf_salt(MASTER_SALT, id),
+            subject_id: id.to_string(),
+            maps: [
+                ("units".to_string(), amounts(&[("CLASS_A", units * one)])),
+                (
+                    "entitlement".to_string(),
+                    amounts(&[("USDA", entitlement * one)]),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+        })
+        .collect();
+
+    let published = publish_v2(
+        &leaves,
+        &ReportMetadata {
+            profile: "fund.nav".to_string(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+
+    // The same holders with the entitlement map dropped: units outstanding
+    // published, entitlement not. That is half the statement the profile
+    // makes, and §14 refuses a report omitting an aggregate its profile
+    // requires rather than accepting a partial one.
+    let units_only: Vec<LeafInputV2> = leaves
+        .iter()
+        .map(|l| LeafInputV2 {
+            salt: l.salt,
+            subject_id: l.subject_id.clone(),
+            maps: l
+                .maps
+                .iter()
+                .filter(|(name, _)| name.as_str() == "units")
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect(),
+        })
+        .collect();
+    let partial = publish_v2(
+        &units_only,
+        &ReportMetadata {
+            profile: "fund.nav".to_string(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+
+    (
+        published.signed_report,
+        published.proofs[0].clone(),
+        partial.signed_report,
+        partial.proofs[0].clone(),
+    )
+}
+
 /// A `settlement.dvp` report, and the trade that is missing a leg.
 ///
 /// §14 states the case in as many words: "a committed trade missing a leg is

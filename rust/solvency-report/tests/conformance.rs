@@ -5,7 +5,7 @@
 //! reference implementation cannot itself satisfy is not a conformance test,
 //! it is a bug report.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 fn corpus_dir() -> PathBuf {
@@ -202,4 +202,47 @@ fn the_checked_in_corpus_matches_its_generator() {
              `cargo run --example emit_conformance -- ./conformance`"
         );
     }
+}
+
+/// Every registered profile must have at least one case.
+///
+/// The registry is where a profile becomes real, and §14 calls the profiles
+/// the point of the format. Four of the seven had no case at all until now —
+/// fund.nav, settlement.dvp and eligibility.holder were declared, implemented
+/// and never exercised, which is the same shape as a check nobody runs.
+#[test]
+fn every_registered_profile_has_a_conformance_case() {
+    let dir = corpus_dir();
+    let mut covered = BTreeSet::new();
+    for entry in std::fs::read_dir(&dir).expect("corpus is checked in") {
+        let path = entry.expect("entry").path();
+        if !path.is_dir() {
+            continue;
+        }
+        for name in ["report.json", "group-report.json", "custody.json"] {
+            let file = path.join(name);
+            if !file.exists() {
+                continue;
+            }
+            let text = std::fs::read_to_string(&file).expect("readable");
+            if let Ok(doc) = serde_json::from_str::<serde_json::Value>(&text) {
+                if let Some(profile) = doc["report"]["profile"].as_str() {
+                    covered.insert(profile.to_string());
+                }
+            }
+        }
+    }
+
+    let registered: Vec<&str> = canton_solvency_report::profile::REGISTRY
+        .iter()
+        .map(|rules| rules.name)
+        .collect();
+    let missing: Vec<&&str> = registered
+        .iter()
+        .filter(|name| !covered.contains(**name))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "registered profiles with no conformance case: {missing:?}"
+    );
 }
