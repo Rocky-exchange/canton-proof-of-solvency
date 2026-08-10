@@ -82,6 +82,14 @@ be false. Documented rather than fixed, because we do not believe it is
 fixable from an inclusion proof at all. That judgement is the thing we would
 most like checked.
 
+**Malformed input, as distinct from wrong input.** We found six places where a
+document that was not a document crashed a verifier rather than failing it, all
+in TypeScript, all in code whose signature promised a result. They are fixed and
+tested. What we would like judged is whether the *class* is now closed or merely
+thinned: our search was a grep for one pattern after we had found it four times
+by hand, which is not the same as a systematic argument that no entry point can
+raise.
+
 **Verification order (§9.1, §15.3).** Both specify a fixed order and "fail on
 the first that does not hold". Is any step skippable, or does any earlier
 failure mask a later one that matters?
