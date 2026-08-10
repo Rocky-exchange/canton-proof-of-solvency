@@ -502,7 +502,8 @@
     }
     if (rules.coverage) {
       const { covering, covered } = rules.coverage;
-      for (const [key, value] of Object.entries(report.root_sums)) {
+      for (const key of keysOf2(report.root_sums)) {
+        const value = report.root_sums[key];
         if (!key.startsWith(`${covered}/`)) continue;
         const asset = key.slice(covered.length + 1);
         const held = report.root_sums[`${covering}/${asset}`];
@@ -515,7 +516,8 @@
       }
     }
     for (const mapName of rules.unanimousMaps ?? []) {
-      for (const [key, total] of Object.entries(report.root_sums)) {
+      for (const key of keysOf2(report.root_sums)) {
+        const total = report.root_sums[key];
         if (!key.startsWith(`${mapName}/`)) continue;
         const rule = key.slice(mapName.length + 1);
         const expected = BigInt(report.leaf_count) * 10n ** 18n;
@@ -812,7 +814,8 @@
     ];
     const manifest = report.manifest;
     if (manifest) {
-      const byState = (want) => Object.keys(manifest.fields).filter((path) => manifest.fields[path] === want).sort().join(", ") || "(none)";
+      const fields = manifest.fields;
+      const byState = (want) => keysOf(fields).filter((path) => fields[path] === want).sort().join(", ") || "(none)";
       facts.push(
         {
           label: "Withheld from this audience",
