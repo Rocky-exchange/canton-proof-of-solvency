@@ -261,6 +261,61 @@ pub fn understated_fixture() -> (SignedReport, ProofDocument) {
 ///
 /// The member bytes are the pretty-printed documents a publisher writes, since
 /// the index pins bytes on disk rather than any re-serialisation of them.
+/// A `settlement.dvp` report, and the trade that is missing a leg.
+///
+/// §14 states the case in as many words: "a committed trade missing a leg is
+/// rejected when its own proof is checked". The profile requires every leaf to
+/// carry both `delivered` and `paid`, which is what makes delivery-versus-
+/// payment structural rather than a policy someone remembers to apply.
+///
+/// Returns the report, a proof for a complete trade, and a proof for one that
+/// carries only the delivered leg. Both proofs are genuine — the incomplete
+/// trade really is committed in the tree — so nothing but the per-leaf rule
+/// separates them.
+pub fn dvp_fixture() -> (
+    SignedReport,
+    crate::document::ProofDocumentV2,
+    crate::document::ProofDocumentV2,
+) {
+    use crate::produce::{publish_v2, LeafInputV2};
+
+    let one = 1_000_000_000_000_000_000u128;
+    let complete = LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, "trade-1"),
+        subject_id: "trade-1".to_string(),
+        maps: [
+            ("delivered".to_string(), amounts(&[("BOND", 100 * one)])),
+            ("paid".to_string(), amounts(&[("USDA", 99 * one)])),
+        ]
+        .into_iter()
+        .collect(),
+    };
+    // Delivered but never paid for. The leaf is committed exactly like any
+    // other; only its own proof reveals the missing leg.
+    let half_settled = LeafInputV2 {
+        salt: leaf_salt(MASTER_SALT, "trade-2"),
+        subject_id: "trade-2".to_string(),
+        maps: [("delivered".to_string(), amounts(&[("BOND", 200 * one)]))]
+            .into_iter()
+            .collect(),
+    };
+
+    let published = publish_v2(
+        &[complete, half_settled],
+        &ReportMetadata {
+            profile: "settlement.dvp".to_string(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+    (
+        published.signed_report,
+        published.proofs[0].clone(),
+        published.proofs[1].clone(),
+    )
+}
+
 /// A custody report that does not cover the liabilities, for the case §11
 /// exists to catch.
 ///

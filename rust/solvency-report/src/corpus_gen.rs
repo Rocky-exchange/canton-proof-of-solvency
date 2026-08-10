@@ -41,6 +41,7 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (group_report, membership) = golden::group_fixture();
     let (custody, statement) = golden::coverage_fixture();
     let (shortfall_custody, shortfall_statement) = golden::shortfall_fixture();
+    let (dvp_report, dvp_complete, dvp_missing_leg) = golden::dvp_fixture();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
@@ -299,6 +300,37 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
                     "0000000000000000",
                 ),
             ),
+        ],
+    )?;
+
+    // --- §14 per-leaf rules ---
+    // required_leaf_maps is checked when a proof is verified, and nothing
+    // exercised it: neutralising the check left every case passing. Three
+    // profiles declare per-leaf rules and none had a case at all. §14 names
+    // this exact scenario — "a committed trade missing a leg is rejected when
+    // its own proof is checked".
+    add(
+        "dvp-valid",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a settled trade carrying both of its legs",
+        "accept",
+        None,
+        vec![
+            ("report.json", serde_json::to_value(&dvp_report)?),
+            ("proof.json", serde_json::to_value(&dvp_complete)?),
+        ],
+    )?;
+    add(
+        "dvp-missing-leg",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a committed trade delivered but never paid for",
+        "reject",
+        Some("profile"),
+        vec![
+            ("report.json", serde_json::to_value(&dvp_report)?),
+            ("proof.json", serde_json::to_value(&dvp_missing_leg)?),
         ],
     )?;
 

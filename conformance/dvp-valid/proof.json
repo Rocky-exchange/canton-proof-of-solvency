@@ -1,0 +1,25 @@
+{
+  "format_version": "canton-solvency-proof-v2",
+  "leaf": {
+    "maps": {
+      "delivered": {
+        "BOND": "100.000000000000000000"
+      },
+      "paid": {
+        "USDA": "99.000000000000000000"
+      }
+    },
+    "salt": "e4fa32c461441a3f3ae833c70fdefa7e47c5042211b2530110acd33abdc28975",
+    "subject_id": "trade-1"
+  },
+  "report_digest": "09dadee32e8e2a2e68ac7b6974707b042fd4192a047f2709cbcc89ae21f91d40",
+  "steps": [
+    {
+      "sibling_hash": "5f94f03021346002ca6f19edf4b681172e01824f40bb506f1050228786e9e29b",
+      "sibling_on_left": false,
+      "sibling_sums": {
+        "delivered/BOND": "200.000000000000000000"
+      }
+    }
+  ]
+}

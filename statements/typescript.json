@@ -14,7 +14,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "b76aa8363e199ca624b0540e4b849dc53ecf1df336b94f086d64ffb67d45dd0a",
+  "corpus_digest": "cbee4a4de11a800b4bcddaeaedbc13441132a112496a57e62ee75cacf5919739",
   "results": [
     {
       "id": "proof-valid",
@@ -78,6 +78,16 @@
     },
     {
       "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "dvp-valid",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "dvp-missing-leg",
       "expected": "reject",
       "outcome": "reject"
     },

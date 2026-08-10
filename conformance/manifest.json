@@ -202,6 +202,38 @@
       ]
     },
     {
+      "description": "a settled trade carrying both of its legs",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "dvp-valid",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
+      "description": "a committed trade delivered but never paid for",
+      "expect": "reject",
+      "failure": "profile",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "dvp-missing-leg",
+      "kind": "proof-v2",
+      "requires": [
+        "report-v1",
+        "proof-v2",
+        "leaf-v2"
+      ]
+    },
+    {
       "description": "an asset owed and held nowhere",
       "expect": "reject",
       "failure": "shortfall",
