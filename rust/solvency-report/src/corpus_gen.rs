@@ -47,6 +47,8 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (fund_report, fund_proof, fund_partial, fund_partial_proof) = golden::fund_fixture();
     let (manifest_absent, manifest_absent_proof, v1_with_manifest, v2_without_manifest) =
         golden::manifest_edge_fixtures();
+    let (foreign_report, foreign_proof) = golden::foreign_signer_fixture();
+    let (sums_group, sums_membership, sums_entity, sums_proof) = golden::entity_sums_fixture();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
@@ -305,6 +307,40 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
                     "0000000000000000",
                 ),
             ),
+        ],
+    )?;
+
+    // --- §8.4 trust comes from the caller ---
+    // A verifier that only asked "does this signature verify against the key
+    // in the document" passed every case in the corpus. That is the check the
+    // whole signature scheme rests on: the embedded key is display metadata,
+    // and a document that certifies itself proves only internal consistency.
+    add(
+        "proof-signed-by-another-key",
+        "proof",
+        &["report-v1", "proof-v1"],
+        "a valid signature by a key the verifier was not told to trust",
+        "reject",
+        Some("unknown_signer"),
+        vec![
+            ("report.json", serde_json::to_value(&foreign_report)?),
+            ("proof.json", serde_json::to_value(&foreign_proof)?),
+        ],
+    )?;
+
+    // --- §13.4 step 3, the sums half ---
+    add(
+        "chain-entity-sums-disagree",
+        "chain",
+        &["report-v1", "proof-v1", "group-v1"],
+        "a group committing an entity at the right root and the wrong totals",
+        "reject",
+        Some("entity_sums_mismatch"),
+        vec![
+            ("group-report.json", serde_json::to_value(&sums_group)?),
+            ("membership.json", serde_json::to_value(&sums_membership)?),
+            ("entity-report.json", serde_json::to_value(&sums_entity)?),
+            ("proof.json", serde_json::to_value(&sums_proof)?),
         ],
     )?;
 

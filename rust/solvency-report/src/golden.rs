@@ -552,6 +552,65 @@ pub fn shortfall_fixture() -> (SignedReport, crate::coverage::CoverageStatement)
     (published.signed_report, statement)
 }
 
+/// A report signed correctly, by the wrong key.
+///
+/// §8.4 says the embedded `public_key` is display metadata and a verifier
+/// **MUST** take its trusted key as an input obtained out of band. This is the
+/// case that separates the two failures: the signature here is perfectly
+/// valid — it verifies against the key in the document — and the document is
+/// still refused, because that key is not the one the caller trusts.
+///
+/// A verifier that checked only "does this signature verify against the key it
+/// carries" passes every other case in the corpus and proves nothing at all.
+pub fn foreign_signer_fixture() -> (SignedReport, ProofDocument) {
+    let other = crate::sign::ReportSigner::from_seed(&[0x5a; 32]);
+    let published = publish(&leaves(), &metadata(), &other).unwrap();
+    (published.signed_report, published.proofs[1].clone())
+}
+
+/// A membership whose claimed entity totals disagree with the entity's report.
+///
+/// §13.4 step 3 compares both the root hash and the sums. The root-hash half
+/// is exercised by the substitution case; the sums half was not. Here the
+/// group commits entity A at the right root and the wrong totals, so the
+/// membership verifies against the group report and the entity report verifies
+/// on its own, and only the comparison between them fails.
+pub fn entity_sums_fixture() -> (
+    SignedReport,
+    crate::group::GroupMembershipDocument,
+    SignedReport,
+    ProofDocument,
+) {
+    use crate::group::{publish_group, EntityInput};
+    let (entity_report, proof) = fixture();
+    let entities = vec![
+        EntityInput {
+            entity_id: "golden-entity-a".to_string(),
+            root_hash: crate::verify::hash32(&entity_report.report.root_hash, "root").unwrap(),
+            // The report's own totals, understated by a whole unit of USDA.
+            root_sums: {
+                let mut sums = entity_report.report.root_sums.clone();
+                if let Some(usda) = sums.get_mut("USDA") {
+                    *usda -= 1_000_000_000_000_000_000;
+                }
+                sums
+            },
+        },
+        EntityInput {
+            entity_id: "golden-entity-b".to_string(),
+            root_hash: [0x11; 32],
+            root_sums: amounts(&[("USDA", 42_000_000_000_000_000_000)]),
+        },
+    ];
+    let published = publish_group(&entities, &metadata(), &signer()).unwrap();
+    (
+        published.signed_report,
+        published.memberships[0].clone(),
+        entity_report,
+        proof,
+    )
+}
+
 /// The §13.4 chain, and the substitution it exists to refuse.
 ///
 /// Returns the group report, entity A's membership, entity B's membership,

@@ -14,7 +14,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "6777fe0c9ee3438c29e2d4ae08a5fbf4aee802883f6e8c9bc6b651a097f04f74",
+  "corpus_digest": "61896e5707e2958581edc2cf6d8de868b37bc18c7f0db2201f2cb19a42c2318c",
   "results": [
     {
       "id": "proof-valid",
@@ -78,6 +78,16 @@
     },
     {
       "id": "coverage-unbound-statement",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-signed-by-another-key",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "chain-entity-sums-disagree",
       "expected": "reject",
       "outcome": "reject"
     },

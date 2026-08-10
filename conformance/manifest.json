@@ -202,6 +202,39 @@
       ]
     },
     {
+      "description": "a valid signature by a key the verifier was not told to trust",
+      "expect": "reject",
+      "failure": "unknown_signer",
+      "files": [
+        "report.json",
+        "proof.json"
+      ],
+      "id": "proof-signed-by-another-key",
+      "kind": "proof",
+      "requires": [
+        "report-v1",
+        "proof-v1"
+      ]
+    },
+    {
+      "description": "a group committing an entity at the right root and the wrong totals",
+      "expect": "reject",
+      "failure": "entity_sums_mismatch",
+      "files": [
+        "group-report.json",
+        "membership.json",
+        "entity-report.json",
+        "proof.json"
+      ],
+      "id": "chain-entity-sums-disagree",
+      "kind": "chain",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "group-v1"
+      ]
+    },
+    {
       "description": "a field declared published that the report does not carry",
       "expect": "reject",
       "failure": "manifest_inconsistent",
