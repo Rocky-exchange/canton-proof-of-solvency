@@ -460,7 +460,7 @@ localnet 上端到端跑通,从预置的持仓与用户余额产出一份已验�
 
 **交付物**
 
-- ~~**哈希链式历史与验证**~~ —— **已交付**,见 [SPEC.md](SPEC.md) §12。锚点只携带摘要与 offset,绝不携带余额。漏掉某一天、分叉、offset 回退、同一时刻重复出报告、以及改写历史报告,都会导致链条断裂;CLI 的 `anchors` 子命令可直接从磁盘走完整条历史。**已编译并有测试:** [`daml/`](daml) 可构建出 DAR,并通过 8 个 Daml Script 测试,覆盖 `ensure` 规则与"披露只会放宽"这一性质。**尚未部署** —— 上传并创建锚点会写入账本,而现有的唯一 participant 正服务于线上交易所。*原始范围:*
+- ~~**哈希链式历史与验证**~~ —— **已交付**,见 [SPEC.md](SPEC.md) §12。锚点只携带摘要与 offset,绝不携带余额。漏掉某一天、分叉、offset 回退、同一时刻重复出报告、以及改写历史报告,都会导致链条断裂;CLI 的 `anchors` 子命令可直接从磁盘走完整条历史。**已编译并有测试:** [`daml/`](daml) 可构建出 DAR,并通过 8 个 Daml Script 测试,覆盖 `ensure` 规则与"披露只会放宽"这一性质。**已部署到运行中的 participant**:DAR 可上传,`Deploy:initHistory` 通过 Ledger API 创建出真实的三节点锚定历史,并分别以审计师、以及披露放宽后的监管机构身份读回。该流程已在本地 Canton sandbox 上跑通 —— 余下的一步是上传到承载真实价值的 synchronizer,那是一个决策问题而非能力问题。*原始范围:*
 - **Daml 包 `SolvencyReportAnchor`** —— 每份报告一个不可变合约,携带
   `{format_version, report_root, root_sums_hash, snapshot_time,
   ledger_offset, publisher, prev_anchor}`,其 observer 集合可由平台按需

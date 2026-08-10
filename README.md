@@ -540,7 +540,7 @@ past report.
 
 **Deliverables**
 
-- ~~**Hash-linked history and verification**~~ — **delivered**, [SPEC.md](SPEC.md) §12. Anchors carry digests and offsets only, never balances. A dropped day, a fork, a rewound offset, a restated instant, or an edited past report all break the chain, and the `anchors` CLI verb walks a history from disk. **Package compiles and is tested:** [`daml/`](daml) builds a DAR and passes 8 Daml Script tests covering the `ensure` rules and the disclose-only-widens property. **Not deployed** — uploading it and creating anchors writes to a ledger, and the only participant available serves a live exchange. *Original scope:*
+- ~~**Hash-linked history and verification**~~ — **delivered**, [SPEC.md](SPEC.md) §12. Anchors carry digests and offsets only, never balances. A dropped day, a fork, a rewound offset, a restated instant, or an edited past report all break the chain, and the `anchors` CLI verb walks a history from disk. **Package compiles and is tested:** [`daml/`](daml) builds a DAR and passes 8 Daml Script tests covering the `ensure` rules and the disclose-only-widens property. **Deployed to a running participant**: the DAR uploads and `Deploy:initHistory` creates a real three-anchor history over the Ledger API, read back by an auditor and then by a regulator after disclosure widens. Exercised against a local Canton sandbox — the remaining step is uploading to a synchronizer carrying real value, which is a decision rather than a capability. *Original scope:*
 - **Daml package `SolvencyReportAnchor`** — one immutable contract per report
   carrying `{format_version, report_root, root_sums_hash, snapshot_time,
   ledger_offset, publisher, prev_anchor}`, with an observer set the venue can

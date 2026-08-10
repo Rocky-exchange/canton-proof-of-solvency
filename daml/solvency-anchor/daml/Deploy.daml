@@ -1,0 +1,67 @@
+-- | Creates a real anchor history on a running participant.
+--
+-- Run against a sandbox or a deployment's own participant:
+--
+--   daml script --dar .daml/dist/canton-solvency-anchor-0.1.0.dar \
+--     --script-name Deploy:initHistory --ledger-host localhost --ledger-port 6865
+--
+-- This is the step `daml test` cannot cover: a DAR uploaded to a participant
+-- and contracts created over the Ledger API, rather than an in-memory ledger
+-- inside the compiler.
+module Deploy where
+
+import Daml.Script
+import DA.Date (date, Month(Jan))
+import DA.Time (time)
+
+import SolvencyReportAnchor
+
+-- | Three days of a publisher's history, hash-linked.
+initHistory : Script ()
+initHistory = do
+  publisher <- allocateParty "publisher"
+  auditor <- allocateParty "auditor"
+
+  let anchorAt day prev = ReportAnchor with
+        publisher
+        observers = [auditor]
+        formatVersion = "canton-solvency-anchor-v1"
+        -- Digests from the SPEC §10 golden report, so an operator can check
+        -- these against a vector they already have.
+        reportDigest = "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61"
+        rootHash = "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970"
+        snapshotTime = time (date 2026 Jan day) 0 0 0
+        ledgerOffset = show (3020000 + day)
+        prevAnchor = prev
+        anchorDigest = "e2eb5175a25f845acf0059ec85a8594e2e5587d412ed3498a872c83057a93fc8"
+
+  -- Digests are 64 hex characters; the template's ensure clause rejects
+  -- anything else, which it did when this script first used short stubs.
+  let d1 = "e2eb5175a25f845acf0059ec85a8594e2e5587d412ed3498a872c83057a93fc8"
+      d2 = "1a10a9f2748eddebe1a684106da043c165e6ba0ed01ad131d01dd646396a3987"
+      d3 = "210c70446f6a5eae020fcabfce19f733b60b9d5fa804fa0323e5d855591b4501"
+
+  genesis <- submit publisher do
+    createCmd ((anchorAt 1 None) with anchorDigest = d1)
+  _second <- submit publisher do
+    createCmd ((anchorAt 2 (Some d1)) with anchorDigest = d2)
+  _third <- submit publisher do
+    createCmd ((anchorAt 3 (Some d2)) with anchorDigest = d3)
+
+  -- Read the history back as the auditor, over the Ledger API.
+  anchors <- query @ReportAnchor auditor
+  debug ("anchors visible to the auditor: " <> show (length anchors))
+  assert (length anchors == 3)
+
+  -- Widening disclosure adds a party without revoking the original.
+  regulator <- allocateParty "regulator"
+  _ <- submit publisher do
+    exerciseCmd genesis Disclose with newObservers = [regulator]
+  seenByRegulator <- query @ReportAnchor regulator
+  debug ("anchors visible to the regulator: " <> show (length seenByRegulator))
+  assert (length seenByRegulator == 1)
+
+  stillSeenByAuditor <- query @ReportAnchor auditor
+  assert (length stillSeenByAuditor == 4)
+  debug "deployment verified on a live participant"
+  pure ()
