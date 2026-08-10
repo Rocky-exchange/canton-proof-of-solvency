@@ -490,9 +490,9 @@
     if (!rules) {
       return fail({ kind: "profile", detail: `profile "${report.profile}" is not in the registry` });
     }
-    const keysOf = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+    const keysOf2 = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
     for (const aggregate of rules.requiredAggregates) {
-      const present = aggregate.endsWith("/*") ? keysOf(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? keysOf(report.root_sums).length > 0 : keysOf(report.mark_prices).length > 0;
+      const present = aggregate.endsWith("/*") ? keysOf2(report.root_sums).some((k) => k.startsWith(aggregate.slice(0, -1))) : aggregate === "root_sums" ? keysOf2(report.root_sums).length > 0 : keysOf2(report.mark_prices).length > 0;
       if (!present) {
         return fail({
           kind: "profile",
