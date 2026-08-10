@@ -5,6 +5,7 @@
 //! reference implementation cannot itself satisfy is not a conformance test,
 //! it is a bug report.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 fn corpus_dir() -> PathBuf {
@@ -134,4 +135,65 @@ fn every_case_directory_is_listed_in_the_manifest() {
         present, listed,
         "a case on disk the manifest does not list would never be run"
     );
+}
+
+/// The checked-in corpus must be what its generator currently produces.
+///
+/// Without this, editing `corpus_gen` without regenerating leaves every
+/// implementation testing cases the generator no longer describes, and a
+/// reader of the generator believing in cases that are not on disk. The same
+/// drift guard the offline verifier pages already have.
+#[test]
+fn the_checked_in_corpus_matches_its_generator() {
+    let fresh = tempfile::tempdir().expect("a temporary directory");
+    canton_solvency_report::corpus_gen::emit(fresh.path()).expect("generation succeeds");
+
+    let checked_in = corpus_dir();
+    let listing = |root: &Path| -> BTreeMap<String, Vec<u8>> {
+        let mut out = BTreeMap::new();
+        let mut stack = vec![root.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir).expect("readable") {
+                let path = entry.expect("entry").path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else {
+                    let rel = path
+                        .strip_prefix(root)
+                        .expect("under root")
+                        .to_string_lossy()
+                        .into_owned();
+                    // The differential vectors sit beside the corpus but come
+                    // from a different generator, and have their own drift
+                    // guard in tests/cross_vectors.rs.
+                    if rel == "cross-vectors.json" {
+                        continue;
+                    }
+                    out.insert(rel, std::fs::read(&path).expect("readable"));
+                }
+            }
+        }
+        out
+    };
+
+    let generated = listing(fresh.path());
+    let on_disk = listing(&checked_in);
+
+    // Compare names first: a missing or extra case is the clearer message.
+    let generated_names: Vec<&String> = generated.keys().collect();
+    let on_disk_names: Vec<&String> = on_disk.keys().collect();
+    assert_eq!(
+        generated_names, on_disk_names,
+        "the corpus on disk has different files from the generator — \
+         regenerate with `cargo run --example emit_conformance -- ./conformance`"
+    );
+
+    for (name, bytes) in &generated {
+        assert_eq!(
+            on_disk.get(name),
+            Some(bytes),
+            "{name} differs from what the generator produces — regenerate with \
+             `cargo run --example emit_conformance -- ./conformance`"
+        );
+    }
 }

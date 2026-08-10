@@ -192,6 +192,20 @@ leaf dump and verifies `leaf_count` directly. A unanimity claim is therefore as
 strong as the auditor's access, and §14 now says "consistent with" where it
 used to say "proves".
 
+**The on-ledger anchor digest is asserted, not verified.** §12's
+`anchor_digest` is a field of the Daml contract, and the contract's `ensure`
+can check only that it is 64 lowercase hex characters. The digest preimage is
+a length-prefixed binary concatenation and the hashing available to a Daml
+contract operates on text, so the contract cannot reproduce it.
+
+The cost is bounded because every input to the digest is also a field of the
+contract: a reader who can see an anchor can recompute the digest and compare,
+which is what `verify_chain` does off-ledger. The failure mode is a reader who
+walks the chain using the stored digests without recomputing — trusting the
+publisher about exactly what anchoring exists to take out of their hands. The
+template comment used to invite that reading; §12 and the template now say the
+opposite.
+
 **Snapshot frequency bounds everything.** A daily report commits to daily
 states. Nothing here says anything about intra-day positions, and a venue
 solvent at every snapshot may not have been between them.

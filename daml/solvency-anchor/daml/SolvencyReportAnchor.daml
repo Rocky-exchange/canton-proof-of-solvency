@@ -39,8 +39,20 @@ template ReportAnchor
     prevAnchor : Optional Hex
       -- ^ Digest of the previous anchor. 'None' only for the first.
     anchorDigest : Hex
-      -- ^ SPEC §12 digest of this anchor's own fields, so a reader can link
-      -- the chain without recomputing it from the contract.
+      -- ^ SPEC §12 digest of this anchor's own fields.
+      --
+      -- Asserted by the publisher, not verified here, and a reader should
+      -- treat it that way. `ensure` can check that it is 64 lowercase hex
+      -- characters and nothing more: the §12 preimage is a length-prefixed
+      -- binary concatenation, and the hashing available to a Daml contract
+      -- operates on `Text`, so the contract cannot reproduce it.
+      --
+      -- This costs nothing as long as readers recompute. Every input to the
+      -- digest is a field of this contract, so anyone who can see the anchor
+      -- can derive the digest themselves and compare — which is what
+      -- `verify_chain` does off-ledger. Linking a chain by trusting the stored
+      -- value is trusting the publisher about the one thing anchoring exists
+      -- to take out of their hands.
   where
     signatory publisher
     observer observers

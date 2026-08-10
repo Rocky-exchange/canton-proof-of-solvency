@@ -556,6 +556,15 @@ anchor_digest = SHA-256( "rocky-solvency-anchor-v1"
                        ‖ ( 0x00 | 0x01 ‖ lp(prev_anchor) ) )
 ```
 
+> **On-ledger, `anchor_digest` is asserted rather than verified.** A Daml
+> contract carrying an anchor can check the digest is well-formed hex and no
+> more: this preimage is a length-prefixed binary concatenation and the
+> hashing available to a contract operates on text. Every input to the digest
+> is a field of the contract, so a reader who can see an anchor can recompute
+> it and MUST do so before relying on the chain. Linking a history by trusting
+> the stored digest trusts the publisher about precisely what anchoring exists
+> to take out of their hands.
+
 The predecessor is preceded by a **presence byte**, not encoded as an empty
 string. Without it, a genesis anchor and an anchor naming an empty predecessor
 hash identically, and a publisher could present a mid-history anchor as the
