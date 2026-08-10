@@ -224,6 +224,9 @@
     return Object.keys(sums).sort(bytewiseCompare).map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
   }
   var encoder2 = new TextEncoder();
+  function keysOf(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  }
   function bytewiseCompare(a, b) {
     const x = encoder2.encode(a);
     const y = encoder2.encode(b);
@@ -374,7 +377,7 @@
     const manifestParts = [];
     if (v2 && report.manifest) {
       manifestParts.push(lp2(report.manifest.audience));
-      const paths = Object.keys(report.manifest.fields).sort(bytewiseCompare);
+      const paths = keysOf(report.manifest.fields).sort(bytewiseCompare);
       manifestParts.push(u64le2(paths.length));
       for (const path of paths) {
         manifestParts.push(lp2(path), lp2(report.manifest.fields[path]));
@@ -446,15 +449,17 @@
         detail: "a v2 report must carry a disclosure manifest"
       });
     }
+    const disclosures = report.disclosures ?? {};
     const carriesData = {
-      root_sums: Object.keys(report.root_sums).length > 0,
-      mark_prices: Object.keys(report.mark_prices).length > 0,
-      "disclosures.bad_debt": Object.keys(report.disclosures.bad_debt).length > 0,
-      "disclosures.excluded_house_accounts": report.disclosures.excluded_house_accounts > 0,
-      "disclosures.excluded_house_totals": Object.keys(report.disclosures.excluded_house_totals).length > 0
+      root_sums: keysOf(report.root_sums).length > 0,
+      mark_prices: keysOf(report.mark_prices).length > 0,
+      "disclosures.bad_debt": keysOf(disclosures.bad_debt).length > 0,
+      "disclosures.excluded_house_accounts": Number(disclosures.excluded_house_accounts ?? 0) > 0,
+      "disclosures.excluded_house_totals": keysOf(disclosures.excluded_house_totals).length > 0
     };
-    for (const path of Object.keys(manifest.fields).sort(bytewiseCompare)) {
-      const state = manifest.fields[path];
+    const fields = manifest.fields ?? {};
+    for (const path of keysOf(fields).sort(bytewiseCompare)) {
+      const state = fields[path];
       if (!KNOWN_FIELDS.includes(path)) {
         return fail({
           kind: "manifest_inconsistent",

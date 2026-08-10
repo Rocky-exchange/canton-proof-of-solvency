@@ -89,6 +89,26 @@ const encoder = new TextEncoder();
  * Every ASCII name agrees under both orders, which is why the golden vectors
  * never caught this.
  */
+/**
+ * Keys of a value that ought to be a map, or none if it is not one.
+ *
+ * Every document this library reads is untrusted, and `Object.keys(null)`
+ * throws with nothing in the type system to warn of it. That single mistake
+ * has now been found six times across four browser surfaces and the v2
+ * verification path, which is a pattern rather than six lapses — so it has one
+ * name and one definition, and new code should reach for it rather than
+ * `Object.keys` on anything that came out of a JSON document.
+ *
+ * A field that is not a map carries no entries, which is what callers here
+ * mean by it anyway: an absent aggregate and an unusable one are both "the
+ * report publishes nothing under this name".
+ */
+export function keysOf(value: unknown): string[] {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? Object.keys(value as Record<string, unknown>)
+    : [];
+}
+
 export function bytewiseCompare(a: string, b: string): number {
   const x = encoder.encode(a);
   const y = encoder.encode(b);
