@@ -327,6 +327,56 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         Some("not_genesis"),
         vec![("history.json", json!([second.clone()]))],
     )?;
+    // The README lists a rewound offset, a restated instant and a changed
+    // publisher among the things a chain refuses. Nothing exercised any of
+    // them: neutralising either guard in verify_chain left every case passing.
+    let successor =
+        |mutate: &dyn Fn(&mut crate::anchor::Anchor)| -> anyhow::Result<serde_json::Value> {
+            let mut a = anchor.clone();
+            a.snapshot_time = "2026-01-02T00:00:00Z".into();
+            a.ledger_offset = "000000000000000043".into();
+            a.prev_anchor = Some(crate::anchor::anchor_digest_hex(&anchor));
+            mutate(&mut a);
+            Ok(serde_json::to_value(&a)?)
+        };
+
+    let changed_publisher = successor(&|a| a.publisher = "venue::somebody-else".to_string())?;
+    add(
+        "anchors-publisher-changed",
+        "anchors",
+        &["anchor-v1"],
+        "a history that changes publisher part-way through",
+        "reject",
+        Some("publisher_changed"),
+        vec![("history.json", json!([anchor_j.clone(), changed_publisher]))],
+    )?;
+
+    // A restated instant: the successor claims a snapshot no later than its
+    // predecessor's, which is how a republished day would look.
+    let restated = successor(&|a| a.snapshot_time = anchor.snapshot_time.clone())?;
+    add(
+        "anchors-restated-instant",
+        "anchors",
+        &["anchor-v1"],
+        "a successor whose snapshot time does not advance",
+        "reject",
+        Some("went_backwards"),
+        vec![("history.json", json!([anchor_j.clone(), restated]))],
+    )?;
+
+    // A rewound offset: the ledger position moves backwards, which cannot
+    // happen in an append-only event history.
+    let rewound = successor(&|a| a.ledger_offset = "000000000000000001".to_string())?;
+    add(
+        "anchors-rewound-offset",
+        "anchors",
+        &["anchor-v1"],
+        "a successor whose ledger offset moves backwards",
+        "reject",
+        Some("went_backwards"),
+        vec![("history.json", json!([anchor_j.clone(), rewound]))],
+    )?;
+
     add(
         "anchors-broken-link",
         "anchors",
