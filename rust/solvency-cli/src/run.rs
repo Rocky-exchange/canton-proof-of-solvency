@@ -129,11 +129,12 @@ pub fn run(command: &Command) -> Result<Summary> {
                     .with_context(|| format!("reading {}", path.display()))?;
                 let proof = match parse_proof(&text) {
                     Ok(proof) => proof,
-                    // Publishers put report.json next to the proofs. Skip a
-                    // report while sweeping; anything else is a real error,
+                    // A published directory holds the report and its anchor
+                    // beside the proofs. Skip any sibling document while
+                    // sweeping; anything unrecognised is still a real error,
                     // and an explicitly named file must always parse.
                     Err(e) => {
-                        if sweeping && serde_json::from_str::<SignedReport>(&text).is_ok() {
+                        if sweeping && is_sibling_document(&text) {
                             continue;
                         }
                         return Err(e.context(format!("parsing {}", path.display())));
@@ -249,6 +250,17 @@ pub fn run(command: &Command) -> Result<Summary> {
 
 fn hex_digest(signed: &SignedReport) -> String {
     canton_solvency_report::digest::report_digest_hex(&signed.report)
+}
+
+/// Whether a file is another document a publisher writes alongside proofs.
+///
+/// Skipping only reports was enough until `canton-solvency-publish` began
+/// writing an anchor into the same directory; the sweep then failed on a
+/// perfectly valid output directory.
+fn is_sibling_document(text: &str) -> bool {
+    serde_json::from_str::<SignedReport>(text).is_ok()
+        || serde_json::from_str::<canton_solvency_report::anchor::Anchor>(text).is_ok()
+        || serde_json::from_str::<GroupMembershipDocument>(text).is_ok()
 }
 
 /// None when the profile is unregistered; verification will say so.
@@ -430,6 +442,47 @@ mod tests {
         std::fs::write(&group, fixture("group-report.golden.json")).unwrap();
         std::fs::write(&membership, fixture("group-membership.golden.json")).unwrap();
         (dir, group, membership)
+    }
+
+    /// A published directory holds report.json and anchor.json beside the
+    /// proofs. Sweeping it must verify the proofs, not choke on the siblings.
+    #[test]
+    fn a_sweep_skips_every_sibling_document_a_publisher_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = dir.path().join("report.json");
+        std::fs::write(&report, fixture("report.golden.json")).unwrap();
+        std::fs::write(dir.path().join("proof.json"), fixture("proof.golden.json")).unwrap();
+        std::fs::write(
+            dir.path().join("anchor.json"),
+            fixture("anchor.golden.json"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("membership.json"),
+            fixture("group-membership.golden.json"),
+        )
+        .unwrap();
+
+        let summary = run(&verify_cmd(report, ProofSource::Dir(dir.path().into()))).unwrap();
+        assert_eq!(
+            summary.outcomes.len(),
+            1,
+            "only the proof should be checked"
+        );
+        assert!(summary.all_passed());
+    }
+
+    /// A file that is not a proof and not a document we recognise is still an
+    /// error: silently skipping it could skip a proof we failed to parse.
+    #[test]
+    fn a_sweep_still_fails_on_an_unrecognised_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = dir.path().join("report.json");
+        std::fs::write(&report, fixture("report.golden.json")).unwrap();
+        std::fs::write(dir.path().join("proof.json"), fixture("proof.golden.json")).unwrap();
+        std::fs::write(dir.path().join("junk.json"), r#"{"unexpected": true}"#).unwrap();
+
+        assert!(run(&verify_cmd(report, ProofSource::Dir(dir.path().into()))).is_err());
     }
 
     #[test]
