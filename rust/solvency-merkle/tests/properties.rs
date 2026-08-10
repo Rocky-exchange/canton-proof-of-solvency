@@ -198,6 +198,26 @@ fn amounts_round_trip_through_the_canonical_render() {
     }
 }
 
+/// §1 bounds the scaled value at 2^128 - 1. Pinned on both sides: the
+/// TypeScript verifier parses with BigInt, which has no such limit, and
+/// accepted amounts this producer cannot represent until the bound was
+/// written down.
+#[test]
+fn the_largest_representable_amount_is_the_boundary_both_implementations_use() {
+    let max = u128::MAX;
+    let as_decimal = |v: u128| format!("{}.{:018}", v / SCALE_TEST, v % SCALE_TEST);
+    assert_eq!(parse_amount_18dp(&as_decimal(max)).unwrap(), max);
+    assert!(
+        parse_amount_18dp(&"9".repeat(60)).is_err(),
+        "an amount past u128 must be malformed, not wrapped"
+    );
+    // Checked arithmetic, so this holds in release builds too, where an
+    // unchecked multiply would silently wrap a huge amount into a small one.
+    assert!(parse_amount_18dp("999999999999999999999999999999999999999999").is_err());
+}
+
+const SCALE_TEST: u128 = 1_000_000_000_000_000_000;
+
 /// §8.1: length prefixes exist so that no two distinct inputs share a
 /// preimage. An asset literally named `A|B:0.000…001` must not be able to
 /// imitate two entries.

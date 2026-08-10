@@ -187,6 +187,7 @@
   var NODE_DOMAIN = "rocky-solvency-node-v1";
   var SCALE = 10n ** 18n;
   var FRACTION_DIGITS = 18;
+  var MAX_AMOUNT = (1n << 128n) - 1n;
   function parseAmount18dp(s) {
     const dot = s.indexOf(".");
     const intPart = dot === -1 ? s : s.slice(0, dot);
@@ -200,10 +201,15 @@
     if (!/^[0-9]+$/.test(intPart) || fracPart !== "" && !/^[0-9]+$/.test(fracPart)) {
       throw new Error(`amount is not a non-negative decimal: ${s}`);
     }
-    return BigInt(intPart) * SCALE + BigInt(fracPart.padEnd(FRACTION_DIGITS, "0") || "0");
+    const value = BigInt(intPart) * SCALE + BigInt(fracPart.padEnd(FRACTION_DIGITS, "0") || "0");
+    if (value > MAX_AMOUNT) {
+      throw new Error(`amount exceeds the representable range: ${s}`);
+    }
+    return value;
   }
   function formatAmount18dp(v) {
     if (v < 0n) throw new Error("negative amount");
+    if (v > MAX_AMOUNT) throw new Error("amount exceeds the representable range");
     return `${v / SCALE}.${(v % SCALE).toString().padStart(FRACTION_DIGITS, "0")}`;
   }
   function sumBalances(balances) {
@@ -703,9 +709,16 @@
     root_sums_mismatch: "The published totals disagree with what the committed entries actually add up to."
   };
   function amountList(amounts) {
+    if (amounts === null || typeof amounts !== "object") return "(malformed)";
     const entries = Object.entries(amounts);
     if (entries.length === 0) return "(none)";
-    return entries.map(([asset, v]) => `${asset} ${formatAmount18dp(parseAmount18dp(v))}`).join(", ");
+    return entries.map(([asset, v]) => {
+      try {
+        return `${asset} ${formatAmount18dp(parseAmount18dp(v))}`;
+      } catch {
+        return `${asset} (malformed)`;
+      }
+    }).join(", ");
   }
   function error(detail) {
     return {
@@ -757,6 +770,11 @@
       result = groupSigned && membership ? await verifyChain(groupSigned, membership, signed, proof, groupKey, key) : await verifyReport(signed, proof, key);
     } catch (e) {
       return error(e instanceof Error ? e.message : String(e));
+    }
+    if (!result.ok && result.failure?.kind === "malformed") {
+      return error(
+        "This file is not a well-formed report or proof. " + (result.failure.detail ?? "")
+      );
     }
     const { report } = signed;
     const facts = [

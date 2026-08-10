@@ -40,6 +40,14 @@ digits**, transported as strings.
   ≤ 18, no sign, no bare `.`, integer part required. Value =
   `int_part · 10^18 + rpad(frac_part, 18, "0")` as an unsigned integer.
 - Canonical render: `"{int}.{frac:018}"` — always exactly 18 fraction digits.
+- **Range.** The scaled value MUST fit in an unsigned 128-bit integer: at most
+  `340282366920938463463374607431768211455` scaled units, about
+  `3.4 × 10^20` whole units. A larger amount is malformed, not merely large.
+  This is worth stating because it is not self-evident from the grammar: an
+  implementation using an arbitrary-precision integer type accepts amounts a
+  producer using `u128` cannot represent, and then the permissive side —
+  typically the browser a customer runs — verifies a report the producer's own
+  toolchain rejects.
 - Negative balances never enter the tree. Producers clamp negative equity to
   zero upstream and disclose the shortfall separately (bad debt).
 

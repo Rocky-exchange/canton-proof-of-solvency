@@ -51,11 +51,26 @@ const FAILURE_TEXT: Record<string, string> = {
     "The published totals disagree with what the committed entries actually add up to.",
 };
 
+/**
+ * Renders an amount map for display.
+ *
+ * Every value here came from a document supplied by the party being checked,
+ * and this runs in a page with no error console anyone is watching. A value
+ * that cannot be parsed is shown as-is and flagged, never thrown: a reader
+ * looking at a blank screen cannot tell a malformed report from a broken page.
+ */
 function amountList(amounts: Record<string, string>): string {
+  if (amounts === null || typeof amounts !== "object") return "(malformed)";
   const entries = Object.entries(amounts);
   if (entries.length === 0) return "(none)";
   return entries
-    .map(([asset, v]) => `${asset} ${formatAmount18dp(parseAmount18dp(v))}`)
+    .map(([asset, v]) => {
+      try {
+        return `${asset} ${formatAmount18dp(parseAmount18dp(v))}`;
+      } catch {
+        return `${asset} (malformed)`;
+      }
+    })
     .join(", ");
 }
 
@@ -121,6 +136,15 @@ export async function verifyFromText(
         : await verifyReport(signed, proof, key);
   } catch (e) {
     return error(e instanceof Error ? e.message : String(e));
+  }
+
+  // A document rejected as malformed has no figures worth displaying, and
+  // rendering its fields as "verified" facts would be exactly backwards.
+  if (!result.ok && result.failure?.kind === "malformed") {
+    return error(
+      "This file is not a well-formed report or proof. " +
+        (result.failure.detail ?? "")
+    );
   }
 
   const { report } = signed;
