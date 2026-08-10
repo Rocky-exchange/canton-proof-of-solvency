@@ -27,6 +27,7 @@ anchorFor publisher observers prev = ReportAnchor with
   reportDigest = hex64
   rootHash = hex64b
   snapshotTime = time (date 2026 Jan 1) 0 0 0
+  publisherKey = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
   ledgerOffset = "3020644"
   prevAnchor = prev
   anchorDigest = hex64

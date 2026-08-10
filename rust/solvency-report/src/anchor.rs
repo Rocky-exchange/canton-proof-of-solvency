@@ -28,6 +28,14 @@ pub struct Anchor {
     pub snapshot_time: String,
     pub ledger_offset: String,
     pub publisher: String,
+    /// The Ed25519 key that signed the anchored report.
+    ///
+    /// This is what makes anchoring answer key distribution rather than only
+    /// tamper-evidence. A reader who can see the anchor obtains the key from
+    /// the ledger — somewhere other than the server that served the report —
+    /// which is precisely what a key embedded in the report itself cannot
+    /// provide.
+    pub publisher_key: String,
     /// Digest of the previous anchor. `None` only for the first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prev_anchor: Option<String>,
@@ -43,6 +51,7 @@ pub fn anchor_digest(anchor: &Anchor) -> [u8; 32] {
     h.update(lp(&anchor.snapshot_time));
     h.update(lp(&anchor.ledger_offset));
     h.update(lp(&anchor.publisher));
+    h.update(lp(&anchor.publisher_key));
     // A presence byte, not `unwrap_or("")`: without it, genesis and an anchor
     // naming an empty predecessor hash identically, and a publisher could
     // present a mid-history anchor as the start of its history.
@@ -162,6 +171,37 @@ pub fn verify_chain(anchors: &[Anchor]) -> Result<(), ChainFailure> {
     Ok(())
 }
 
+/// Verifies a report and proof using the key the **anchor** names, rather
+/// than one the caller had to obtain somehow.
+///
+/// This closes the gap §8.4 describes. Verification still needs a trusted
+/// key; the difference is where it comes from. A reader who can see the
+/// anchor contract on the ledger has a source independent of the publisher's
+/// web server, which a key embedded in the report can never be.
+///
+/// What it does not do is make the ledger trustworthy on the reader's behalf.
+/// It moves the question from "is this the right key?" to "can I see this
+/// publisher's anchors?" — which is answerable, where the first was not.
+pub fn verify_with_anchor(
+    signed: &SignedReport,
+    proof: &crate::document::ProofDocument,
+    anchor: &Anchor,
+) -> Result<(), crate::verify::VerificationFailure> {
+    use crate::verify::VerificationFailure as F;
+
+    if anchor.format_version != ANCHOR_FORMAT_VERSION {
+        return Err(F::UnsupportedVersion {
+            field: "anchor.format_version",
+            found: anchor.format_version.clone(),
+        });
+    }
+    // The anchor must be about this report, or its key is about another one.
+    if anchor.report_digest != crate::digest::report_digest_hex(&signed.report) {
+        return Err(F::DigestMismatch);
+    }
+    crate::verify::verify(signed, proof, &anchor.publisher_key)
+}
+
 /// Checks each anchor against the report it claims to anchor. Reports are
 /// matched positionally with the anchors.
 pub fn verify_anchored_reports(
@@ -187,6 +227,7 @@ pub fn anchor_report(signed: &SignedReport, previous: Option<&Anchor>) -> Anchor
         snapshot_time: signed.report.snapshot_time.clone(),
         ledger_offset: signed.report.ledger_offset.clone(),
         publisher: signed.report.publisher.clone(),
+        publisher_key: signed.signature.public_key.clone(),
         prev_anchor: previous.map(anchor_digest_hex),
     }
 }
@@ -203,6 +244,7 @@ mod tests {
             snapshot_time: format!("2026-01-{:02}T00:00:00Z", i + 1),
             ledger_offset: format!("{:018}", i * 10),
             publisher: "venue::one".to_string(),
+            publisher_key: "ab".repeat(32),
             prev_anchor: prev.map(anchor_digest_hex),
         }
     }
@@ -235,6 +277,7 @@ mod tests {
             |a: &mut Anchor| a.snapshot_time = "2027-01-01T00:00:00Z".into(),
             |a: &mut Anchor| a.ledger_offset = "999".into(),
             |a: &mut Anchor| a.publisher = "venue::two".into(),
+            |a: &mut Anchor| a.publisher_key = "cd".repeat(32),
             |a: &mut Anchor| a.prev_anchor = Some("ab".repeat(32)),
             |a: &mut Anchor| a.format_version = "canton-solvency-anchor-v9".into(),
         ] {
@@ -358,6 +401,79 @@ mod tests {
         let text = serde_json::to_string(genesis).unwrap();
         assert!(!text.contains("prev_anchor"), "got {text}");
         assert_eq!(serde_json::from_str::<Anchor>(&text).unwrap(), *genesis);
+    }
+
+    /// The point of §8.4: a reader takes the key from the ledger, not from
+    /// the server that served the report.
+    mod key_distribution {
+        use super::*;
+
+        #[test]
+        fn an_anchor_carries_the_key_that_signed_its_report() {
+            let (signed, _) = crate::golden::fixture();
+            let a = anchor_report(&signed, None);
+            assert_eq!(a.publisher_key, signed.signature.public_key);
+        }
+
+        #[test]
+        fn a_report_verifies_against_the_key_its_anchor_names() {
+            let (signed, proof) = crate::golden::fixture();
+            let a = anchor_report(&signed, None);
+            assert_eq!(verify_with_anchor(&signed, &proof, &a), Ok(()));
+        }
+
+        /// An anchor naming someone else's key must not validate this report,
+        /// or anchoring would launder any key into a trusted one.
+        #[test]
+        fn an_anchor_naming_another_key_is_rejected() {
+            let (signed, proof) = crate::golden::fixture();
+            let mut a = anchor_report(&signed, None);
+            a.publisher_key = "ab".repeat(32);
+            assert_eq!(
+                verify_with_anchor(&signed, &proof, &a),
+                Err(crate::verify::VerificationFailure::UnknownSigner)
+            );
+        }
+
+        /// And an anchor for a different report cannot lend its key to this
+        /// one: the binding is checked before the key is used.
+        #[test]
+        fn an_anchor_for_another_report_is_rejected() {
+            let (signed, proof) = crate::golden::fixture();
+            let (other, _) = crate::golden::fixture_v2();
+            let a = anchor_report(&other, None);
+            assert_eq!(
+                verify_with_anchor(&signed, &proof, &a),
+                Err(crate::verify::VerificationFailure::DigestMismatch)
+            );
+        }
+
+        #[test]
+        fn an_anchor_of_an_unknown_version_is_rejected() {
+            let (signed, proof) = crate::golden::fixture();
+            let mut a = anchor_report(&signed, None);
+            a.format_version = "canton-solvency-anchor-v9".to_string();
+            assert!(matches!(
+                verify_with_anchor(&signed, &proof, &a),
+                Err(crate::verify::VerificationFailure::UnsupportedVersion { .. })
+            ));
+        }
+
+        /// Changing the key changes the anchor digest, so a substituted key
+        /// breaks the chain rather than passing quietly.
+        #[test]
+        fn substituting_the_key_breaks_the_history() {
+            let (signed, _) = crate::golden::fixture();
+            let genesis = anchor_report(&signed, None);
+            let second = anchor_report(&signed, Some(&genesis));
+
+            let mut tampered = genesis.clone();
+            tampered.publisher_key = "cd".repeat(32);
+            assert_eq!(
+                verify_chain(&[tampered, second]),
+                Err(ChainFailure::Broken { index: 1 })
+            );
+        }
     }
 
     #[test]

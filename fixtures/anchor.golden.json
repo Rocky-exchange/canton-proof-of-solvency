@@ -4,5 +4,6 @@
   "root_hash": "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970",
   "snapshot_time": "2026-01-01T00:00:00Z",
   "ledger_offset": "000000000000000042",
-  "publisher": "golden::publisher"
+  "publisher": "golden::publisher",
+  "publisher_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c"
 }

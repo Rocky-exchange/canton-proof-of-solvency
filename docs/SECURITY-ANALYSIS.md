@@ -45,22 +45,32 @@ an auditor holding the whole leaf set.
 Each has at least one test asserting the failure, and the conformance corpus
 carries the ones a second implementation must also reject.
 
-## Unresolved: publisher key distribution
+## Publisher key distribution: answered, with a caveat
 
-**This is the weakest point in the system and it is not solved.**
+This was previously the weakest point and unsolved. Verification requires a
+caller-supplied trusted key, and a reader who takes that key from the same
+page that served the report has verified internal consistency and nothing
+else.
 
-Verification requires a caller-supplied trusted key, and the API makes it a
-required argument so it cannot be skipped. But nothing in the format tells a
-reader where to get that key. A reader who takes it from the same page that
-served the report has verified internal consistency and nothing else.
+An anchor now carries `publisher_key`: the Ed25519 key that signed the report
+it anchors, bound into the anchor digest and into the on-ledger contract. A
+reader who can see the anchor obtains the key from the ledger — a source
+independent of the publisher's web server, which a key embedded in the report
+can never be. `verify_with_anchor` takes the key from the anchor rather than
+from the caller, and refuses an anchor that describes a different report, so
+anchoring cannot launder an arbitrary key into a trusted one.
 
-§8.4 states this. The intended answer is anchoring: a key bound on-ledger is a
-key obtainable from somewhere other than the publisher's web server. That
-depends on the Daml package, which has never been compiled or deployed.
+**The caveat, which a reviewer should press on.** This does not make the
+ledger trustworthy on the reader's behalf. It moves the question from *"is
+this the right key?"* — which a reader had no way to answer — to *"can I see
+this publisher's anchors?"*, which they can. A reader with no visibility of
+the anchor contract is exactly where they were before, and a deployment that
+does not disclose anchors to the audience it expects to verify has not
+actually solved anything. Disclosure scope is therefore a deployment
+obligation, not a format guarantee.
 
-Until then, a deployment must document its own key distribution, and a
-reviewer should treat any deployment that does not as unverified in practice
-whatever its documents say.
+Substituting a key is also not quiet: the key is inside the anchor digest, so
+changing it breaks every later link in the history.
 
 ## Known weaknesses we have accepted
 
@@ -88,8 +98,9 @@ records how custody was established and is signed, but nothing proves it.
 
 ## Where a reviewer should push hardest
 
-1. **Key distribution**, above. Everything else assumes the reader has the
-   right key.
+1. **Whether anchoring really answers key distribution**, above. It relies on
+   the reader being able to see the anchor contract, which is a deployment
+   property rather than something the format can guarantee.
 2. **The digest preimages.** They are hand-rolled rather than a standard
    canonical form. We believe length-prefixing makes them unambiguous; that
    belief is worth attacking, particularly the boundary between a v1 report

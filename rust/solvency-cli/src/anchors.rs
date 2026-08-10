@@ -83,6 +83,7 @@ mod tests {
             snapshot_time: format!("2026-01-{:02}T00:00:00Z", i + 1),
             ledger_offset: format!("{:018}", i * 10),
             publisher: "venue::one".to_string(),
+            publisher_key: "ab".repeat(32),
             prev_anchor: prev.map(anchor_digest_hex),
         }
     }

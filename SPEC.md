@@ -218,6 +218,13 @@ An Ed25519 detached signature over the 32 raw digest bytes:
 Ed25519 is deterministic, so a given key and report always yield the same
 signature — which is what lets §10 pin exact bytes.
 
+> **Where the trusted key comes from.** A verifier takes it as an input
+> obtained out of band. §12 anchors carry `publisher_key`, so a reader who can
+> see a publisher's anchors obtains the key from the ledger rather than from
+> the server that served the report; `verify_with_anchor` uses it and refuses
+> an anchor describing a different report. That relies on the reader being
+> able to see the anchor, which is a deployment property, not a format one.
+>
 > **The embedded `public_key` is display metadata, not identity.** A verifier
 > **MUST** take the trusted key as an input obtained out of band and compare
 > it; a signature that certifies itself proves only internal consistency. How
