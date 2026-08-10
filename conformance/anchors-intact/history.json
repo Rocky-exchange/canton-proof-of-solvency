@@ -3,6 +3,7 @@
     "format_version": "canton-solvency-anchor-v1",
     "ledger_offset": "000000000000000042",
     "publisher": "golden::publisher",
+    "publisher_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
     "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61",
     "root_hash": "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970",
     "snapshot_time": "2026-01-01T00:00:00Z"
@@ -10,8 +11,9 @@
   {
     "format_version": "canton-solvency-anchor-v1",
     "ledger_offset": "000000000000000043",
-    "prev_anchor": "c82ee8ab02afaff1f01fe4266a190e3ca1e45f1a89b007678643a63fd4003764",
+    "prev_anchor": "5ff0f87e21408f0b4faea93df554c37129297a5a8dc584e436284ea5b46251e1",
     "publisher": "golden::publisher",
+    "publisher_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
     "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61",
     "root_hash": "02885b0fc65c3d8992899c8acba1917cb838b18b7054b6675e3d89f2bf8f0970",
     "snapshot_time": "2026-01-02T00:00:00Z"

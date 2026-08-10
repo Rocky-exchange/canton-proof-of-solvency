@@ -11,6 +11,8 @@ export type Anchor = {
   snapshot_time: string;
   ledger_offset: string;
   publisher: string;
+  /** The Ed25519 key that signed the anchored report (SPEC §8.4). */
+  publisher_key: string;
   prev_anchor?: string;
 };
 
@@ -49,6 +51,7 @@ export async function anchorDigestHex(anchor: Anchor): Promise<string> {
     lp(anchor.snapshot_time),
     lp(anchor.ledger_offset),
     lp(anchor.publisher),
+    lp(anchor.publisher_key),
   ];
   // A presence byte, not an empty string: otherwise a genesis anchor and one
   // naming an empty predecessor hash identically, and a mid-history anchor

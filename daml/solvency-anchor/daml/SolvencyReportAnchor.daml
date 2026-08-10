@@ -31,6 +31,11 @@ template ReportAnchor
     snapshotTime : Time
     ledgerOffset : Text
       -- ^ Opaque participant offset; not assumed numeric (SPEC §8.3).
+    publisherKey : Hex
+      -- ^ The Ed25519 key that signed the anchored report. This is what makes
+      -- anchoring answer key distribution: a reader who can see this contract
+      -- obtains the key from the ledger rather than from the server that
+      -- served the report.
     prevAnchor : Optional Hex
       -- ^ Digest of the previous anchor. 'None' only for the first.
     anchorDigest : Hex
@@ -49,6 +54,7 @@ template ReportAnchor
         && isHex 64 reportDigest
         && isHex 64 rootHash
         && isHex 64 anchorDigest
+        && isHex 64 publisherKey
         && optional True (isHex 64) prevAnchor
         && ledgerOffset /= ""
 

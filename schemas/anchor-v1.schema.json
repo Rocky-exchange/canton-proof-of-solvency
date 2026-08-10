@@ -10,7 +10,8 @@
     "root_hash",
     "snapshot_time",
     "ledger_offset",
-    "publisher"
+    "publisher",
+    "publisher_key"
   ],
   "additionalProperties": false,
   "properties": {
@@ -38,6 +39,10 @@
     "prev_anchor": {
       "$ref": "#/$defs/hash256",
       "description": "Digest of the previous anchor. Absent only for the first; an absent predecessor and an empty one are distinguished by the digest rule."
+    },
+    "publisher_key": {
+      "$ref": "#/$defs/hash256",
+      "description": "The Ed25519 key that signed the anchored report. A reader who can see the anchor obtains the key from the ledger rather than from the server that served the report (SPEC.md \u00a78.4)."
     }
   },
   "$defs": {

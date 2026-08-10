@@ -172,7 +172,8 @@
       lp(anchor.root_hash),
       lp(anchor.snapshot_time),
       lp(anchor.ledger_offset),
-      lp(anchor.publisher)
+      lp(anchor.publisher),
+      lp(anchor.publisher_key)
     ];
     parts.push(
       anchor.prev_anchor === void 0 ? new Uint8Array([0]) : concat([new Uint8Array([1]), lp(anchor.prev_anchor)])
