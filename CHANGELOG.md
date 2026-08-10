@@ -4,10 +4,22 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
-## Unreleased
+## 0.1.1 — unreleased
+
+Testing and documentation, plus four defects those tests found. No wire
+bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **Two customers could share one proof filename, and one proof overwrote the
+  other.** `canton-solvency-publish` replaced every non-alphanumeric character
+  with `_`, so `alice-1`, `alice_1` and `alice 1` are three customers and were
+  one file. The pack index did notice the duplicate, but only after the files
+  were written, reporting it as a problem with the pack rather than with the
+  customer identifiers, and leaving a half-written output directory. Filenames
+  now carry a digest of the full identifier whenever sanitising loses
+  something; identifiers needing no sanitising keep their readable name, and
+  the two forms cannot collide because only the suffixed form contains a `-`.
 - **The browser verifier threw instead of reporting on a malformed document.**
   `verifyFromText` built its display facts before checking whether
   verification had succeeded, so a report whose `root_sums` was not an amount
@@ -21,6 +33,11 @@ as a format version, never as a fix.
   permissive side is the one customers run. Bounded in `parseAmount18dp` and
   `formatAmount18dp`, stated in §1, and pinned at the boundary by tests in both
   implementations.
+
+- Two broken intra-doc links, live on docs.rs since 0.1.0: `Report` and
+  `ProofDocument` did not resolve from the crate root, and `reserve-attest`
+  carried a redundant explicit link target. rustdoc now runs in CI with
+  `-D warnings`.
 
 ### Changed
 
@@ -39,17 +56,15 @@ as a format version, never as a fix.
   amount strings. Nothing asserts *which* error — only that one is returned.
   Every document these tools read comes from the party being checked, so a
   panic is a crash on demand rather than a wrong answer.
+  `canton-solvency-publish` and `canton-reserve-attest` are covered too: the
+  first against malformed balance exports and key files, the second against
+  every shape a participant response can be wrong in, including a custody
+  total that overflows `u128` — checked arithmetic there matters in release
+  builds, where a wrap would understate reserves against unchanged
+  liabilities.
   The CLI suite runs the real binary across every verb, asserting the exit-code
   contract a pipeline actually consumes: malformed input is a 2, a failed
   verification is a 1, and neither is ever the 101 that a panic produces.
-
-## 0.1.1 — 2026-08-10
-
-Testing and documentation only. No wire bytes, no format versions, no
-behaviour change — every 0.1.0 vector still verifies.
-
-### Added
-
 - Property tests over the commitment core: nine invariants over generated
   trees at every size from 1 to 64. Odd-node promotion is the motive —
   duplicating the odd node instead of promoting it is the obvious
@@ -63,18 +78,6 @@ behaviour change — every 0.1.0 vector still verifies.
   delimiters — because every §6 golden vector is ASCII, which is exactly why
   the UTF-16 sort bug survived as long as it did.
 - Eleven doctests across the four published crates, which had none.
-
-### Fixed
-
-- Two broken intra-doc links, live on docs.rs since 0.1.0: `Report` and
-  `ProofDocument` did not resolve from the crate root, and `reserve-attest`
-  carried a redundant explicit link target. rustdoc now runs in CI with
-  `-D warnings`.
-
-Released for the documentation alone. 0.1.0's docs.rs pages show broken links
-and no examples, and the main open ask on this project is that other people
-implement against it — so the reference an implementer reads first is worth a
-patch release on its own.
 
 ## 0.1.0 — 2026-08-10
 

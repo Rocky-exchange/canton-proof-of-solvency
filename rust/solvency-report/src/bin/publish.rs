@@ -128,6 +128,34 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
 }
 
+/// A filename for one customer's proof that is distinct for every distinct
+/// customer.
+///
+/// Replacing every non-alphanumeric character with `_` is not enough on its
+/// own: `alice-1`, `alice_1` and `alice 1` are three different customers and
+/// one filename, so two of the three proofs were silently overwritten by the
+/// third. The pack index caught the duplicate afterwards, but only after the
+/// files were written and with a message about the pack rather than about the
+/// customers.
+///
+/// When sanitising loses nothing, the readable name is kept. When it loses
+/// something, a digest of the *full* identifier is appended, which restores
+/// what the sanitising threw away. The two forms cannot collide with each
+/// other either: a lossless name is alphanumeric throughout and a suffixed one
+/// always contains a `-`.
+fn proof_filename(user_id: &str) -> String {
+    let safe: String = user_id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    if safe == user_id {
+        return format!("proof-{safe}.json");
+    }
+    use sha2::{Digest, Sha256};
+    let digest = hex::encode(Sha256::digest(user_id.as_bytes()));
+    format!("proof-{safe}-{}.json", &digest[..8])
+}
+
 fn main() -> Result<()> {
     let args = match parse_args() {
         Ok(args) => args,
@@ -178,13 +206,10 @@ fn main() -> Result<()> {
     )?;
     write("anchor.json", serde_json::to_value(&anchor)?)?;
     for proof in &published.proofs {
-        let safe: String = proof
-            .leaf
-            .user_id
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect();
-        write(&format!("proof-{safe}.json"), serde_json::to_value(proof)?)?;
+        write(
+            &proof_filename(&proof.leaf.user_id),
+            serde_json::to_value(proof)?,
+        )?;
     }
 
     // The evidence pack (SPEC §15). Without it an auditor cannot tell a
@@ -227,4 +252,49 @@ fn main() -> Result<()> {
         args.out.display()
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::proof_filename;
+
+    /// The bug this guards: `alice-1`, `alice_1` and `alice 1` are three
+    /// customers and used to be one filename, so two proofs were overwritten
+    /// by the third before anything noticed.
+    #[test]
+    fn customers_that_sanitise_alike_still_get_distinct_files() {
+        let names: Vec<String> = ["alice-1", "alice_1", "alice 1", "alice.1", "alice/1"]
+            .iter()
+            .map(|u| proof_filename(u))
+            .collect();
+        let unique: std::collections::BTreeSet<&String> = names.iter().collect();
+        assert_eq!(unique.len(), names.len(), "collision among {names:?}");
+    }
+
+    /// An identifier that needs no sanitising keeps the readable name, so the
+    /// ordinary case is unchanged.
+    #[test]
+    fn an_ordinary_identifier_keeps_its_readable_name() {
+        assert_eq!(proof_filename("alice"), "proof-alice.json");
+        assert_eq!(proof_filename("u2"), "proof-u2.json");
+    }
+
+    /// A sanitised name always carries a `-`, and a clean one never can, so the
+    /// two forms cannot meet in the middle.
+    #[test]
+    fn a_sanitised_name_cannot_collide_with_a_clean_one() {
+        let clean = proof_filename("aliceX1");
+        let dirty = proof_filename("alice X1");
+        assert_ne!(clean, dirty);
+        assert!(!clean.trim_start_matches("proof-").contains('-'));
+        assert!(dirty.contains('-'));
+    }
+
+    /// Distinct identifiers that sanitise identically must differ in the
+    /// digest, which is taken over the full identifier rather than the
+    /// sanitised form.
+    #[test]
+    fn the_digest_is_over_the_identifier_not_the_sanitised_name() {
+        assert_ne!(proof_filename("a b"), proof_filename("a\tb"));
+    }
 }
