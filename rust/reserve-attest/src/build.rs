@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 /// Builds the custody side of a coverage claim.
 ///
 /// `snapshot_offset` must be the offset the liabilities snapshot was taken
-/// at. The two halves of a coverage claim describe one instant or they
+/// at, in the report's opaque string form (see `HoldingsQuery::offset_string`). The two halves of a coverage claim describe one instant or they
 /// describe nothing, so this refuses to publish against a different one
 /// rather than leaving the mismatch for a reader to notice.
 pub fn build_custody_report(

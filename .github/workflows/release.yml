@@ -1,0 +1,48 @@
+name: Release
+
+# Publishing runs from a tag, not from a laptop. The token lives as a
+# repository secret, so no crates.io credential is ever on a developer machine.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Package and verify without publishing"
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      # The full suite runs before anything is published. A release that
+      # skipped its tests would be the one release nobody could trust.
+      - name: Test everything
+        run: |
+          for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
+            cargo test --manifest-path "rust/$c/Cargo.toml"
+          done
+
+      - name: Verify each crate packages
+        run: |
+          for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
+            cargo package --manifest-path "rust/$c/Cargo.toml"
+          done
+
+      # Dependency order matters: a crate cannot publish before the crates it
+      # depends on are on the index.
+      - name: Publish in dependency order
+        if: github.event_name == 'push' || inputs.dry_run == false
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -e
+          for c in solvency-merkle solvency-report solvency-cli reserve-attest; do
+            cargo publish --manifest-path "rust/$c/Cargo.toml"
+            # The index needs a moment before a dependent crate can resolve it.
+            sleep 45
+          done
