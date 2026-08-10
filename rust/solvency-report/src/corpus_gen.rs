@@ -40,6 +40,8 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
     let (repo_report, repo_proof) = golden::repo_fixture();
     let (group_report, membership) = golden::group_fixture();
     let (custody, statement) = golden::coverage_fixture();
+    let (shortfall_custody, shortfall_statement) = golden::shortfall_fixture();
+    let (dvp_report, dvp_complete, dvp_missing_leg) = golden::dvp_fixture();
     let anchor = golden::anchor_fixture();
     let (pack, pack_members) = golden::pack_fixture();
     let (astral_report, astral_proof) = golden::astral_fixture();
@@ -301,6 +303,60 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         ],
     )?;
 
+    // --- §14 per-leaf rules ---
+    // required_leaf_maps is checked when a proof is verified, and nothing
+    // exercised it: neutralising the check left every case passing. Three
+    // profiles declare per-leaf rules and none had a case at all. §14 names
+    // this exact scenario — "a committed trade missing a leg is rejected when
+    // its own proof is checked".
+    add(
+        "dvp-valid",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a settled trade carrying both of its legs",
+        "accept",
+        None,
+        vec![
+            ("report.json", serde_json::to_value(&dvp_report)?),
+            ("proof.json", serde_json::to_value(&dvp_complete)?),
+        ],
+    )?;
+    add(
+        "dvp-missing-leg",
+        "proof-v2",
+        &["report-v1", "proof-v2", "leaf-v2"],
+        "a committed trade delivered but never paid for",
+        "reject",
+        Some("profile"),
+        vec![
+            ("report.json", serde_json::to_value(&dvp_report)?),
+            ("proof.json", serde_json::to_value(&dvp_missing_leg)?),
+        ],
+    )?;
+
+    // --- §11 shortfall ---
+    // The corpus paired custody with liabilities and checked the binding, and
+    // never once checked the comparison the pairing exists for. §11 is driven
+    // by what is owed precisely so an asset owed and held nowhere reads as a
+    // shortfall rather than as silence; this custody report holds no CBTC at
+    // all.
+    add(
+        "coverage-shortfall",
+        "coverage",
+        &["report-v1", "coverage-v1"],
+        "an asset owed and held nowhere",
+        "reject",
+        Some("shortfall"),
+        vec![
+            ("custody.json", serde_json::to_value(&shortfall_custody)?),
+            ("liabilities.json", report_j.clone()),
+            (
+                "statement.json",
+                serde_json::to_value(&shortfall_statement)?,
+            ),
+        ],
+    )?;
+
     // --- the version gate (SPEC §9.1 step 1, §12, §15.3) ---
     // Nothing exercised it. An implementation ignoring format_version
     // altogether passed every other case, which would defeat the whole
@@ -522,6 +578,40 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
             ("proof.json", serde_json::to_value(&astral_proof)?),
         ],
     )?;
+
+    // §15.1 requires a member name to be a plain file name. An index naming a
+    // path is a delivery instruction rather than an integrity claim, and
+    // nothing exercised the rule.
+    {
+        // Signed with the bad name, not edited afterwards: §15.3 checks the
+        // signature before the names, so an index tampered with in transit is
+        // caught as a forgery and never reaches the name rule. The rule exists
+        // for a publisher who meant it.
+        let mut escaping_pack = pack.pack.clone();
+        escaping_pack.entries[0].name = "../escape.json".to_string();
+        let escaping = crate::pack::SignedPack {
+            signature: crate::document::SignatureBlock {
+                algorithm: "ed25519".to_string(),
+                public_key: golden::signer().public_key_hex(),
+                value: golden::signer().sign_digest(&crate::pack::pack_digest(&escaping_pack)),
+            },
+            pack: escaping_pack,
+        };
+        let dir = out.join("pack-unsafe-name");
+        std::fs::create_dir_all(&dir)?;
+        write(&dir, "pack.json", &serde_json::to_value(&escaping)?)?;
+        let mut names = vec!["pack.json".to_string()];
+        for (name, bytes) in &pack_members {
+            std::fs::write(dir.join(name), bytes)?;
+            names.push(name.clone());
+        }
+        cases.push(json!({
+            "id": "pack-unsafe-name", "kind": "pack",
+            "requires": ["pack-v1"],
+            "description": "an index naming a path rather than a file",
+            "expect": "reject", "failure": "unsafe_name", "files": names,
+        }));
+    }
 
     // The pack index carries its own version, and §15.3 checks it first.
     {

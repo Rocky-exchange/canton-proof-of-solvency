@@ -7,7 +7,7 @@
     "proof-v1",
     "report-v1"
   ],
-  "corpus_digest": "cc12a9133616e1fc11499882296ee9da96af7cb3d0d7656fd37b6f7184fd53f6",
+  "corpus_digest": "cbee4a4de11a800b4bcddaeaedbc13441132a112496a57e62ee75cacf5919739",
   "results": [
     {
       "id": "proof-valid",
@@ -75,6 +75,21 @@
       "outcome": "skip"
     },
     {
+      "id": "dvp-valid",
+      "expected": "accept",
+      "outcome": "skip"
+    },
+    {
+      "id": "dvp-missing-leg",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
+      "id": "coverage-shortfall",
+      "expected": "reject",
+      "outcome": "skip"
+    },
+    {
       "id": "proof-unknown-report-version",
       "expected": "reject",
       "outcome": "reject"
@@ -138,6 +153,11 @@
       "id": "proof-astral-assets",
       "expected": "accept",
       "outcome": "accept"
+    },
+    {
+      "id": "pack-unsafe-name",
+      "expected": "reject",
+      "outcome": "reject"
     },
     {
       "id": "pack-unknown-version",
