@@ -812,6 +812,13 @@ review comments answered. *Whether a CIP is accepted is decided by Canton
 governance, not by this project — the deliverable is a submitted, maintained
 proposal.*
 
+## ⬆️ Upgrading
+
+Publishing 0.1.0 already? [UPGRADING.md](UPGRADING.md) covers the 0.1.1 leaf
+ordering fix — a privacy change that alters your root hashes, leaves your
+anchor chain and published reports intact, and matters if anything a customer
+can influence determines their position in the tree.
+
 ## 🤝 Contributing
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the

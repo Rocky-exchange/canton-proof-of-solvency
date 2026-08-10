@@ -6,6 +6,10 @@ as a format version, never as a fix.
 
 ## 0.1.1 — unreleased
 
+Publishers should read [UPGRADING.md](UPGRADING.md) before adopting: the leaf
+ordering fix changes root hashes, and the note explains what that does and does
+not affect (it does not strand an existing anchor chain).
+
 Testing and documentation, plus four defects those tests found. No wire
 bytes, no format versions: every 0.1.0 vector still verifies.
 

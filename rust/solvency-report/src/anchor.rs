@@ -255,6 +255,25 @@ pub fn anchor_report(signed: &SignedReport, previous: Option<&Anchor>) -> Anchor
 
 #[cfg(test)]
 mod tests {
+    /// Changing the leaf ordering changes every root, and an operator adopting
+    /// the 0.1.1 privacy fix needs to know that does not strand their history.
+    ///
+    /// It does not: anchors link anchor-to-anchor by digest, and nothing links
+    /// one report's root to the next. UPGRADING.md says so; this is why it can.
+    #[test]
+    fn a_successor_whose_root_is_unrelated_still_chains() {
+        let (first, _) = crate::golden::fixture();
+        let genesis = anchor_report(&first, None);
+
+        let (mut second, _) = crate::golden::fixture();
+        second.report.snapshot_time = "2026-01-02T00:00:00Z".to_string();
+        second.report.ledger_offset = "000000000000000043".to_string();
+        second.report.root_hash = "ff".repeat(32);
+        let linked = anchor_report(&second, Some(&genesis));
+
+        assert_eq!(verify_chain(&[genesis, linked]), Ok(()));
+    }
+
     use super::*;
 
     fn anchor(i: usize, prev: Option<&Anchor>) -> Anchor {
