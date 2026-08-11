@@ -237,6 +237,7 @@ pub fn run(command: &Command) -> Result<Summary> {
             })
         }
         Command::Coverage { .. } => anyhow::bail!("handled by run_coverage"),
+        Command::Assurance { .. } => anyhow::bail!("handled by run_assurance"),
         Command::VerifyPack { .. } => anyhow::bail!("handled by run_pack"),
         Command::Anchors { .. } => anyhow::bail!("handled by run_anchors"),
         Command::Recompute { .. } => anyhow::bail!("handled by run_recompute"),
