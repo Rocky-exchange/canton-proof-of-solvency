@@ -409,7 +409,9 @@ A conforming verifier performs all of the following and fails on the first
 that does not hold:
 
 1. `report.format_version`, `proof.format_version`, and `signature.algorithm`
-   are recognised.
+   are recognised, and the report satisfies its profile (§14.1): registered,
+   carrying the aggregates it requires, and committing the leaf kind the proof
+   supplies.
 2. The recomputed §8.2 digest equals `proof.report_digest`.
 3. `signature.public_key` equals the caller-supplied trusted key, and the
    signature verifies over the digest.
@@ -417,6 +419,15 @@ that does not hold:
 5. The path is folded (§4), and **both** the resulting hash equals
    `report.root_hash` **and** the resulting per-asset sums equal
    `report.root_sums`.
+
+Profile validation belongs in step 1, before the digest is recomputed, and the
+order is normative rather than incidental. A report whose profile is
+unregistered or whose statement is vacuous should be refused for that reason,
+not for a digest mismatch it also happens to have: the two failures send a
+reader to different places, and the profile answer is the one that says what is
+wrong with the document. An implementation deferring the check until after
+step 2 reports a different failure for the same document, which the §14.3
+corpus notices.
 
 Step 5 comparing sums is not redundant. A publisher can commit a truthful tree
 and still print understated totals in the report; only an independent

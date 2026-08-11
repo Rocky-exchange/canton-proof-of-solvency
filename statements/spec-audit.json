@@ -4,8 +4,10 @@
   "version": "1.1",
   "supports": [
     "anchor-v1",
+    "leaf-v2",
     "pack-v1",
     "proof-v1",
+    "proof-v2",
     "report-v1"
   ],
   "corpus_digest": "8f4124abe4535e4505b448e996267d3faaf7fe10bb8d13bc1187558033bdb612",
@@ -48,12 +50,12 @@
     {
       "id": "repo-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "repo-under-collateralised",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "group-valid",
@@ -108,32 +110,32 @@
     {
       "id": "dvp-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "dvp-missing-leg",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "fund-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "eligibility-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "eligibility-not-unanimous",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "fund-missing-aggregate",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "coverage-shortfall",

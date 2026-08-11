@@ -349,6 +349,7 @@ def sums_equal(left: dict[str, int], right: dict[str, int]) -> bool:
 
 
 # §14.3 failure names, as the manifest declares them.
+PROFILE = "profile"
 DIGEST_MISMATCH = "digest_mismatch"
 UNKNOWN_SIGNER = "unknown_signer"
 BAD_SIGNATURE = "bad_signature"
@@ -392,6 +393,196 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
     )
 
     # 5. fold, then compare hash *and* sums
+    for step in proof["steps"]:
+        sibling = (bytes.fromhex(step["sibling_hash"]), parse_map(step["sibling_sums"]))
+        left, right = (sibling, node) if step["sibling_on_left"] else (node, sibling)
+        sums = add_sums(left[1], right[1])
+        node = (node_hash(left[0], right[0], sums), sums)
+
+    if node[0].hex() != report["root_hash"]:
+        raise Rejected(ROOT_HASH_MISMATCH)
+    if not sums_equal(node[1], parse_map(report["root_sums"])):
+        raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
+# §3.1 Leaf format v2 — named amount maps
+# --------------------------------------------------------------------------
+LEAF_V2_DOMAIN = b"rocky-solvency-leaf-v2"
+SAFE_NAME = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+
+
+def safe_name(name: str) -> bool:
+    """§3.1: map and asset names outside [A-Za-z0-9._-] are refused, because
+    §4 still canonicalises sums with a `:`/`|` join and an unconstrained
+    qualified key could forge a boundary."""
+    return bool(name) and all(c in SAFE_NAME for c in name)
+
+
+def leaf_hash_v2(salt: bytes, subject_id: str, maps: dict[str, dict[str, int]]) -> bytes:
+    """§3.1, transcribed from the formula in the specification text."""
+    for map_name, amounts in maps.items():
+        if not safe_name(map_name):
+            raise ValueError(f"map name {map_name!r} is not permitted by §3.1")
+        for asset in amounts:
+            if not safe_name(asset):
+                raise ValueError(f"asset name {asset!r} is not permitted by §3.1")
+
+    out = (
+        LEAF_V2_DOMAIN
+        + salt
+        + hashlib.sha256(subject_id.encode()).digest()
+        + u64le(len(maps))
+    )
+    # Map names bytewise, as §3.1 says and §8.1's lpmap does for assets.
+    for map_name in sorted(maps, key=lambda n: n.encode()):
+        out += lp(map_name) + lpmap(maps[map_name])
+    return hashlib.sha256(out).digest()
+
+
+def qualified_sums(maps: dict[str, dict[str, int]]) -> dict[str, int]:
+    """§3.1: a v2 leaf node's sums are every map flattened under `<map>/<asset>`."""
+    return {
+        f"{map_name}/{asset}": amount
+        for map_name, amounts in maps.items()
+        for asset, amount in amounts.items()
+    }
+
+
+# --------------------------------------------------------------------------
+# §14 Profile registry
+# --------------------------------------------------------------------------
+# Transcribed from §14's table. The "Requires" column gives the aggregates a
+# report must publish, and for two profiles a further rule stated in prose:
+# settlement.dvp needs both maps in every leaf, eligibility.holder needs each
+# attested rule's total to equal leaf_count.
+PROFILES: dict[str, dict] = {
+    "solvency.liabilities": {"leaf": "v1", "aggregates": ["root_sums"]},
+    "solvency.group": {"leaf": "v1", "aggregates": ["root_sums"]},
+    "collateral.repo": {
+        "leaf": "v2",
+        "aggregates": ["collateral/*", "exposure/*"],
+        # §14: "for every asset, aggregate collateral must be at least
+        # aggregate exposure. A surplus in one asset does not excuse a
+        # shortfall in another."
+        "covers": ("collateral", "exposure"),
+    },
+    "fund.nav": {"leaf": "v2", "aggregates": ["units/*", "entitlement/*"]},
+    "settlement.dvp": {
+        "leaf": "v2",
+        "aggregates": ["delivered/*", "paid/*"],
+        "leaf_maps": ["delivered", "paid"],
+    },
+    "eligibility.holder": {
+        "leaf": "v2",
+        "aggregates": ["attested/*"],
+        "leaf_maps": ["attested"],
+        "unanimous": ["attested"],
+    },
+    "coverage.custody": {"leaf": "v2", "aggregates": ["held/*"], "leaf_maps": ["held"]},
+}
+
+
+def check_profile(report: dict, leaf_maps: dict[str, dict[str, int]] | None = None) -> None:
+    """§14.1's MUSTs, plus the two per-profile rules §14 states in prose."""
+    rules = PROFILES.get(report["profile"])
+    if rules is None:
+        raise Rejected(PROFILE)
+
+    sums = report["root_sums"]
+    for aggregate in rules["aggregates"]:
+        present = (
+            any(k.startswith(aggregate[:-1]) for k in sums)
+            if aggregate.endswith("/*")
+            else bool(sums)
+        )
+        if not present:
+            # A report omitting an aggregate its profile requires asserts
+            # nothing: the statement would be vacuous.
+            raise Rejected(PROFILE)
+
+    # Per-leaf: a settled trade missing a leg is caught when its own proof is
+    # checked, not by looking at the totals.
+    if leaf_maps is not None:
+        for required in rules.get("leaf_maps", []):
+            if not leaf_maps.get(required):
+                raise Rejected(PROFILE)
+
+    covers = rules.get("covers")
+    if covers is not None:
+        covering, covered = covers
+        totals = parse_map(sums)
+        for key, owed in totals.items():
+            if not key.startswith(f"{covered}/"):
+                continue
+            asset = key[len(covered) + 1 :]
+            held = totals.get(f"{covering}/{asset}", 0)
+            if held < owed:
+                raise Rejected(PROFILE)
+
+    # Unanimity: each rule carries 1 in every leaf, so the total equalling
+    # leaf_count is consistent with every subject having satisfied it.
+    for map_name in rules.get("unanimous", []):
+        for key, total in parse_map(sums).items():
+            if not key.startswith(f"{map_name}/"):
+                continue
+            if total != report["leaf_count"] * SCALE:
+                raise Rejected(PROFILE)
+
+
+# --------------------------------------------------------------------------
+# §9.2 Proof document v2
+# --------------------------------------------------------------------------
+# §14: which profiles commit v2 leaves. A v1 proof against a v2-leaf profile
+# and the reverse are both refused, so the mismatch is named rather than
+# surfacing as an opaque hash failure.
+LEAF_V2_PROFILES = {
+    "collateral.repo",
+    "fund.nav",
+    "settlement.dvp",
+    "eligibility.holder",
+    "coverage.custody",
+}
+
+
+def verify_proof_v2(signed: dict, proof: dict, trusted_key_hex: str) -> None:
+    """§9.2: as §9.1, with a v2 leaf in place of a v1 one."""
+    report = signed["report"]
+    signature = signed["signature"]
+
+    if report["format_version"] not in (
+        "canton-solvency-report-v1",
+        "canton-solvency-report-v2",
+    ):
+        raise Rejected(f"report format {report['format_version']}")
+    if proof["format_version"] != "canton-solvency-proof-v2":
+        raise Rejected(f"proof format {proof['format_version']}")
+    if signature["algorithm"] != "ed25519":
+        raise Rejected(f"algorithm {signature['algorithm']}")
+
+    leaf = proof["leaf"]
+    maps = {name: parse_map(m) for name, m in leaf["maps"].items()}
+    if PROFILES.get(report["profile"], {}).get("leaf") != "v2":
+        raise Rejected(PROFILE)  # §14.1: a v2 proof against a v1-leaf profile
+    # §9.1 step 1: the profile is checked before the digest, so a vacuous or
+    # unregistered report is refused for that reason rather than for a digest
+    # mismatch it also happens to have.
+    check_profile(report, maps)
+
+    digest = report_digest(report)
+    if digest.hex() != proof["report_digest"]:
+        raise Rejected(DIGEST_MISMATCH)
+    if signature["public_key"].lower() != trusted_key_hex.lower():
+        raise Rejected(UNKNOWN_SIGNER)
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex), digest, bytes.fromhex(signature["value"])
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    node = (
+        leaf_hash_v2(bytes.fromhex(leaf["salt"]), leaf["subject_id"], maps),
+        qualified_sums(maps),
+    )
     for step in proof["steps"]:
         sibling = (bytes.fromhex(step["sibling_hash"]), parse_map(step["sibling_sums"]))
         left, right = (sibling, node) if step["sibling_on_left"] else (node, sibling)
@@ -576,7 +767,7 @@ def check_golden_vectors(log) -> list[str]:
 # before the corpus carried `requires`, this file *passed*
 # `report-v2-manifest-lies` by rejecting a format version it had never
 # implemented, so a case meant to test the manifest tested nothing.
-SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1"}
+SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1", "leaf-v2", "proof-v2"}
 
 
 def run_case(directory: Path, kind: str, key: str) -> None:
@@ -587,6 +778,12 @@ def run_case(directory: Path, kind: str, key: str) -> None:
     """
     if kind == "proof":
         verify_proof(
+            json.loads((directory / "report.json").read_text()),
+            json.loads((directory / "proof.json").read_text()),
+            key,
+        )
+    elif kind == "proof-v2":
+        verify_proof_v2(
             json.loads((directory / "report.json").read_text()),
             json.loads((directory / "proof.json").read_text()),
             key,

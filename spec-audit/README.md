@@ -27,6 +27,27 @@ the same bytes.
 
 ## What it found
 
+Later additions — §12 anchor chains, §9.2 v2 proofs, §14 profile rules — took
+it from three features to six and from seventeen corpus cases to thirty-one,
+and found two more defects on the way:
+
+**SPEC §12's anchor digest formula was missing `publisher_key`.** The
+key-distribution change added the field to the anchor, to its digest in both
+implementations, and to the schema, and updated §8.4's prose — and left §12's
+formula and JSON example alone. Transcribing the formula as written produced a
+verifier that rejected every valid chain. My first pass did not catch it,
+because I included the field from memory of the Rust source; removing it and
+running the text as written failed `anchors-intact` immediately.
+
+**§9.1 did not say where profile validation happens.** The numbered list runs
+versions, digest, signature, leaf, fold, and never mentions the profile check
+at all, so a transcription put it after the digest and reported
+`digest_mismatch` where the reference reports `profile` — the same document,
+two different answers, both defensible. §9.1 now places it in step 1 and says
+why the order is normative rather than incidental.
+
+
+
 Every §6 and §10 vector reproduced from the text. Six places did not, and all
 six are now closed in SPEC.md. Two were real:
 
