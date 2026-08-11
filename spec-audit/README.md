@@ -27,6 +27,44 @@ the same bytes.
 
 ## What it found
 
+It now runs **all forty-five corpus cases, skipping none**, and agrees with
+both reference implementations on every one. §3.1, §8.5, §9.2, §11, §12, §13
+and §14 are all transcribed from the specification text — the whole format, in
+one dependency-free file.
+
+That is the claim this directory was built to test, and it is now a checked
+one rather than an aspiration: someone holding SPEC.md and nothing else
+arrives at the same answers on every case the corpus contains, including the
+ones only added because a rule was found untested.
+
+Two of the seven sections turned up defects; five transcribed cleanly on the
+first attempt, which is the more useful number to report. §13's entity leaf, its
+membership verification and the §13.4 chain all worked as written. So did
+§11's five verification steps — and step 4 there says plainly that both
+signatures verify against caller-supplied trusted keys, which the TypeScript
+implementation had been omitting. The specification was right and the code was
+not, which is the opposite of the §12 finding and worth saying, because an
+audit that only ever blames the document is not auditing.
+
+The two that did not:
+
+**SPEC §12's anchor digest formula was missing `publisher_key`.** The
+key-distribution change added the field to the anchor, to its digest in both
+implementations, and to the schema, and updated §8.4's prose — and left §12's
+formula and JSON example alone. Transcribing the formula as written produced a
+verifier that rejected every valid chain. My first pass did not catch it,
+because I included the field from memory of the Rust source; removing it and
+running the text as written failed `anchors-intact` immediately.
+
+**§9.1 did not say where profile validation happens.** The numbered list runs
+versions, digest, signature, leaf, fold, and never mentions the profile check
+at all, so a transcription put it after the digest and reported
+`digest_mismatch` where the reference reports `profile` — the same document,
+two different answers, both defensible. §9.1 now places it in step 1 and says
+why the order is normative rather than incidental.
+
+
+
 Every §6 and §10 vector reproduced from the text. Six places did not, and all
 six are now closed in SPEC.md. Two were real:
 

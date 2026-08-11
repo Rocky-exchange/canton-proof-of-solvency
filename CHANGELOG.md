@@ -11,6 +11,25 @@ bytes, no format versions: every 0.1.0 vector still verifies.
 
 ### Fixed
 
+- **The console showed a rewritten anchor history as fully linked.** The
+  history view checked only that each anchor named its predecessor by digest,
+  so a chain that changed publisher, restated a snapshot time or rewound a
+  ledger offset rendered every row green while `verifyAnchorChain` refused it.
+  An auditor saw agreement for exactly the rewriting anchoring exists to make
+  visible. The view now applies every §12.1 rule and names which one failed,
+  and a test holds it to the same verdict as the verifier on every history the
+  corpus rejects.
+
+- **The TypeScript coverage check never verified a signature.** §11 pairs a
+  custody report with a liabilities report, and the Rust implementation checks
+  both against the caller's trusted key. The TypeScript equivalent lived inside
+  the conformance runner and checked the profiles, the digest binding and the
+  per-asset comparison — and no signature at all. Both implementations
+  nonetheless claimed `coverage-v1` in their compatibility statements. Coverage
+  and anchor chains are now library functions with typed failures, as every
+  other entry point is, and a corpus case refuses a custody report claiming an
+  untrusted key.
+
 - **The offline verifier's manifest display threw** on a manifest whose
   `fields` was not a map — the seventh instance of the same mistake, and the
   one that decided the matter. A test now forbids `Object.keys` and

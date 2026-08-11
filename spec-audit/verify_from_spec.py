@@ -44,6 +44,17 @@ REPO = Path(__file__).resolve().parent.parent
 # --------------------------------------------------------------------------
 FINDINGS: list[tuple[str, str]] = [
     (
+        "FIXED — SPEC §12: the anchor digest formula omitted publisher_key",
+        "The key-distribution change added publisher_key to the anchor and to "
+        "its digest in both implementations and in the schema, and updated §8.4's "
+        "prose about it, but left §12's formula and JSON example untouched. An "
+        "implementer following §12 would hash six fields where the reference "
+        "hashes seven, and reject every valid chain while the schema rejected "
+        "their documents for missing a field the spec never mentioned. Found by "
+        "implementing §12 here from the text: anchors-intact failed. Both the "
+        "formula and the example now carry the field.",
+    ),
+    (
         "FIXED — SPEC §2: assets sort bytewise over UTF-8, and JS does not",
         "The specification said 'bytewise (ASCII) order', which reads as a "
         "non-issue until an asset name is not ASCII. JavaScript's default "
@@ -302,11 +313,12 @@ def lpmap(m: dict[str, int]) -> bytes:
 REPORT_DOMAIN = b"rocky-solvency-report-v1"
 
 
-def report_digest(report: dict) -> bytes:
-    """§8.2. Note lp(root_hash) is over the hex *string* — see FINDINGS."""
+def _report_preimage(domain: bytes, report: dict) -> bytes:
+    """The §8.2 field sequence, shared so §8.5 can say "every §8.2 field,
+    identical order and encoding" and mean it literally."""
     disclosures = report.get("disclosures") or {}
-    return hashlib.sha256(
-        REPORT_DOMAIN
+    return (
+        domain
         + lp(report["format_version"])
         + lp(report["profile"])
         + lp(report["publisher"])
@@ -319,7 +331,15 @@ def report_digest(report: dict) -> bytes:
         + lpmap(parse_map(disclosures.get("bad_debt")))
         + u64le(disclosures.get("excluded_house_accounts", 0))
         + lpmap(parse_map(disclosures.get("excluded_house_totals")))
-    ).digest()
+    )
+
+
+def report_digest(report: dict) -> bytes:
+    """§8.2 for a v1 report, §8.5 for a v2 one — the version selects the
+    domain string, so a v2 signature cannot be replayed as a v1 one."""
+    if report["format_version"] == "canton-solvency-report-v2":
+        return report_digest_v2(report)
+    return hashlib.sha256(_report_preimage(REPORT_DOMAIN, report)).digest()
 
 
 # --------------------------------------------------------------------------
@@ -338,6 +358,12 @@ def sums_equal(left: dict[str, int], right: dict[str, int]) -> bool:
 
 
 # §14.3 failure names, as the manifest declares them.
+PROFILE = "profile"
+SHORTFALL = "shortfall"
+MANIFEST_PRESENCE = "manifest_presence"
+MANIFEST_INCONSISTENT = "manifest_inconsistent"
+ENTITY_ROOT_MISMATCH = "entity_root_mismatch"
+ENTITY_SUMS_MISMATCH = "entity_sums_mismatch"
 DIGEST_MISMATCH = "digest_mismatch"
 UNKNOWN_SIGNER = "unknown_signer"
 BAD_SIGNATURE = "bad_signature"
@@ -351,8 +377,12 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
     signature = signed["signature"]
 
     # 1. recognised versions
-    if report["format_version"] != "canton-solvency-report-v1":
+    if report["format_version"] not in (
+        "canton-solvency-report-v1",
+        "canton-solvency-report-v2",
+    ):
         raise Rejected(f"report format {report['format_version']}")
+    check_manifest(report)
     if proof["format_version"] != "canton-solvency-proof-v1":
         raise Rejected(f"proof format {proof['format_version']}")
     if signature["algorithm"] != "ed25519":
@@ -391,6 +421,451 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
         raise Rejected(ROOT_HASH_MISMATCH)
     if not sums_equal(node[1], parse_map(report["root_sums"])):
         raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
+# §3.1 Leaf format v2 — named amount maps
+# --------------------------------------------------------------------------
+LEAF_V2_DOMAIN = b"rocky-solvency-leaf-v2"
+SAFE_NAME = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+
+
+def safe_name(name: str) -> bool:
+    """§3.1: map and asset names outside [A-Za-z0-9._-] are refused, because
+    §4 still canonicalises sums with a `:`/`|` join and an unconstrained
+    qualified key could forge a boundary."""
+    return bool(name) and all(c in SAFE_NAME for c in name)
+
+
+def leaf_hash_v2(salt: bytes, subject_id: str, maps: dict[str, dict[str, int]]) -> bytes:
+    """§3.1, transcribed from the formula in the specification text."""
+    for map_name, amounts in maps.items():
+        if not safe_name(map_name):
+            raise ValueError(f"map name {map_name!r} is not permitted by §3.1")
+        for asset in amounts:
+            if not safe_name(asset):
+                raise ValueError(f"asset name {asset!r} is not permitted by §3.1")
+
+    out = (
+        LEAF_V2_DOMAIN
+        + salt
+        + hashlib.sha256(subject_id.encode()).digest()
+        + u64le(len(maps))
+    )
+    # Map names bytewise, as §3.1 says and §8.1's lpmap does for assets.
+    for map_name in sorted(maps, key=lambda n: n.encode()):
+        out += lp(map_name) + lpmap(maps[map_name])
+    return hashlib.sha256(out).digest()
+
+
+def qualified_sums(maps: dict[str, dict[str, int]]) -> dict[str, int]:
+    """§3.1: a v2 leaf node's sums are every map flattened under `<map>/<asset>`."""
+    return {
+        f"{map_name}/{asset}": amount
+        for map_name, amounts in maps.items()
+        for asset, amount in amounts.items()
+    }
+
+
+# --------------------------------------------------------------------------
+# §14 Profile registry
+# --------------------------------------------------------------------------
+# Transcribed from §14's table. The "Requires" column gives the aggregates a
+# report must publish, and for two profiles a further rule stated in prose:
+# settlement.dvp needs both maps in every leaf, eligibility.holder needs each
+# attested rule's total to equal leaf_count.
+PROFILES: dict[str, dict] = {
+    "solvency.liabilities": {"leaf": "v1", "aggregates": ["root_sums"]},
+    "solvency.group": {"leaf": "v1", "aggregates": ["root_sums"]},
+    "collateral.repo": {
+        "leaf": "v2",
+        "aggregates": ["collateral/*", "exposure/*"],
+        # §14: "for every asset, aggregate collateral must be at least
+        # aggregate exposure. A surplus in one asset does not excuse a
+        # shortfall in another."
+        "covers": ("collateral", "exposure"),
+    },
+    "fund.nav": {"leaf": "v2", "aggregates": ["units/*", "entitlement/*"]},
+    "settlement.dvp": {
+        "leaf": "v2",
+        "aggregates": ["delivered/*", "paid/*"],
+        "leaf_maps": ["delivered", "paid"],
+    },
+    "eligibility.holder": {
+        "leaf": "v2",
+        "aggregates": ["attested/*"],
+        "leaf_maps": ["attested"],
+        "unanimous": ["attested"],
+    },
+    "coverage.custody": {"leaf": "v2", "aggregates": ["held/*"], "leaf_maps": ["held"]},
+}
+
+
+def check_profile(report: dict, leaf_maps: dict[str, dict[str, int]] | None = None) -> None:
+    """§14.1's MUSTs, plus the two per-profile rules §14 states in prose."""
+    rules = PROFILES.get(report["profile"])
+    if rules is None:
+        raise Rejected(PROFILE)
+
+    sums = report["root_sums"]
+    for aggregate in rules["aggregates"]:
+        present = (
+            any(k.startswith(aggregate[:-1]) for k in sums)
+            if aggregate.endswith("/*")
+            else bool(sums)
+        )
+        if not present:
+            # A report omitting an aggregate its profile requires asserts
+            # nothing: the statement would be vacuous.
+            raise Rejected(PROFILE)
+
+    # Per-leaf: a settled trade missing a leg is caught when its own proof is
+    # checked, not by looking at the totals.
+    if leaf_maps is not None:
+        for required in rules.get("leaf_maps", []):
+            if not leaf_maps.get(required):
+                raise Rejected(PROFILE)
+
+    covers = rules.get("covers")
+    if covers is not None:
+        covering, covered = covers
+        totals = parse_map(sums)
+        for key, owed in totals.items():
+            if not key.startswith(f"{covered}/"):
+                continue
+            asset = key[len(covered) + 1 :]
+            held = totals.get(f"{covering}/{asset}", 0)
+            if held < owed:
+                raise Rejected(PROFILE)
+
+    # Unanimity: each rule carries 1 in every leaf, so the total equalling
+    # leaf_count is consistent with every subject having satisfied it.
+    for map_name in rules.get("unanimous", []):
+        for key, total in parse_map(sums).items():
+            if not key.startswith(f"{map_name}/"):
+                continue
+            if total != report["leaf_count"] * SCALE:
+                raise Rejected(PROFILE)
+
+
+# --------------------------------------------------------------------------
+# §9.2 Proof document v2
+# --------------------------------------------------------------------------
+# §14: which profiles commit v2 leaves. A v1 proof against a v2-leaf profile
+# and the reverse are both refused, so the mismatch is named rather than
+# surfacing as an opaque hash failure.
+LEAF_V2_PROFILES = {
+    "collateral.repo",
+    "fund.nav",
+    "settlement.dvp",
+    "eligibility.holder",
+    "coverage.custody",
+}
+
+
+def verify_proof_v2(signed: dict, proof: dict, trusted_key_hex: str) -> None:
+    """§9.2: as §9.1, with a v2 leaf in place of a v1 one."""
+    report = signed["report"]
+    signature = signed["signature"]
+
+    if report["format_version"] not in (
+        "canton-solvency-report-v1",
+        "canton-solvency-report-v2",
+    ):
+        raise Rejected(f"report format {report['format_version']}")
+    if proof["format_version"] != "canton-solvency-proof-v2":
+        raise Rejected(f"proof format {proof['format_version']}")
+    if signature["algorithm"] != "ed25519":
+        raise Rejected(f"algorithm {signature['algorithm']}")
+
+    leaf = proof["leaf"]
+    maps = {name: parse_map(m) for name, m in leaf["maps"].items()}
+    if PROFILES.get(report["profile"], {}).get("leaf") != "v2":
+        raise Rejected(PROFILE)  # §14.1: a v2 proof against a v1-leaf profile
+    # §9.1 step 1: the profile is checked before the digest, so a vacuous or
+    # unregistered report is refused for that reason rather than for a digest
+    # mismatch it also happens to have.
+    check_profile(report, maps)
+
+    digest = report_digest(report)
+    if digest.hex() != proof["report_digest"]:
+        raise Rejected(DIGEST_MISMATCH)
+    if signature["public_key"].lower() != trusted_key_hex.lower():
+        raise Rejected(UNKNOWN_SIGNER)
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex), digest, bytes.fromhex(signature["value"])
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    node = (
+        leaf_hash_v2(bytes.fromhex(leaf["salt"]), leaf["subject_id"], maps),
+        qualified_sums(maps),
+    )
+    for step in proof["steps"]:
+        sibling = (bytes.fromhex(step["sibling_hash"]), parse_map(step["sibling_sums"]))
+        left, right = (sibling, node) if step["sibling_on_left"] else (node, sibling)
+        sums = add_sums(left[1], right[1])
+        node = (node_hash(left[0], right[0], sums), sums)
+
+    if node[0].hex() != report["root_hash"]:
+        raise Rejected(ROOT_HASH_MISMATCH)
+    if not sums_equal(node[1], parse_map(report["root_sums"])):
+        raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
+# §8.5 Disclosure manifest (format v2)
+# --------------------------------------------------------------------------
+REPORT_DOMAIN_V2 = b"rocky-solvency-report-v2"
+
+# §8.5: an unrecognised key is an error rather than something to ignore, so a
+# producer cannot bury a field the verifier has no opinion about.
+MANIFEST_FIELDS = [
+    "root_sums",
+    "mark_prices",
+    "disclosures.bad_debt",
+    "disclosures.excluded_house_accounts",
+    "disclosures.excluded_house_totals",
+    "customer_balances",
+    "customer_identities",
+]
+# Which of those live in the report body, and so can be checked for
+# consistency. The rest are attested through the commitment.
+BODY_FIELDS = MANIFEST_FIELDS[:5]
+
+
+def report_digest_v2(report: dict) -> bytes:
+    """§8.5: every §8.2 field in the same order and encoding, then the manifest.
+
+    Its own domain string, so the same fields cannot digest identically under
+    both versions and a v2 signature cannot be replayed as a v1 one.
+    """
+    manifest = report["manifest"]
+    fields = manifest["fields"]
+    out = _report_preimage(REPORT_DOMAIN_V2, report) + lp(manifest["audience"])
+    out += u64le(len(fields))
+    for path in sorted(fields, key=lambda p: p.encode()):
+        out += lp(path) + lp(fields[path])
+    return hashlib.sha256(out).digest()
+
+
+def carries_data(report: dict, path: str) -> bool:
+    """Whether the report body actually carries the field."""
+    disclosures = report.get("disclosures") or {}
+    if path == "root_sums":
+        return bool(report.get("root_sums"))
+    if path == "mark_prices":
+        return bool(report.get("mark_prices"))
+    if path == "disclosures.bad_debt":
+        return bool(disclosures.get("bad_debt"))
+    if path == "disclosures.excluded_house_accounts":
+        return int(disclosures.get("excluded_house_accounts", 0)) > 0
+    if path == "disclosures.excluded_house_totals":
+        return bool(disclosures.get("excluded_house_totals"))
+    return False
+
+
+def check_manifest(report: dict) -> None:
+    """§8.5's version and consistency rules."""
+    version = report["format_version"]
+    manifest = report.get("manifest")
+    if version == "canton-solvency-report-v1" and manifest is not None:
+        raise Rejected(MANIFEST_PRESENCE)
+    if version == "canton-solvency-report-v2" and manifest is None:
+        raise Rejected(MANIFEST_PRESENCE)
+    if manifest is None:
+        return
+
+    for path, state in manifest["fields"].items():
+        if path not in MANIFEST_FIELDS:
+            raise Rejected(MANIFEST_INCONSISTENT)
+        if path not in BODY_FIELDS:
+            continue
+        has = carries_data(report, path)
+        if state == "published" and not has:
+            raise Rejected(MANIFEST_INCONSISTENT)
+        if state in ("committed", "withheld") and has:
+            raise Rejected(MANIFEST_INCONSISTENT)
+
+
+# --------------------------------------------------------------------------
+# §11 Coverage
+# --------------------------------------------------------------------------
+def verify_coverage(
+    custody: dict,
+    liabilities: dict,
+    statement: dict,
+    custody_key_hex: str,
+    liabilities_key_hex: str,
+) -> None:
+    """§11.2's five steps, in order.
+
+    Step 4 is the one worth naming: both signatures verify against
+    caller-supplied trusted keys, which may differ, since a custodian and a
+    venue are often different institutions. The TypeScript implementation
+    omitted this step entirely and no case noticed — the specification was
+    right and the code was not.
+    """
+    if statement["format_version"] != "canton-solvency-coverage-v1":
+        raise Rejected(f"statement format {statement['format_version']}")
+    if custody["report"]["profile"] != "coverage.custody":
+        raise Rejected(PROFILE)
+    if liabilities["report"]["profile"] != "solvency.liabilities":
+        raise Rejected(PROFILE)
+
+    for signed, expected in (
+        (custody, statement["custody_report_digest"]),
+        (liabilities, statement["liabilities_report_digest"]),
+    ):
+        if report_digest(signed["report"]).hex() != expected:
+            raise Rejected(DIGEST_MISMATCH)
+
+    for signed, key in ((custody, custody_key_hex), (liabilities, liabilities_key_hex)):
+        if signed["signature"]["public_key"].lower() != key.lower():
+            raise Rejected(UNKNOWN_SIGNER)
+        if not ed25519_verify(
+            bytes.fromhex(key),
+            report_digest(signed["report"]),
+            bytes.fromhex(signed["signature"]["value"]),
+        ):
+            raise Rejected(BAD_SIGNATURE)
+
+    # Driven by what is owed: an asset owed and held nowhere is a shortfall,
+    # not an absent row.
+    held = parse_map(custody["report"]["root_sums"])
+    for asset, owed in parse_map(liabilities["report"]["root_sums"]).items():
+        if held.get(f"held/{asset}", 0) < owed:
+            raise Rejected(SHORTFALL)
+
+
+# --------------------------------------------------------------------------
+# §13 Hierarchical commitments
+# --------------------------------------------------------------------------
+ENTITY_DOMAIN = b"rocky-solvency-entity-v1"
+
+
+def entity_leaf_hash(entity_id: str, root_hash_hex: str, root_sums: dict[str, int]) -> bytes:
+    """§13.1, transcribed from the formula.
+
+    `entity_root_hash` enters as 32 raw bytes, not as the hex text the rest of
+    §8 transports — the formula says so explicitly, and it is the one place in
+    the format where a hash is hashed rather than its rendering.
+    """
+    return hashlib.sha256(
+        ENTITY_DOMAIN
+        + lp(entity_id)
+        + bytes.fromhex(root_hash_hex)
+        + lpmap(root_sums)
+    ).digest()
+
+
+def verify_membership(group_signed: dict, membership: dict, trusted_key_hex: str) -> None:
+    """§13.3: §9.1 with the §13.1 leaf in place of a customer leaf."""
+    report = group_signed["report"]
+    signature = group_signed["signature"]
+
+    if membership["format_version"] != "canton-solvency-group-membership-v1":
+        raise Rejected(f"membership format {membership['format_version']}")
+    # §13.2: a group report states a different thing and must not be mistaken
+    # for a customer-level one.
+    if report["profile"] != "solvency.group":
+        raise Rejected(PROFILE)
+    check_profile(report)
+
+    digest = report_digest(report)
+    if digest.hex() != membership["group_report_digest"]:
+        raise Rejected(DIGEST_MISMATCH)
+    if signature["public_key"].lower() != trusted_key_hex.lower():
+        raise Rejected(UNKNOWN_SIGNER)
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex), digest, bytes.fromhex(signature["value"])
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    entity = membership["entity"]
+    sums = parse_map(entity["root_sums"])
+    node = (entity_leaf_hash(entity["entity_id"], entity["root_hash"], sums), sums)
+    for step in membership["steps"]:
+        sibling = (bytes.fromhex(step["sibling_hash"]), parse_map(step["sibling_sums"]))
+        left, right = (sibling, node) if step["sibling_on_left"] else (node, sibling)
+        total = add_sums(left[1], right[1])
+        node = (node_hash(left[0], right[0], total), total)
+
+    if node[0].hex() != report["root_hash"]:
+        raise Rejected(ROOT_HASH_MISMATCH)
+    if not sums_equal(node[1], parse_map(report["root_sums"])):
+        raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+def verify_group_chain(
+    group_signed: dict,
+    membership: dict,
+    entity_signed: dict,
+    proof: dict,
+    trusted_key_hex: str,
+) -> None:
+    """§13.4: all three hold, and step 3 is not optional."""
+    verify_proof(entity_signed, proof, trusted_key_hex)
+    verify_membership(group_signed, membership, trusted_key_hex)
+
+    entity = membership["entity"]
+    entity_report = entity_signed["report"]
+    if entity["root_hash"] != entity_report["root_hash"]:
+        raise Rejected(ENTITY_ROOT_MISMATCH)
+    if not sums_equal(parse_map(entity["root_sums"]), parse_map(entity_report["root_sums"])):
+        raise Rejected(ENTITY_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
+# §12 Anchor chains
+# --------------------------------------------------------------------------
+ANCHOR_DOMAIN = b"rocky-solvency-anchor-v1"
+
+
+def anchor_digest(anchor: dict) -> str:
+    """§12, transcribed from the formula in the specification text.
+
+    §12's formula omitted publisher_key when this was written, and so did the
+    JSON example beside it, while both implementations and the schema included
+    it. Following the text literally produced a verifier that rejected every
+    valid chain — `anchors-intact` failed. The spec is corrected; this is the
+    transcription of the corrected text.
+    """
+    out = (
+        ANCHOR_DOMAIN
+        + lp(anchor["format_version"])
+        + lp(anchor["report_digest"])
+        + lp(anchor["root_hash"])
+        + lp(anchor["snapshot_time"])
+        + lp(anchor["ledger_offset"])
+        + lp(anchor["publisher"])
+        + lp(anchor["publisher_key"])
+    )
+    # §12: a presence byte, not an empty string, so a genesis anchor and one
+    # naming an empty predecessor cannot hash alike.
+    prev = anchor.get("prev_anchor")
+    out += b"\x00" if prev is None else b"\x01" + lp(prev)
+    return hashlib.sha256(out).hexdigest()
+
+
+def verify_chain(history: list[dict]) -> None:
+    """§12.1, in order, failing on the first rule that does not hold."""
+    for index, anchor in enumerate(history):
+        if anchor["format_version"] != "canton-solvency-anchor-v1":
+            raise Rejected("unsupported_version")
+        if index == 0:
+            if anchor.get("prev_anchor") is not None:
+                raise Rejected("not_genesis")
+            continue
+        previous = history[index - 1]
+        if anchor.get("prev_anchor") != anchor_digest(previous):
+            raise Rejected("broken")
+        if anchor["publisher"] != previous["publisher"]:
+            raise Rejected("publisher_changed")
+        if anchor["snapshot_time"] <= previous["snapshot_time"]:
+            raise Rejected("went_backwards")
+        if anchor["ledger_offset"] < previous["ledger_offset"]:
+            raise Rejected("went_backwards")
 
 
 # --------------------------------------------------------------------------
@@ -513,7 +988,18 @@ def check_golden_vectors(log) -> list[str]:
 # before the corpus carried `requires`, this file *passed*
 # `report-v2-manifest-lies` by rejecting a format version it had never
 # implemented, so a case meant to test the manifest tested nothing.
-SUPPORTED = {"report-v1", "proof-v1", "pack-v1"}
+SUPPORTED = {
+    "report-v1",
+    "report-v2",
+    "manifest",
+    "proof-v1",
+    "pack-v1",
+    "anchor-v1",
+    "leaf-v2",
+    "proof-v2",
+    "group-v1",
+    "coverage-v1",
+}
 
 
 def run_case(directory: Path, kind: str, key: str) -> None:
@@ -528,6 +1014,36 @@ def run_case(directory: Path, kind: str, key: str) -> None:
             json.loads((directory / "proof.json").read_text()),
             key,
         )
+    elif kind == "proof-v2":
+        verify_proof_v2(
+            json.loads((directory / "report.json").read_text()),
+            json.loads((directory / "proof.json").read_text()),
+            key,
+        )
+    elif kind == "coverage":
+        verify_coverage(
+            json.loads((directory / "custody.json").read_text()),
+            json.loads((directory / "liabilities.json").read_text()),
+            json.loads((directory / "statement.json").read_text()),
+            key,
+            key,
+        )
+    elif kind == "membership":
+        verify_membership(
+            json.loads((directory / "group-report.json").read_text()),
+            json.loads((directory / "membership.json").read_text()),
+            key,
+        )
+    elif kind == "chain":
+        verify_group_chain(
+            json.loads((directory / "group-report.json").read_text()),
+            json.loads((directory / "membership.json").read_text()),
+            json.loads((directory / "entity-report.json").read_text()),
+            json.loads((directory / "proof.json").read_text()),
+            key,
+        )
+    elif kind == "anchors":
+        verify_chain(json.loads((directory / "history.json").read_text()))
     elif kind == "pack":
         members = {
             f.name: f.read_bytes()

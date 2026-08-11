@@ -901,15 +901,39 @@
   async function historyRows(anchors) {
     const rows = [];
     for (const [index, anchor] of anchors.entries()) {
-      const linked = index === 0 ? anchor.prev_anchor === void 0 : anchor.prev_anchor === await anchorDigestHex(anchors[index - 1]);
+      const problem = await chainProblem(anchors, index);
       rows.push({
         index,
         snapshotTime: anchor.snapshot_time,
         reportDigest: anchor.report_digest,
-        linked
+        linked: problem === null,
+        problem
       });
     }
     return rows;
+  }
+  async function chainProblem(anchors, index) {
+    const anchor = anchors[index];
+    if (anchor.format_version !== "canton-solvency-anchor-v1") {
+      return `unrecognised anchor format ${anchor.format_version}`;
+    }
+    if (index === 0) {
+      return anchor.prev_anchor === void 0 ? null : "the first anchor names a predecessor, so this history does not start at its beginning";
+    }
+    const previous = anchors[index - 1];
+    if (anchor.prev_anchor !== await anchorDigestHex(previous)) {
+      return "does not name the anchor before it";
+    }
+    if (anchor.publisher !== previous.publisher) {
+      return `publisher changed from ${previous.publisher}`;
+    }
+    if (anchor.snapshot_time <= previous.snapshot_time) {
+      return "snapshot time does not advance, so an instant has been restated";
+    }
+    if (anchor.ledger_offset < previous.ledger_offset) {
+      return "ledger offset moves backwards";
+    }
+    return null;
   }
   function flowOf(report) {
     const profile = lookupProfile(report.profile);

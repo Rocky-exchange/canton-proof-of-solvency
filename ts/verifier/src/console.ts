@@ -27,6 +27,8 @@ export type HistoryRow = {
   snapshotTime: string;
   reportDigest: string;
   linked: boolean;
+  /** Why not, when `linked` is false. Null when the row follows correctly. */
+  problem: string | null;
 };
 
 /** A node in the data-flow view: where a published figure came from. */
@@ -103,18 +105,48 @@ export function coverageRows(custody: Report, liabilities: Report): CoverageRow[
 export async function historyRows(anchors: Anchor[]): Promise<HistoryRow[]> {
   const rows: HistoryRow[] = [];
   for (const [index, anchor] of anchors.entries()) {
-    const linked =
-      index === 0
-        ? anchor.prev_anchor === undefined
-        : anchor.prev_anchor === (await anchorDigestHex(anchors[index - 1]));
+    // §12.1 is more than the digest link. This view used to check only that
+    // each anchor named its predecessor, so a history that changed publisher,
+    // restated a snapshot time or rewound a ledger offset rendered as fully
+    // linked while `verifyAnchorChain` refused it — the reader saw green for
+    // exactly the rewriting anchoring exists to expose.
+    const problem = await chainProblem(anchors, index);
     rows.push({
       index,
       snapshotTime: anchor.snapshot_time,
       reportDigest: anchor.report_digest,
-      linked,
+      linked: problem === null,
+      problem,
     });
   }
   return rows;
+}
+
+/** What stops this anchor following the one before it, if anything. */
+async function chainProblem(anchors: Anchor[], index: number): Promise<string | null> {
+  const anchor = anchors[index];
+  if (anchor.format_version !== "canton-solvency-anchor-v1") {
+    return `unrecognised anchor format ${anchor.format_version}`;
+  }
+  if (index === 0) {
+    return anchor.prev_anchor === undefined
+      ? null
+      : "the first anchor names a predecessor, so this history does not start at its beginning";
+  }
+  const previous = anchors[index - 1];
+  if (anchor.prev_anchor !== (await anchorDigestHex(previous))) {
+    return "does not name the anchor before it";
+  }
+  if (anchor.publisher !== previous.publisher) {
+    return `publisher changed from ${previous.publisher}`;
+  }
+  if (anchor.snapshot_time <= previous.snapshot_time) {
+    return "snapshot time does not advance, so an instant has been restated";
+  }
+  if (anchor.ledger_offset < previous.ledger_offset) {
+    return "ledger offset moves backwards";
+  }
+  return null;
 }
 
 /**

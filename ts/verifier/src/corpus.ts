@@ -119,7 +119,40 @@ export async function failureKind(c: Case, KEY: string): Promise<string | undefi
       KEY,
       KEY
     );
-  else return undefined; // the other kinds are checked structurally, not by kind
+  else if (c.kind === "membership")
+    result = await verifyMembership(f("group-report.json"), f("membership.json"), KEY);
+  else if (c.kind === "pack") {
+    const { verifyPack } = await import("./pack");
+    const dir = fileURLToPath(new URL(`../../../conformance/${c.id}`, import.meta.url));
+    const members = new Map<string, Uint8Array>();
+    for (const name of readdirSync(dir)) {
+      if (name === "pack.json") continue;
+      members.set(name, new Uint8Array(readFileSync(`${dir}/${name}`)));
+    }
+    const packResult = await verifyPack(f("pack.json"), members);
+    // The pack verifier names its own failures; map them onto the corpus
+    // vocabulary so a declared `failure` means the same thing everywhere.
+    if (packResult.ok) return undefined;
+    return {
+      version: "unsupported_version",
+      missing: "pack_missing",
+      altered: "pack_altered",
+      unlisted: "pack_unlisted",
+      "unsafe-name": "unsafe_name",
+    }[packResult.failure];
+  } else if (c.kind === "coverage") {
+    const { verifyCoverage } = await import("./coverage");
+    result = await verifyCoverage(
+      f("custody.json"),
+      f("liabilities.json"),
+      f("statement.json"),
+      KEY,
+      KEY
+    );
+  } else if (c.kind === "anchors") {
+    const { verifyAnchorChain } = await import("./coverage");
+    result = await verifyAnchorChain(f("history.json"));
+  } else return undefined;
   return result.ok ? undefined : result.failure.kind;
 }
 
@@ -146,48 +179,37 @@ export async function runCase(c: Case, KEY: string): Promise<boolean> {
     case "membership":
       return (await verifyMembership(f("group-report.json"), f("membership.json"), KEY)).ok;
     case "coverage": {
-      // Coverage is a pairing rule; the browser verifier checks the two
-      // reports and the binding, then compares held against owed.
-      const custody = f("custody.json");
-      const liabilities = f("liabilities.json");
-      const statement = f("statement.json");
-      const { reportDigestHex } = await import("./report");
-      if (custody.report.profile !== "coverage.custody") return false;
-      if (liabilities.report.profile !== "solvency.liabilities") return false;
-      if ((await reportDigestHex(custody.report)) !== statement.custody_report_digest) return false;
-      if ((await reportDigestHex(liabilities.report)) !== statement.liabilities_report_digest) {
-        return false;
-      }
-      const { parseAmount18dp } = await import("./verify");
-      for (const [asset, owed] of Object.entries<string>(liabilities.report.root_sums)) {
-        const held = custody.report.root_sums[`held/${asset}`] ?? "0";
-        if (parseAmount18dp(held) < parseAmount18dp(owed)) return false;
-      }
-      return true;
+      const { verifyCoverage } = await import("./coverage");
+      return (
+        await verifyCoverage(
+          f("custody.json"),
+          f("liabilities.json"),
+          f("statement.json"),
+          KEY,
+          KEY
+        )
+      ).ok;
+    }
+    case "anchors": {
+      const { verifyAnchorChain } = await import("./coverage");
+      return (await verifyAnchorChain(f("history.json"))).ok;
     }
     case "pack": {
       // The delivery is whatever is in the directory, minus the index. Reading
       // it from disk rather than from the manifest is deliberate: a runner
       // that trusted the manifest's file list could not detect a file the
       // index does not name.
-      const { verifyPack } = await import("./pack");
+      const { packDigestHex, verifyPack } = await import("./pack");
       const { verifyEd25519 } = await import("./report");
-      const { packDigestHex } = await import("./pack");
       const dir = fileURLToPath(new URL(`../../../conformance/${c.id}`, import.meta.url));
       const signed = f("pack.json");
       const members = new Map<string, Uint8Array>();
       for (const name of readdirSync(dir)) {
         if (name === "pack.json") continue;
-        members.set(
-          name,
-          new Uint8Array(
-            readFileSync(fileURLToPath(new URL(`../../../conformance/${c.id}/${name}`, import.meta.url)))
-          )
-        );
+        members.set(name, new Uint8Array(readFileSync(`${dir}/${name}`)));
       }
       // Signature first: it is what forces this implementation's pack digest
-      // to agree with the Rust one byte for byte. Without it the cases would
-      // only prove the two agree about SHA-256 of a file.
+      // to agree with the Rust one byte for byte.
       const signatureValid = await verifyEd25519(
         KEY,
         await packDigestHex(signed.pack),
@@ -196,8 +218,6 @@ export async function runCase(c: Case, KEY: string): Promise<boolean> {
       if (!signatureValid) return false;
       return (await verifyPack(signed, members)).ok;
     }
-    case "anchors":
-      return checkAnchors(f("history.json"));
     default:
       throw new Error(`unknown case kind ${c.kind}`);
   }

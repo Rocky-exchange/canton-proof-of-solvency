@@ -34,6 +34,7 @@ fn expected_text(failure: &str) -> &'static str {
         "digest_mismatch" => "belongs to a different report",
         "bad_signature" => "signature does not verify",
         "unknown_signer" => "trusted key",
+        "entity_sums_mismatch" => "disagree",
         "manifest_inconsistent" => "manifest disagrees",
         "manifest_presence" => "manifest",
         "profile" => "profile ",

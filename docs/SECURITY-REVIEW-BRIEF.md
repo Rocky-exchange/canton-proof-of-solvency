@@ -90,6 +90,25 @@ thinned: our search was a grep for one pattern after we had found it four times
 by hand, which is not the same as a systematic argument that no entry point can
 raise.
 
+**Rules implemented twice, differently.** The sharpest thing we found by
+accident, and the one we would most like swept properly. A rule gets
+implemented once for verification and again for display, and the second copy
+is written as though it were describing data that has already been checked
+when it is in fact the thing doing the checking. Three instances so far:
+
+- the TypeScript coverage path lived inside the conformance runner and never
+  verified a signature, while Rust's did — and both implementations claimed
+  `coverage-v1`;
+- the console's anchor history view checked one of §12.1's five rules, so a
+  history with a changed publisher or a rewound offset rendered every row as
+  linked while the verifier refused it;
+- manifest and amount rendering threw on documents the verifier would have
+  reported cleanly.
+
+All three are fixed and pinned by tests that hold the display to the verifier's
+verdict. What we cannot tell you is whether three is the number. Each was found
+while doing something else, which is not a search.
+
 **Verification order (§9.1, §15.3).** Both specify a fixed order and "fail on
 the first that does not hold". Is any step skippable, or does any earlier
 failure mask a later one that matters?
@@ -125,7 +144,7 @@ daml test                                                    # in daml/solvency-
 ```
 
 The commitment core is `rust/solvency-merkle` (~small, start here). The
-conformance corpus is `conformance/`, 42 cases with declared expectations,
+conformance corpus is `conformance/`, 45 cases with declared expectations,
 run by all three implementations.
 
 ## What we commit to

@@ -3,11 +3,18 @@
   "implementation": "spec-audit/verify_from_spec.py",
   "version": "1.1",
   "supports": [
+    "anchor-v1",
+    "coverage-v1",
+    "group-v1",
+    "leaf-v2",
+    "manifest",
     "pack-v1",
     "proof-v1",
-    "report-v1"
+    "proof-v2",
+    "report-v1",
+    "report-v2"
   ],
-  "corpus_digest": "6777fe0c9ee3438c29e2d4ae08a5fbf4aee802883f6e8c9bc6b651a097f04f74",
+  "corpus_digest": "8f4124abe4535e4505b448e996267d3faaf7fe10bb8d13bc1187558033bdb612",
   "results": [
     {
       "id": "proof-valid",
@@ -37,92 +44,107 @@
     {
       "id": "report-v2-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "report-v2-manifest-lies",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "repo-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "repo-under-collateralised",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "group-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "group-relabelled-entity",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "coverage-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "coverage-unbound-statement",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
+    },
+    {
+      "id": "coverage-untrusted-signer",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "proof-signed-by-another-key",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "chain-entity-sums-disagree",
+      "expected": "reject",
+      "outcome": "reject"
     },
     {
       "id": "report-v2-published-but-absent",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "report-v1-carrying-a-manifest",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "report-v2-without-a-manifest",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "dvp-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "dvp-missing-leg",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "fund-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "eligibility-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "eligibility-not-unanimous",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "fund-missing-aggregate",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "coverage-shortfall",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "proof-unknown-report-version",
@@ -142,42 +164,42 @@
     {
       "id": "anchors-intact",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "anchors-suffix",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-publisher-changed",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-restated-instant",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-rewound-offset",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-broken-link",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "chain-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "chain-substituted-entity",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "proof-signed-understated-totals",

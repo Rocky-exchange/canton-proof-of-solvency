@@ -1,0 +1,6 @@
+{
+  "custody_basis": "omnibus custody party golden::custodian",
+  "custody_report_digest": "ed9d0944484bfabb6d5d2356c8608609b790b99570d58e203824c97a6a73ddef",
+  "format_version": "canton-solvency-coverage-v1",
+  "liabilities_report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61"
+}
