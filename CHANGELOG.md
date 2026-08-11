@@ -4,7 +4,7 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
-## 0.1.1 — unreleased
+## 0.1.1 — 2026-08-11
 
 Testing and documentation, plus four defects those tests found. No wire
 bytes, no format versions: every 0.1.0 vector still verifies.
