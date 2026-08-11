@@ -4,6 +4,19 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
+## Unreleased
+
+### Fixed
+
+- **`coverage` reported every verification failure as exit 2.** `2` means the
+  run could not happen — usage, I/O, a parse error — and `1` means a
+  verification failed. An untrusted signer, a statement bound to another
+  report, and a stale pairing all exited 2, while the shortfall path correctly
+  used 1. A wrapper that alerts on 1 and retries on 2 would retry a forged
+  document forever and never alert. Present since 0.1.0; found by exercising
+  the published binary rather than the library, and now pinned by an
+  exit-code contract test over every coverage case in the corpus.
+
 ## 0.2.0 — 2026-08-11
 
 ### Added

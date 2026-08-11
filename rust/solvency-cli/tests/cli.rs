@@ -395,3 +395,104 @@ fn pack_json_output_is_machine_readable() {
     assert_eq!(parsed["ok"], serde_json::Value::Bool(true));
     assert_eq!(parsed["members"], serde_json::json!(2));
 }
+
+/// The exit-code contract, for every verb that verifies something.
+///
+/// `1` means a verification failed. `2` means the run could not happen —
+/// usage, I/O, a parse error. A pipeline reading these treats them very
+/// differently: a wrapper that alerts on 1 and retries on 2 will retry a
+/// forged document forever and never alert, so a verification failure
+/// reported as 2 is worse than one reported as 0 would be loud.
+///
+/// `coverage` reported *every* verification failure as 2 — an untrusted
+/// signer, a statement bound to another report, and later a stale pairing —
+/// while its shortfall path correctly used 1. Present in 0.1.0 onwards; found
+/// by exercising the published binary rather than the library.
+mod exit_codes {
+    use super::*;
+
+    fn corpus(case: &str, file: &str) -> String {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../conformance")
+            .join(case)
+            .join(file)
+            .to_str()
+            .unwrap()
+            .to_string()
+    }
+
+    fn corpus_key() -> String {
+        let text = std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../conformance/manifest.json"),
+        )
+        .unwrap();
+        let manifest: serde_json::Value = serde_json::from_str(&text).unwrap();
+        manifest["trusted_key"].as_str().unwrap().to_string()
+    }
+
+    fn coverage(case: &str) -> Output {
+        let key = corpus_key();
+        run(&[
+            "coverage",
+            "--custody",
+            &corpus(case, "custody.json"),
+            "--liabilities",
+            &corpus(case, "liabilities.json"),
+            "--statement",
+            &corpus(case, "statement.json"),
+            "--key",
+            &key,
+        ])
+    }
+
+    #[test]
+    fn a_valid_coverage_pairing_exits_zero() {
+        let out = coverage("coverage-valid");
+        assert_eq!(
+            out.status.code(),
+            Some(0),
+            "stdout: {}",
+            String::from_utf8_lossy(&out.stdout)
+        );
+    }
+
+    #[test]
+    fn every_coverage_verification_failure_exits_one() {
+        for case in [
+            "coverage-untrusted-signer",
+            "coverage-unbound-statement",
+            "coverage-shortfall",
+            "coverage-stale-pairing",
+        ] {
+            let out = coverage(case);
+            assert_eq!(
+                out.status.code(),
+                Some(1),
+                "{case}: exit 2 says the run could not happen; this run happened and refused.\n\
+                 stdout: {}\nstderr: {}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            );
+        }
+    }
+
+    /// The distinction is only meaningful if a genuine I/O problem still
+    /// reports 2, so this pins the other side of it.
+    #[test]
+    fn a_coverage_run_over_a_missing_file_still_exits_two() {
+        let key = corpus_key();
+        let out = run(&[
+            "coverage",
+            "--custody",
+            "/nonexistent/custody.json",
+            "--liabilities",
+            &corpus("coverage-valid", "liabilities.json"),
+            "--statement",
+            &corpus("coverage-valid", "statement.json"),
+            "--key",
+            &key,
+        ]);
+        assert_eq!(out.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&out.stderr).contains("reading"));
+    }
+}
