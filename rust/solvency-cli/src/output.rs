@@ -42,8 +42,16 @@ pub fn render_diff_text(summary: &DiffSummary) -> String {
 }
 
 /// Shortfalls are named with their size; a covered asset needs only a count.
-pub fn render_coverage_text(outcome: &canton_solvency_report::coverage::CoverageOutcome) -> String {
+pub fn render_coverage_text(run: &crate::coverage::CoverageRun) -> String {
     use canton_solvency_merkle::format_amount_18dp;
+    let Some(outcome) = &run.outcome else {
+        return format!(
+            "REFUSED: {}\n",
+            run.failure
+                .as_deref()
+                .unwrap_or("the coverage check refused this pairing")
+        );
+    };
     let mut out = String::new();
     for asset in outcome.shortfalls() {
         out.push_str(&format!(
@@ -129,8 +137,15 @@ pub fn render_chain_json(summary: &crate::anchors::ChainSummary) -> String {
     .expect("summary is always serializable")
 }
 
-pub fn render_coverage_json(outcome: &canton_solvency_report::coverage::CoverageOutcome) -> String {
+pub fn render_coverage_json(run: &crate::coverage::CoverageRun) -> String {
     use canton_solvency_merkle::format_amount_18dp;
+    let Some(outcome) = &run.outcome else {
+        return serde_json::to_string_pretty(&serde_json::json!({
+            "ok": false,
+            "failure": run.failure,
+        }))
+        .expect("always serializable");
+    };
     let assets: Vec<serde_json::Value> = outcome
         .assets
         .iter()
@@ -504,13 +519,16 @@ mod coverage_wording_tests {
     use super::*;
     use canton_solvency_report::coverage::{AssetCoverage, CoverageOutcome};
 
-    fn covered() -> CoverageOutcome {
-        CoverageOutcome {
-            assets: vec![AssetCoverage {
-                asset: "USDA".to_string(),
-                held: 2,
-                owed: 1,
-            }],
+    fn covered() -> crate::coverage::CoverageRun {
+        crate::coverage::CoverageRun {
+            outcome: Some(CoverageOutcome {
+                assets: vec![AssetCoverage {
+                    asset: "USDA".to_string(),
+                    held: 2,
+                    owed: 1,
+                }],
+            }),
+            failure: None,
         }
     }
 

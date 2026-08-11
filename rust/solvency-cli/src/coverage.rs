@@ -11,7 +11,27 @@ fn load<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T> {
     serde_json::from_str(&text).with_context(|| format!("parsing {}", path.display()))
 }
 
-pub fn run_coverage(command: &Command) -> Result<CoverageOutcome> {
+/// A coverage run that happened, whatever it concluded.
+///
+/// The distinction this carries is the exit code's: `Err` means the run could
+/// not happen — a file was missing, a document would not parse — and lands on
+/// exit 2. A refusal is a run that happened and said no, and lands on exit 1.
+/// Folding a refusal into `Err` made every coverage verification failure look
+/// like an I/O problem, which is exactly backwards for a wrapper that retries
+/// on 2 and alerts on 1.
+#[derive(Debug)]
+pub struct CoverageRun {
+    pub outcome: Option<CoverageOutcome>,
+    pub failure: Option<String>,
+}
+
+impl CoverageRun {
+    pub fn ok(&self) -> bool {
+        self.failure.is_none() && self.outcome.as_ref().is_some_and(|o| o.fully_covered())
+    }
+}
+
+pub fn run_coverage(command: &Command) -> Result<CoverageRun> {
     let Command::Coverage {
         custody,
         liabilities,
@@ -29,15 +49,23 @@ pub fn run_coverage(command: &Command) -> Result<CoverageOutcome> {
     let liabilities_report: SignedReport = load(liabilities)?;
     let statement_doc: CoverageStatement = load(statement)?;
 
-    verify_coverage(
+    match verify_coverage(
         &custody_report,
         &liabilities_report,
         &statement_doc,
         custody_key,
         trusted_key,
         *max_skew_seconds,
-    )
-    .map_err(|e| anyhow::anyhow!("{e}"))
+    ) {
+        Ok(outcome) => Ok(CoverageRun {
+            outcome: Some(outcome),
+            failure: None,
+        }),
+        Err(failure) => Ok(CoverageRun {
+            outcome: None,
+            failure: Some(failure.to_string()),
+        }),
+    }
 }
 
 #[cfg(test)]
@@ -81,8 +109,8 @@ mod tests {
     #[test]
     fn the_golden_coverage_pair_is_fully_covered() {
         let dir = write_fixtures();
-        let outcome = run_coverage(&command(dir.path())).unwrap();
-        assert!(outcome.fully_covered(), "{:?}", outcome.assets);
+        let run = run_coverage(&command(dir.path())).unwrap();
+        assert!(run.ok(), "{run:?}");
     }
 
     #[test]
@@ -94,6 +122,9 @@ mod tests {
     }
 
     #[test]
+    /// A refusal, not an error: the run happened and said no. Asserting only
+    /// `is_err()` here is what let every coverage refusal exit 2 for three
+    /// releases.
     fn a_statement_naming_other_reports_is_rejected() {
         let dir = write_fixtures();
         std::fs::write(
@@ -104,6 +135,14 @@ mod tests {
             ),
         )
         .unwrap();
-        assert!(run_coverage(&command(dir.path())).is_err());
+        let run = run_coverage(&command(dir.path())).expect("the run happened");
+        assert!(!run.ok());
+        assert!(
+            run.failure
+                .as_deref()
+                .is_some_and(|f| f.contains("different report")),
+            "got {:?}",
+            run.failure
+        );
     }
 }

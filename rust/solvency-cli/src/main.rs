@@ -169,7 +169,7 @@ fn main() {
                         render_coverage_text(&outcome)
                     }
                 );
-                std::process::exit(if outcome.fully_covered() {
+                std::process::exit(if outcome.ok() {
                     EXIT_OK
                 } else {
                     EXIT_VERIFICATION_FAILED
