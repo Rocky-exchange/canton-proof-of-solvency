@@ -5,6 +5,7 @@
   "supports": [
     "anchor-v1",
     "assurance-v1",
+    "provenance-v1",
     "coverage-v1",
     "group-v1",
     "leaf-v2",
@@ -15,7 +16,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "93ac7c0193617959e7c141c7fea1fccb66ad02affe79399d9edf3e0b07a07c25",
+  "corpus_digest": "46b143c4aadbd1d431aa444326ab46a4c1b1b38b9268e9d22da637cb55a4abbd",
   "results": [
     {
       "id": "proof-valid",
@@ -249,6 +250,41 @@
     },
     {
       "id": "assurance-unknown-field",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "provenance-well-formed",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "provenance-dangling-source",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "provenance-off-ledger-without-basis",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "provenance-ledger-derived-honest",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "provenance-ledger-derived-contradiction",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-ledger-derived-with-graph",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "assurance-ledger-derived-anchor-only",
       "expected": "reject",
       "outcome": "reject"
     },

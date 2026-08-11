@@ -22,6 +22,11 @@ as a format version, never as a fix.
 
 ### Changed
 
+- **`ledger-derived` now requires an anchor *and* a provenance graph.** An
+  anchor shows a report was pinned to ledger state at an offset; it says
+  nothing about whether the figure was *derived* from ledger state, which is
+  what the level claims. A report whose totals arrive from a custody API and
+  is anchored on schedule satisfied the old rule completely.
 - `coverage` output names the custody side as `claimed-only`. The arithmetic
   was always exact and always said less than it appeared to.
 - Repositioned as the Canton Assurance Layer — verifiable disclosure

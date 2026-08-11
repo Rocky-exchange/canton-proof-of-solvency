@@ -22,6 +22,7 @@ pub const CORPUS_DIGEST_DOMAIN: &[u8] = b"rocky-solvency-corpus-v1";
 pub const SUPPORTED: &[&str] = &[
     "anchor-v1",
     "assurance-v1",
+    "provenance-v1",
     "coverage-v1",
     "group-v1",
     "leaf-v2",
@@ -190,6 +191,21 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
             let history: Vec<crate::anchor::Anchor> = load(&dir.join("history.json"))?;
             crate::anchor::verify_chain(&history).map_err(|e| e.to_string())
         }
+        "provenance" => {
+            let report: crate::document::SignedReport = load(&dir.join("report.json"))?;
+            let signed: crate::provenance::SignedProvenance = load(&dir.join("provenance.json"))?;
+            crate::provenance::verify_provenance(&report, &signed, key)
+                .map_err(|e| e.to_string())?;
+            // §17.4 is only meaningful beside a statement, so a case carrying
+            // one is checked against it too.
+            if let Ok(statement) =
+                load::<crate::assurance::AssuranceStatement>(&dir.join("assurance.json"))
+            {
+                crate::provenance::check_against_assurance(&signed.provenance, &statement.levels)
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        }
         "assurance" => {
             let report: crate::document::SignedReport = load(&dir.join("report.json"))?;
             let statement: crate::assurance::AssuranceStatement =
@@ -202,6 +218,10 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
             let anchor: Option<crate::anchor::Anchor> = load(&dir.join("anchor.json")).ok();
             let attestations: Vec<crate::assurance::SignedAttestation> =
                 load(&dir.join("attestations.json")).unwrap_or_default();
+            // §16.4 needs the graph for ledger-derived; §17.3 checks the graph
+            // in its own right, under the `provenance` kind.
+            let provenance: Option<crate::provenance::SignedProvenance> =
+                load(&dir.join("provenance.json")).ok();
 
             // Which attestor keys are trusted for which role is supplied out
             // of band (§16.4). In a corpus case, "out of band" is a file the
@@ -217,6 +237,7 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
                 proof: proof.as_ref(),
                 anchor: anchor.as_ref(),
                 attestations: &attestations,
+                provenance: provenance.as_ref().map(|p| &p.provenance),
             };
             crate::assurance::verify_assurance(&report, &statement, &evidence, &trusted)
                 .map(|_| ())

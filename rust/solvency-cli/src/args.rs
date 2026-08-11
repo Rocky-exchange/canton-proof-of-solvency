@@ -22,7 +22,9 @@ USAGE:
   canton-solvency-verify assurance --report <path> --assurance <path> --key <hex64>
                                 [--proof <path>] [--anchor <path>]
                                 [--attestations <path>] [--attestor <hex64>:<role>]
-                                [--json]
+                                [--provenance <path>] [--json]
+  canton-solvency-verify provenance --report <path> --provenance <path> --key <hex64>
+                                [--assurance <path>] [--json]
   canton-solvency-verify recompute --leaves <path> --report <path> [--json]
   canton-solvency-verify verify-pack --pack-dir <dir> --key <hex64> [--json]
   canton-solvency-verify anchors --chain <dir-or-file> [--json]
@@ -112,8 +114,19 @@ pub enum Command {
         proof: Option<PathBuf>,
         anchor: Option<PathBuf>,
         attestations: Option<PathBuf>,
+        /// §16.4: ledger-derived needs the §17 graph as well as the anchor.
+        provenance: Option<PathBuf>,
         /// Attestor key hex to the role it is trusted for.
         attestors: BTreeMap<String, String>,
+        trusted_key: String,
+        json: bool,
+    },
+    /// Where a published figure came from (§17).
+    Provenance {
+        report: PathBuf,
+        provenance: PathBuf,
+        /// When supplied, §17.4 is checked as well as §17.3.
+        assurance: Option<PathBuf>,
         trusted_key: String,
         json: bool,
     },
@@ -180,7 +193,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
         "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
-        | "recompute" | "digest" | "verify-pack" | "assurance" => {}
+        | "recompute" | "digest" | "verify-pack" | "assurance" | "provenance" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -195,7 +208,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
             | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
             | "--leaves" | "--pack-dir" | "--assurance" | "--anchor" | "--attestations"
-            | "--attestor" => {
+            | "--attestor" | "--provenance" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -257,7 +270,15 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             proof: path("--proof"),
             anchor: path("--anchor"),
             attestations: path("--attestations"),
+            provenance: path("--provenance"),
             attestors: parse_attestors(flags.get("--attestor"))?,
+            trusted_key: key()?,
+            json,
+        }),
+        "provenance" => Ok(Command::Provenance {
+            report: required_path("--report")?,
+            provenance: required_path("--provenance")?,
+            assurance: path("--assurance"),
             trusted_key: key()?,
             json,
         }),

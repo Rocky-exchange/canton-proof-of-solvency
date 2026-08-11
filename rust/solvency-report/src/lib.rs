@@ -83,5 +83,6 @@ pub mod manifest;
 pub mod pack;
 pub mod produce;
 pub mod profile;
+pub mod provenance;
 pub mod sign;
 pub mod verify;

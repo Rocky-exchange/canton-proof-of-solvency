@@ -733,6 +733,121 @@
       ]
     },
     {
+      "description": "a signed graph naming participants, a template and a price vendor",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "provenance.json"
+      ],
+      "id": "provenance-well-formed",
+      "kind": "provenance",
+      "requires": [
+        "report-v1",
+        "provenance-v1"
+      ]
+    },
+    {
+      "description": "a derivation naming a source the graph does not declare",
+      "expect": "reject",
+      "failure": "provenance_inconsistent",
+      "files": [
+        "report.json",
+        "provenance.json"
+      ],
+      "id": "provenance-dangling-source",
+      "kind": "provenance",
+      "requires": [
+        "report-v1",
+        "provenance-v1"
+      ]
+    },
+    {
+      "description": "an off-ledger source with nothing saying how the figure arrives",
+      "expect": "reject",
+      "failure": "provenance_inconsistent",
+      "files": [
+        "report.json",
+        "provenance.json"
+      ],
+      "id": "provenance-off-ledger-without-basis",
+      "kind": "provenance",
+      "requires": [
+        "report-v1",
+        "provenance-v1"
+      ]
+    },
+    {
+      "description": "root_sums declared ledger-derived, and the graph names a participant",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "provenance.json",
+        "assurance.json"
+      ],
+      "id": "provenance-ledger-derived-honest",
+      "kind": "provenance",
+      "requires": [
+        "report-v1",
+        "provenance-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "mark_prices declared ledger-derived, and the graph says a price vendor",
+      "expect": "reject",
+      "failure": "provenance_inconsistent",
+      "files": [
+        "report.json",
+        "provenance.json",
+        "assurance.json"
+      ],
+      "id": "provenance-ledger-derived-contradiction",
+      "kind": "provenance",
+      "requires": [
+        "report-v1",
+        "provenance-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "ledger-derived with both an anchor and an on-ledger derivation",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "anchor.json",
+        "provenance.json",
+        "assurance.json"
+      ],
+      "id": "assurance-ledger-derived-with-graph",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1",
+        "anchor-v1",
+        "provenance-v1"
+      ]
+    },
+    {
+      "description": "ledger-derived on an anchor alone, with no graph saying where the figure came from",
+      "expect": "reject",
+      "failure": "over_claimed",
+      "files": [
+        "report.json",
+        "anchor.json",
+        "assurance.json"
+      ],
+      "id": "assurance-ledger-derived-anchor-only",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1",
+        "anchor-v1"
+      ]
+    },
+    {
       "description": "an index naming a path rather than a file",
       "expect": "reject",
       "failure": "unsafe_name",

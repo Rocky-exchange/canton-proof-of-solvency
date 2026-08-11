@@ -1,0 +1,7 @@
+{
+  "format_version": "canton-solvency-assurance-v1",
+  "levels": {
+    "root_sums": "ledger-derived"
+  },
+  "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61"
+}

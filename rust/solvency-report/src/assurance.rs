@@ -160,6 +160,12 @@ pub struct Evidence<'a> {
     pub proof: Option<&'a ProofDocument>,
     pub anchor: Option<&'a Anchor>,
     pub attestations: &'a [SignedAttestation],
+    /// The §17 graph. Required for `ledger-derived`: an anchor shows a report
+    /// was pinned to ledger state at an offset, and says nothing about whether
+    /// the figure was derived from ledger state, which is what the level
+    /// claims. A report whose totals arrive from a custody API and is anchored
+    /// on schedule satisfies the anchor half completely.
+    pub provenance: Option<&'a crate::provenance::Provenance>,
 }
 
 /// The keys the verifier trusts, and for what.
@@ -246,6 +252,17 @@ fn anchors(report: &Report, anchor: &Anchor, digest: &str) -> bool {
         && anchor.publisher == report.publisher
 }
 
+/// Whether the §17 graph names at least one on-ledger source for this field.
+fn derives_from_ledger(p: &crate::provenance::Provenance, field: &str) -> bool {
+    let Some(derivation) = p.derivations.iter().find(|d| d.field == field) else {
+        return false;
+    };
+    derivation
+        .sources
+        .iter()
+        .any(|id| p.sources.iter().any(|s| s.id == *id && s.kind.on_ledger()))
+}
+
 /// What the verifier can substantiate for each field, given the evidence.
 ///
 /// Takes the signed report because recomputation runs through `verify`, which
@@ -289,9 +306,14 @@ pub fn establish(
             levels.insert(AssuranceLevel::CryptographicallyVerified);
         }
 
-        // An anchor commits to the report digest, which covers every field, so
-        // it lifts all of them at once.
-        if evidence.anchor.is_some_and(|a| anchors(report, a, &digest)) {
+        // An anchor commits to the report digest, which covers every field.
+        // The graph is what says the figure came from ledger state at all, so
+        // it is checked per field rather than lifted across the report.
+        if evidence.anchor.is_some_and(|a| anchors(report, a, &digest))
+            && evidence
+                .provenance
+                .is_some_and(|p| derives_from_ledger(p, field))
+        {
             levels.insert(AssuranceLevel::LedgerDerived);
         }
 

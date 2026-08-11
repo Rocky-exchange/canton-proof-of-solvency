@@ -30,6 +30,7 @@ export type Case = {
 export const SUPPORTED = [
   "anchor-v1",
   "assurance-v1",
+  "provenance-v1",
   "coverage-v1",
   "group-v1",
   "leaf-v2",
@@ -153,6 +154,8 @@ export async function failureKind(c: Case, KEY: string): Promise<string | undefi
   } else if (c.kind === "anchors") {
     const { verifyAnchorChain } = await import("./coverage");
     result = await verifyAnchorChain(f("history.json"));
+  } else if (c.kind === "provenance") {
+    result = await runProvenance(c, KEY);
   } else if (c.kind === "assurance") {
     const { verifyAssurance } = await import("./assurance");
     result = await verifyAssurance(f("report.json"), f("assurance.json"), assuranceEvidence(c), {
@@ -180,11 +183,25 @@ function optional(c: Case, name: string): any {
 }
 
 function assuranceEvidence(c: Case) {
+  const graph = optional(c, "provenance.json");
   return {
     proof: optional(c, "proof.json"),
     anchor: optional(c, "anchor.json"),
     attestations: optional(c, "attestations.json") ?? [],
+    // §16.4: ledger-derived needs the graph as well as the anchor.
+    provenance: graph?.provenance,
   };
+}
+
+async function runProvenance(c: Case, KEY: string) {
+  const f = (name: string) => json(`conformance/${c.id}/${name}`);
+  const { verifyProvenance, checkAgainstAssurance } = await import("./provenance");
+  const signed = f("provenance.json");
+  const structural = await verifyProvenance(f("report.json"), signed, KEY);
+  if (!structural.ok) return structural;
+  // §17.4 is only meaningful beside a statement.
+  const statement = optional(c, "assurance.json");
+  return statement ? checkAgainstAssurance(signed.provenance, statement.levels) : structural;
 }
 
 export async function runCase(c: Case, KEY: string): Promise<boolean> {
@@ -225,6 +242,8 @@ export async function runCase(c: Case, KEY: string): Promise<boolean> {
       const { verifyAnchorChain } = await import("./coverage");
       return (await verifyAnchorChain(f("history.json"))).ok;
     }
+    case "provenance":
+      return (await runProvenance(c, KEY)).ok;
     case "assurance": {
       const { verifyAssurance } = await import("./assurance");
       return (
