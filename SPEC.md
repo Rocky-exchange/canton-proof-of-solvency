@@ -1151,11 +1151,19 @@ In order:
      §9.1. No other field is committed in the tree; `mark_prices` and the
      `disclosures.*` fields enter the report digest and are therefore signed,
      but nothing recomputes them.
-   - `ledger-derived` iff an anchor was supplied whose `format_version`,
-     `report_digest`, `root_hash`, `snapshot_time`, `ledger_offset` and
-     `publisher` all agree with this report. Partial agreement is not
-     evidence: the digest already covers the report, so a disagreement
-     elsewhere means one of the two documents was edited afterwards.
+   - `ledger-derived` iff **both** an anchor and a provenance graph support
+     it. The anchor's `format_version`, `report_digest`, `root_hash`,
+     `snapshot_time`, `ledger_offset` and `publisher` must all agree with this
+     report — partial agreement is not evidence, since the digest already
+     covers the report, so a disagreement elsewhere means one of the two
+     documents was edited afterwards. The graph must name at least one
+     on-ledger source for the field (§17.4).
+
+     Both halves are required because they establish different things. An
+     anchor shows a report was pinned to ledger state at an offset. It says
+     nothing about whether the *figure* was derived from ledger state, and
+     `ledger-derived` claims exactly that. A report whose totals arrive from a
+     custody API, anchored on schedule, satisfies the anchor half completely.
    - `issuer-attested` / `third-party-attested` iff an attestation for that
      exact field, bound to this report digest, verifies under a key the
      caller trusts **for that role**. A key trusted as a custodian MUST NOT
@@ -1180,3 +1188,124 @@ exactly as valid as it was before this section existed, and a reader is
 entitled to treat every figure in it as `claimed-only` — which is what the
 report was always saying, and what the format previously had no way to write
 down.
+
+## 17. Evidence provenance
+
+Institutional data does not sit in one place. A NAV, a coverage ratio or a
+settlement result can draw on several participants, several synchronizers, a
+handful of Daml templates, and off-ledger custody, pricing, core banking and
+risk systems. Everything above this section describes what a figure *is* and
+what stands behind it. None of it says where it came from.
+
+That gap is normally filled by operational tooling — dashboards, metrics,
+logs. Those answer whether a participant is healthy, which is a different
+question, and no quantity of the first adds up to the second. A reader wanting
+to know which contracts and which parties produced a published total has
+nowhere to look, and the publisher has no way to answer that anyone can check.
+
+A provenance graph is that answer, in a form that is signed, bound to one
+report, and cross-checked against §16. The cross-check is what separates it
+from a diagram: a figure declared `ledger-derived` whose only named sources
+are off-ledger APIs is a contradiction, and a verifier refuses it.
+
+### 17.1 The graph
+
+```
+provenance.json = { provenance, signature }
+provenance      = { format_version, report_digest, sources, derivations }
+source          = { id, kind, name, basis? }
+derivation      = { field, sources, method }
+```
+
+`format_version` is `canton-solvency-provenance-v1`. `report_digest` is the
+§8.2 digest of the report described, so a graph cannot be lifted onto another
+report.
+
+`kind` is one of `participant`, `synchronizer`, `party`, `template`, or
+`off-ledger`. The first four are **on-ledger**: they name things a reader with
+the right visibility can go and look at. `off-ledger` covers custody
+statements, price feeds, core banking and risk systems — anything that arrives
+by API and can only be attested.
+
+`id` is referenced by derivations and MUST be unique within one graph. `name`
+is the participant id, synchronizer id, party id, template id, or the name of
+the outside system.
+
+`basis` records how a figure is obtained from a source. It is REQUIRED, and
+MUST be non-empty, for `off-ledger` sources: nothing else in the document says
+how such a number arrives, which is the state this section exists to end. It
+is optional for on-ledger sources, where `name` already points somewhere a
+reader can look. It is signed and proven by nothing here — the same honest
+limitation `custody_basis` carries in §11.
+
+`derivation.field` is a §16.2 field path and no other. Each field appears at
+most **once**: two derivations for one field leave the document ambiguous, and
+a verifier reading the first while a renderer shows the second gives two
+readers of the same signed graph different answers. `sources` MUST name at
+least one declared source. `method` describes what was done with them — "sum
+of active Holding contracts", "NAV divided by units outstanding".
+
+A graph need not describe every field. A field with no derivation makes no
+provenance claim, which is honest; §17.4 is where that becomes a problem, and
+only for one level.
+
+### 17.2 Provenance digest
+
+```
+sha256( "rocky-solvency-provenance-v1"
+      ‖ lp(format_version) ‖ lp(report_digest)
+      ‖ u64le(source_count)
+      ‖ ( lp(id) ‖ lp(kind) ‖ lp(name) ‖ basis_field )*
+      ‖ u64le(derivation_count)
+      ‖ ( lp(field) ‖ u64le(source_ref_count) ‖ lp(source_id)* ‖ lp(method) )* )
+```
+
+`lp` and `u64le` are as in §8.1. `basis_field` is `0x00` when absent and
+`0x01 ‖ lp(basis)` when present — a presence byte rather than an empty string,
+because a source with no basis and one with an empty basis are different
+claims. Counts precede contents for the reason given in §15.2.
+
+The signature is detached, over this digest, in the §8.3 block.
+
+### 17.3 Verification
+
+In order:
+
+1. `format_version` is `canton-solvency-provenance-v1`.
+2. `report_digest` equals the §8.2 digest of the report supplied.
+3. The signature verifies under a **caller-supplied trusted key**, never the
+   key the document carries.
+4. No two sources share an `id`.
+5. Every `off-ledger` source carries a non-empty `basis`.
+6. Every `derivation.field` is in the §16.2 vocabulary, appears at most once,
+   names at least one source, and every source it names is declared.
+
+### 17.4 Against the assurance levels
+
+A field declared `ledger-derived` in a §16 statement MUST have a derivation in
+the graph, and that derivation MUST name at least one on-ledger source.
+
+This is the check that makes the graph load-bearing rather than decorative,
+and it is also what makes `ledger-derived` mean what §16.1 says it means. See
+§16.4 step 5 for why the anchor alone is not enough.
+
+No other level constrains the graph. `cryptographically-verified` is a
+statement about the commitments and holds whatever the leaves were built from;
+`third-party-attested` and `issuer-attested` are about who signed, not about
+where the figure originated. A verifier MUST NOT require a derivation for
+them.
+
+### 17.5 What this does not do
+
+It does not establish that the graph is complete. A publisher can sign a graph
+that names three of the five systems a figure really touches, and every rule
+above still holds. This is the same limitation §15.4 records for evidence
+packs, and the same answer applies: what is removed is the ability to leave
+the question unanswered, and to change the answer later without it being on
+the record.
+
+Nor does it establish that a named source says what the publisher claims. That
+a `party` exists, that a `template` is the one that holds the assets, that a
+custody API returns the figure quoted — none of that is checkable from the
+document. Where it matters, it is an attestation (§16.3) about the field, and
+the graph is what says which source the attestation is about.

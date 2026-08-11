@@ -912,6 +912,158 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         )?;
     }
 
+    // --- evidence provenance (§17) ---
+    //
+    // The pair that carries the section: one graph in which `root_sums` may
+    // honestly be ledger-derived and `mark_prices` may not, because the graph
+    // says the prices came from a vendor. §16 alone could not tell them apart,
+    // since the anchor covers the whole report.
+    {
+        use crate::assurance::{AssuranceLevel, ASSURANCE_FORMAT_VERSION};
+        let (pr_report, pr_graph) = golden::provenance_fixture();
+        let pr_report_j = serde_json::to_value(&pr_report)?;
+        let pr_graph_j = serde_json::to_value(&pr_graph)?;
+        let pr_digest = crate::digest::report_digest_hex(&pr_report.report);
+        let pr_anchor = crate::anchor::Anchor {
+            format_version: crate::anchor::ANCHOR_FORMAT_VERSION.to_string(),
+            report_digest: pr_digest.clone(),
+            root_hash: pr_report.report.root_hash.clone(),
+            snapshot_time: pr_report.report.snapshot_time.clone(),
+            ledger_offset: pr_report.report.ledger_offset.clone(),
+            publisher: pr_report.report.publisher.clone(),
+            publisher_key: pr_report.signature.public_key.clone(),
+            prev_anchor: None,
+        };
+        let pr_anchor_j = serde_json::to_value(&pr_anchor)?;
+        let level_for = |field: &str, level: AssuranceLevel| -> serde_json::Value {
+            json!({
+                "format_version": ASSURANCE_FORMAT_VERSION,
+                "report_digest": pr_digest,
+                "levels": { field: level.as_str() },
+            })
+        };
+
+        add(
+            "provenance-well-formed",
+            "provenance",
+            &["report-v1", "provenance-v1"],
+            "a signed graph naming participants, a template and a price vendor",
+            "accept",
+            None,
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("provenance.json", pr_graph_j.clone()),
+            ],
+        )?;
+
+        add(
+            "provenance-dangling-source",
+            "provenance",
+            &["report-v1", "provenance-v1"],
+            "a derivation naming a source the graph does not declare",
+            "reject",
+            Some("provenance_inconsistent"),
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("provenance.json", {
+                    let mut g = pr_graph.provenance.clone();
+                    g.derivations[0].sources[1] = "ghost-template".to_string();
+                    serde_json::to_value(golden::sign_provenance(g))?
+                }),
+            ],
+        )?;
+
+        add(
+            "provenance-off-ledger-without-basis",
+            "provenance",
+            &["report-v1", "provenance-v1"],
+            "an off-ledger source with nothing saying how the figure arrives",
+            "reject",
+            Some("provenance_inconsistent"),
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("provenance.json", {
+                    let mut g = pr_graph.provenance.clone();
+                    g.sources[2].basis = None;
+                    serde_json::to_value(golden::sign_provenance(g))?
+                }),
+            ],
+        )?;
+
+        // §17.4. Identical graph, identical anchor; the only difference is
+        // which field is declared ledger-derived.
+        add(
+            "provenance-ledger-derived-honest",
+            "provenance",
+            &["report-v1", "provenance-v1", "assurance-v1"],
+            "root_sums declared ledger-derived, and the graph names a participant",
+            "accept",
+            None,
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("provenance.json", pr_graph_j.clone()),
+                (
+                    "assurance.json",
+                    level_for("root_sums", AssuranceLevel::LedgerDerived),
+                ),
+            ],
+        )?;
+
+        add(
+            "provenance-ledger-derived-contradiction",
+            "provenance",
+            &["report-v1", "provenance-v1", "assurance-v1"],
+            "mark_prices declared ledger-derived, and the graph says a price vendor",
+            "reject",
+            Some("provenance_inconsistent"),
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("provenance.json", pr_graph_j.clone()),
+                (
+                    "assurance.json",
+                    level_for("mark_prices", AssuranceLevel::LedgerDerived),
+                ),
+            ],
+        )?;
+
+        // §16.4: the anchor half alone is not enough, which is the rule the
+        // section gained because of §17.
+        add(
+            "assurance-ledger-derived-with-graph",
+            "assurance",
+            &["report-v1", "assurance-v1", "anchor-v1", "provenance-v1"],
+            "ledger-derived with both an anchor and an on-ledger derivation",
+            "accept",
+            None,
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("anchor.json", pr_anchor_j.clone()),
+                ("provenance.json", pr_graph_j.clone()),
+                (
+                    "assurance.json",
+                    level_for("root_sums", AssuranceLevel::LedgerDerived),
+                ),
+            ],
+        )?;
+
+        add(
+            "assurance-ledger-derived-anchor-only",
+            "assurance",
+            &["report-v1", "assurance-v1", "anchor-v1"],
+            "ledger-derived on an anchor alone, with no graph saying where the figure came from",
+            "reject",
+            Some("over_claimed"),
+            vec![
+                ("report.json", pr_report_j.clone()),
+                ("anchor.json", pr_anchor_j.clone()),
+                (
+                    "assurance.json",
+                    level_for("root_sums", AssuranceLevel::LedgerDerived),
+                ),
+            ],
+        )?;
+    }
+
     // §15.1 requires a member name to be a plain file name. An index naming a
     // path is a delivery instruction rather than an integrity claim, and
     // nothing exercised the rule.

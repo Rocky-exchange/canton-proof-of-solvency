@@ -45,6 +45,7 @@ pub fn run_assurance(command: &Command) -> Result<AssuranceOutcome> {
         proof,
         anchor,
         attestations,
+        provenance,
         attestors,
         trusted_key,
         ..
@@ -62,6 +63,11 @@ pub fn run_assurance(command: &Command) -> Result<AssuranceOutcome> {
         Some(path) => load(path)?,
         None => Vec::new(),
     };
+
+    // §16.4: an anchor shows the report was pinned at an offset; the graph is
+    // what says the figure came from ledger state. ledger-derived needs both.
+    let graph: Option<canton_solvency_report::provenance::SignedProvenance> =
+        provenance.as_deref().map(load).transpose()?;
 
     let mut roles = BTreeMap::new();
     for (hex, role) in attestors {
@@ -81,6 +87,7 @@ pub fn run_assurance(command: &Command) -> Result<AssuranceOutcome> {
         proof: proof_doc.as_ref(),
         anchor: anchor_doc.as_ref(),
         attestations: &attestation_docs,
+        provenance: graph.as_ref().map(|g| &g.provenance),
     };
 
     let established = establish(&signed, &evidence, &trusted)
@@ -116,8 +123,13 @@ mod tests {
     use canton_solvency_report::golden;
     use std::path::PathBuf;
 
-    fn scratch(name: &str, value: &serde_json::Value) -> PathBuf {
-        let dir = std::env::temp_dir().join("canton-assurance-cli-tests");
+    /// Per-test directories. Tests run in parallel, and sharing one path meant
+    /// one test reading a file another was still writing — a flake that would
+    /// have surfaced in CI rather than here.
+    fn scratch(case: &str, name: &str, value: &serde_json::Value) -> PathBuf {
+        let dir = std::env::temp_dir()
+            .join("canton-assurance-cli-tests")
+            .join(case);
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join(name);
         std::fs::write(&path, serde_json::to_string_pretty(value).unwrap()).unwrap();
@@ -139,6 +151,7 @@ mod tests {
             proof,
             anchor: None,
             attestations: None,
+            provenance: None,
             attestors: BTreeMap::new(),
             trusted_key: golden::signer().public_key_hex(),
             json: false,
@@ -147,10 +160,12 @@ mod tests {
 
     #[test]
     fn accepts_a_declaration_the_supplied_evidence_supports() {
+        const CASE: &str = "accepts_a_declaration_the_supplied_evidence_supports";
         let (report, proof) = golden::fixture();
-        let r = scratch("report.json", &serde_json::to_value(&report).unwrap());
-        let p = scratch("proof.json", &serde_json::to_value(&proof).unwrap());
+        let r = scratch(CASE, "report.json", &serde_json::to_value(&report).unwrap());
+        let p = scratch(CASE, "proof.json", &serde_json::to_value(&proof).unwrap());
         let a = scratch(
+            CASE,
             "assurance-ok.json",
             &statement_for(&report, "root_sums", "cryptographically-verified"),
         );
@@ -162,9 +177,11 @@ mod tests {
     /// recomputation it never performed.
     #[test]
     fn refuses_the_same_declaration_when_the_proof_is_withheld() {
+        const CASE: &str = "refuses_the_same_declaration_when_the_proof_is_withheld";
         let (report, _proof) = golden::fixture();
-        let r = scratch("report.json", &serde_json::to_value(&report).unwrap());
+        let r = scratch(CASE, "report.json", &serde_json::to_value(&report).unwrap());
         let a = scratch(
+            CASE,
             "assurance-ok.json",
             &statement_for(&report, "root_sums", "cryptographically-verified"),
         );
@@ -182,9 +199,11 @@ mod tests {
     /// the evidence did support.
     #[test]
     fn reports_what_was_established_even_on_failure() {
+        const CASE: &str = "reports_what_was_established_even_on_failure";
         let (report, _proof) = golden::fixture();
-        let r = scratch("report.json", &serde_json::to_value(&report).unwrap());
+        let r = scratch(CASE, "report.json", &serde_json::to_value(&report).unwrap());
         let a = scratch(
+            CASE,
             "assurance-ok.json",
             &statement_for(&report, "root_sums", "cryptographically-verified"),
         );

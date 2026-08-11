@@ -9,6 +9,9 @@ use canton_solvency_verify::output::{
     render_pack_json, render_pack_text, render_recompute_json, render_recompute_text, render_text,
 };
 use canton_solvency_verify::pack::run_pack;
+use canton_solvency_verify::provenance::{
+    render_provenance_json, render_provenance_text, run_provenance,
+};
 use canton_solvency_verify::recompute::run_recompute;
 use canton_solvency_verify::{
     exit_code, run::run, EXIT_OK, EXIT_USAGE_OR_IO, EXIT_VERIFICATION_FAILED,
@@ -33,6 +36,30 @@ fn main() {
             std::process::exit(EXIT_OK);
         }
         _ => {}
+    }
+
+    if let Command::Provenance { json, .. } = command {
+        match run_provenance(&command) {
+            Ok(outcome) => {
+                print!(
+                    "{}",
+                    if json {
+                        render_provenance_json(&outcome) + "\n"
+                    } else {
+                        render_provenance_text(&outcome)
+                    }
+                );
+                std::process::exit(if outcome.ok() {
+                    EXIT_OK
+                } else {
+                    EXIT_VERIFICATION_FAILED
+                });
+            }
+            Err(e) => {
+                eprintln!("error: {e:#}");
+                std::process::exit(EXIT_USAGE_OR_IO);
+            }
+        }
     }
 
     if let Command::Assurance { json, .. } = command {

@@ -144,7 +144,7 @@ daml test                                                    # in daml/solvency-
 ```
 
 The commitment core is `rust/solvency-merkle` (~small, start here). The
-conformance corpus is `conformance/`, 53 cases with declared expectations,
+conformance corpus is `conformance/`, 60 cases with declared expectations,
 run by all three implementations.
 
 ## What we commit to

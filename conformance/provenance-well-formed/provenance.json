@@ -1,0 +1,46 @@
+{
+  "provenance": {
+    "derivations": [
+      {
+        "field": "root_sums",
+        "method": "sum of active Holding contracts per asset",
+        "sources": [
+          "participant-primary",
+          "holding-template"
+        ]
+      },
+      {
+        "field": "mark_prices",
+        "method": "vendor close price, unadjusted",
+        "sources": [
+          "price-vendor"
+        ]
+      }
+    ],
+    "format_version": "canton-solvency-provenance-v1",
+    "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61",
+    "sources": [
+      {
+        "id": "participant-primary",
+        "kind": "participant",
+        "name": "participant::venue-one"
+      },
+      {
+        "id": "holding-template",
+        "kind": "template",
+        "name": "Venue.Custody:Holding"
+      },
+      {
+        "basis": "vendor 16:00 UTC close, retrieved over authenticated API",
+        "id": "price-vendor",
+        "kind": "off-ledger",
+        "name": "acme-pricing"
+      }
+    ]
+  },
+  "signature": {
+    "algorithm": "ed25519",
+    "public_key": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+    "value": "25782dcc474e68f747a4a6810ae1c22889975e60a142670e689ab62851351d2ed8dff2464cf5bd19f8baba2ea17e260e1fcaae0ae386e6533ad89833e7ef2d01"
+  }
+}

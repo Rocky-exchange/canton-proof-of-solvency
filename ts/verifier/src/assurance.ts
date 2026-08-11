@@ -14,6 +14,7 @@
  */
 
 import { type Anchor } from "./anchor";
+import { derivesFromLedger, type Provenance } from "./provenance";
 import {
   lp,
   reportDigestHex,
@@ -76,6 +77,14 @@ export type Evidence = {
   proof?: ProofDocument;
   anchor?: Anchor;
   attestations?: SignedAttestation[];
+  /**
+   * The §17 graph. Required for `ledger-derived`: an anchor shows a report was
+   * pinned to ledger state at an offset and says nothing about whether the
+   * figure was derived from ledger state, which is what the level claims. A
+   * report whose totals arrive from a custody API and is anchored on schedule
+   * satisfies the anchor half completely.
+   */
+  provenance?: Provenance;
 };
 
 export type TrustedKeys = {
@@ -208,7 +217,14 @@ export async function establish(
       if (verified.ok) levels.add("cryptographically-verified");
     }
 
-    if (evidence.anchor && anchors(report, evidence.anchor, digest)) {
+    // The anchor covers the whole report; the graph is what says this
+    // particular figure came from ledger state, so it is checked per field.
+    if (
+      evidence.anchor &&
+      anchors(report, evidence.anchor, digest) &&
+      evidence.provenance &&
+      derivesFromLedger(evidence.provenance, field)
+    ) {
       levels.add("ledger-derived");
     }
 

@@ -384,6 +384,7 @@ ROOT_HASH_MISMATCH = "root_hash_mismatch"
 ROOT_SUMS_MISMATCH = "root_sums_mismatch"
 OVER_CLAIMED = "over_claimed"
 UNKNOWN_FIELD = "unknown_field"
+PROVENANCE_INCONSISTENT = "provenance_inconsistent"
 
 
 def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
@@ -1086,6 +1087,8 @@ def establish(
             and anchor.get("snapshot_time") == report["snapshot_time"]
             and anchor.get("ledger_offset") == report["ledger_offset"]
             and anchor.get("publisher") == report["publisher"]
+        ) and evidence.get("provenance") is not None and derives_from_ledger(
+            evidence["provenance"], field
         ):
             levels.add("ledger-derived")
 
@@ -1161,6 +1164,105 @@ def verify_assurance(
     return dict(levels)
 
 
+
+# --- §17: evidence provenance ------------------------------------------------
+
+PROVENANCE_FORMAT_VERSION = "canton-solvency-provenance-v1"
+
+# §17.1. The first four are on-ledger: they name things a reader with the right
+# visibility can go and look at.
+ON_LEDGER_KINDS = {"participant", "synchronizer", "party", "template"}
+SOURCE_KINDS = ON_LEDGER_KINDS | {"off-ledger"}
+
+
+def provenance_digest(graph: dict) -> bytes:
+    """§17.2. Counts before contents, and a presence byte for basis."""
+    out = b"rocky-solvency-provenance-v1"
+    out += lp(graph["format_version"]) + lp(graph["report_digest"])
+    sources = graph.get("sources") or []
+    out += u64le(len(sources))
+    for s in sources:
+        out += lp(s["id"]) + lp(s["kind"]) + lp(s["name"])
+        basis = s.get("basis")
+        # A source with no basis and one with an empty basis are different
+        # claims, so absence is a byte rather than an empty string.
+        out += b"\x00" if basis is None else b"\x01" + lp(basis)
+    derivations = graph.get("derivations") or []
+    out += u64le(len(derivations))
+    for d in derivations:
+        out += lp(d["field"]) + u64le(len(d["sources"]))
+        for ref in d["sources"]:
+            out += lp(ref)
+        out += lp(d["method"])
+    return hashlib.sha256(out).digest()
+
+
+def verify_provenance(signed_report: dict, signed: dict, trusted_key_hex: str) -> None:
+    """§17.3, in the order the specification gives."""
+    graph = signed["provenance"]
+    if graph.get("format_version") != PROVENANCE_FORMAT_VERSION:
+        raise Rejected(f"provenance format {graph.get('format_version')}")
+    if graph.get("report_digest") != report_digest(signed_report["report"]).hex():
+        raise Rejected(DIGEST_MISMATCH)
+    if signed["signature"]["public_key"] != trusted_key_hex:
+        raise Rejected(UNKNOWN_SIGNER)
+    if signed["signature"].get("algorithm") != "ed25519":
+        raise Rejected(f"signature algorithm {signed['signature'].get('algorithm')}")
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex),
+        provenance_digest(graph),
+        bytes.fromhex(signed["signature"]["value"]),
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    ids = set()
+    for source in graph.get("sources") or []:
+        if source["id"] in ids:
+            raise Rejected(PROVENANCE_INCONSISTENT)
+        ids.add(source["id"])
+        if source["kind"] not in SOURCE_KINDS:
+            raise Rejected(PROVENANCE_INCONSISTENT)
+        # Nothing else in the document says how an off-ledger figure arrives.
+        if source["kind"] == "off-ledger" and not (source.get("basis") or "").strip():
+            raise Rejected(PROVENANCE_INCONSISTENT)
+
+    seen = set()
+    for derivation in graph.get("derivations") or []:
+        field = derivation["field"]
+        if field not in ASSURANCE_FIELDS:
+            raise Rejected(PROVENANCE_INCONSISTENT)
+        if field in seen:
+            raise Rejected(PROVENANCE_INCONSISTENT)
+        seen.add(field)
+        if not derivation.get("sources"):
+            raise Rejected(PROVENANCE_INCONSISTENT)
+        for ref in derivation["sources"]:
+            if ref not in ids:
+                raise Rejected(PROVENANCE_INCONSISTENT)
+
+
+def derives_from_ledger(graph: dict, field: str) -> bool:
+    """§17.4: does the graph name an on-ledger source for this field?"""
+    by_id = {s["id"]: s for s in graph.get("sources") or []}
+    for derivation in graph.get("derivations") or []:
+        if derivation["field"] != field:
+            continue
+        return any(
+            by_id.get(ref, {}).get("kind") in ON_LEDGER_KINDS
+            for ref in derivation["sources"]
+        )
+    return False
+
+
+def check_against_assurance(graph: dict, levels: dict[str, str]) -> None:
+    """§17.4. Only ledger-derived constrains the graph."""
+    for field, level in (levels or {}).items():
+        if level != "ledger-derived":
+            continue
+        if not derives_from_ledger(graph, field):
+            raise Rejected(PROVENANCE_INCONSISTENT)
+
+
 # What this verifier implements, as §14.3 `requires` names. Everything else is
 # skipped by declaration rather than by accident -- the distinction matters:
 # before the corpus carried `requires`, this file *passed*
@@ -1178,6 +1280,7 @@ SUPPORTED = {
     "group-v1",
     "coverage-v1",
     "assurance-v1",
+    "provenance-v1",
 }
 
 
@@ -1223,6 +1326,18 @@ def run_case(directory: Path, kind: str, key: str) -> None:
         )
     elif kind == "anchors":
         verify_chain(json.loads((directory / "history.json").read_text()))
+    elif kind == "provenance":
+        def optional(name: str):
+            path = directory / name
+            return json.loads(path.read_text()) if path.exists() else None
+
+        signed = json.loads((directory / "provenance.json").read_text())
+        verify_provenance(
+            json.loads((directory / "report.json").read_text()), signed, key
+        )
+        statement = optional("assurance.json")
+        if statement is not None:
+            check_against_assurance(signed["provenance"], statement.get("levels") or {})
     elif kind == "assurance":
         def optional(name: str):
             path = directory / name
@@ -1235,6 +1350,7 @@ def run_case(directory: Path, kind: str, key: str) -> None:
                 "proof": optional("proof.json"),
                 "anchor": optional("anchor.json"),
                 "attestations": optional("attestations.json") or [],
+                "provenance": (optional("provenance.json") or {}).get("provenance"),
             },
             key,
             # §16.4: which attestor key is trusted for which role arrives out

@@ -36,6 +36,7 @@ pub mod coverage;
 pub mod diff;
 pub mod output;
 pub mod pack;
+pub mod provenance;
 pub mod recompute;
 pub mod run;
 

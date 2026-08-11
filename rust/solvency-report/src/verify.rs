@@ -56,6 +56,12 @@ pub enum VerificationFailure {
         declared: crate::assurance::AssuranceLevel,
         established: Vec<crate::assurance::AssuranceLevel>,
     },
+    /// The provenance graph is malformed, or contradicts a declared assurance
+    /// level (SPEC §17).
+    ProvenanceInconsistent {
+        field: String,
+        detail: String,
+    },
     Malformed(String),
 }
 
@@ -109,6 +115,13 @@ impl std::fmt::Display for VerificationFailure {
                     f,
                     "{field} is declared {declared}, but the evidence supplied supports {supported}"
                 )
+            }
+            Self::ProvenanceInconsistent { field, detail } => {
+                if field.is_empty() {
+                    write!(f, "provenance graph: {detail}")
+                } else {
+                    write!(f, "provenance graph, {field}: {detail}")
+                }
             }
             Self::Malformed(what) => write!(f, "malformed document: {what}"),
         }

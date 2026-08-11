@@ -233,6 +233,89 @@ pub fn assurance_fixture() -> (
     (report, proof, signed, key)
 }
 
+/// The §17 provenance fixture.
+///
+/// `root_sums` from a participant and a template, `mark_prices` from a price
+/// vendor — which is what makes the pair useful: one field can honestly be
+/// ledger-derived and the other cannot, in the same graph.
+pub fn provenance_fixture() -> (SignedReport, crate::provenance::SignedProvenance) {
+    use crate::provenance::{
+        provenance_digest, Derivation, Provenance, Source, SourceKind, PROVENANCE_FORMAT_VERSION,
+    };
+    let (report, _) = fixture();
+    let graph = Provenance {
+        format_version: PROVENANCE_FORMAT_VERSION.to_string(),
+        report_digest: crate::digest::report_digest_hex(&report.report),
+        sources: vec![
+            Source {
+                id: "participant-primary".to_string(),
+                kind: SourceKind::Participant,
+                name: "participant::venue-one".to_string(),
+                basis: None,
+            },
+            Source {
+                id: "holding-template".to_string(),
+                kind: SourceKind::Template,
+                name: "Venue.Custody:Holding".to_string(),
+                basis: None,
+            },
+            Source {
+                id: "price-vendor".to_string(),
+                kind: SourceKind::OffLedger,
+                name: "acme-pricing".to_string(),
+                basis: "vendor 16:00 UTC close, retrieved over authenticated API"
+                    .to_string()
+                    .into(),
+            },
+        ],
+        derivations: vec![
+            Derivation {
+                field: "root_sums".to_string(),
+                sources: vec![
+                    "participant-primary".to_string(),
+                    "holding-template".to_string(),
+                ],
+                method: "sum of active Holding contracts per asset".to_string(),
+            },
+            Derivation {
+                field: "mark_prices".to_string(),
+                sources: vec!["price-vendor".to_string()],
+                method: "vendor close price, unadjusted".to_string(),
+            },
+        ],
+    };
+    let signer = signer();
+    let signed = crate::provenance::SignedProvenance {
+        signature: crate::document::SignatureBlock {
+            algorithm: crate::document::SIGNATURE_ALGORITHM.to_string(),
+            public_key: signer.public_key_hex(),
+            value: signer.sign_digest(&provenance_digest(&graph)),
+        },
+        provenance: graph,
+    };
+    (report, signed)
+}
+
+/// Sign a graph as the golden publisher.
+///
+/// The malformed corpus cases are signed *with* their defect rather than
+/// edited afterwards. §17.3 checks the signature before the structural rules,
+/// so an edited document is caught as a forgery and never reaches the rule the
+/// case is meant to exercise — the rules exist for a publisher who meant it.
+pub fn sign_provenance(
+    graph: crate::provenance::Provenance,
+) -> crate::provenance::SignedProvenance {
+    let signer = signer();
+    crate::provenance::SignedProvenance {
+        signature: crate::document::SignatureBlock {
+            algorithm: crate::document::SIGNATURE_ALGORITHM.to_string(),
+            public_key: signer.public_key_hex(),
+            value: signer.sign_digest(&crate::provenance::provenance_digest(&graph)),
+        },
+        provenance: graph,
+    }
+}
+
 /// The SPEC §3.1 repo fixture: three legs under leaf v2, each collateralised
 /// above its exposure.
 pub fn repo_fixture() -> (SignedReport, crate::document::ProofDocumentV2) {

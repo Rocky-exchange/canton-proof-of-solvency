@@ -140,54 +140,17 @@
 <script>
 "use strict";
 (() => {
-  // src/anchor.ts
-  var ANCHOR_DIGEST_DOMAIN = "rocky-solvency-anchor-v1";
-  var encoder = new TextEncoder();
-  function u64le(n) {
-    const out = new Uint8Array(8);
-    new DataView(out.buffer).setBigUint64(0, BigInt(n), true);
-    return out;
-  }
-  function lp(s) {
-    const bytes = encoder.encode(s);
-    const out = new Uint8Array(8 + bytes.length);
-    out.set(u64le(bytes.length));
-    out.set(bytes, 8);
-    return out;
-  }
-  function concat(parts) {
-    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-    let off = 0;
-    for (const p of parts) {
-      out.set(p, off);
-      off += p.length;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __esm = (fn, res, err) => function __init() {
+    if (err) throw err[0];
+    try {
+      return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+    } catch (e) {
+      throw err = [e], e;
     }
-    return out;
-  }
-  async function anchorDigestHex(anchor) {
-    const parts = [
-      encoder.encode(ANCHOR_DIGEST_DOMAIN),
-      lp(anchor.format_version),
-      lp(anchor.report_digest),
-      lp(anchor.root_hash),
-      lp(anchor.snapshot_time),
-      lp(anchor.ledger_offset),
-      lp(anchor.publisher),
-      lp(anchor.publisher_key)
-    ];
-    parts.push(
-      anchor.prev_anchor === void 0 ? new Uint8Array([0]) : concat([new Uint8Array([1]), lp(anchor.prev_anchor)])
-    );
-    const digest = await crypto.subtle.digest("SHA-256", concat(parts));
-    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-  }
+  };
 
   // src/verify.ts
-  var LEAF_DOMAIN = "rocky-solvency-leaf-v1";
-  var NODE_DOMAIN = "rocky-solvency-node-v1";
-  var SCALE = 10n ** 18n;
-  var FRACTION_DIGITS = 18;
-  var MAX_AMOUNT = (1n << 128n) - 1n;
   function parseAmount18dp(s) {
     const dot = s.indexOf(".");
     const intPart = dot === -1 ? s : s.slice(0, dot);
@@ -223,7 +186,6 @@
   function canonicalSums(sums) {
     return Object.keys(sums).sort(bytewiseCompare).map((asset) => `${asset}:${formatAmount18dp(sums[asset])}`).join("|");
   }
-  var encoder2 = new TextEncoder();
   function keysOf(value) {
     return value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
   }
@@ -286,57 +248,23 @@
     );
     return { hashHex: bytesToHex(digest), sums };
   }
+  var LEAF_DOMAIN, NODE_DOMAIN, SCALE, FRACTION_DIGITS, MAX_AMOUNT, encoder2;
+  var init_verify = __esm({
+    "src/verify.ts"() {
+      "use strict";
+      LEAF_DOMAIN = "rocky-solvency-leaf-v1";
+      NODE_DOMAIN = "rocky-solvency-node-v1";
+      SCALE = 10n ** 18n;
+      FRACTION_DIGITS = 18;
+      MAX_AMOUNT = (1n << 128n) - 1n;
+      encoder2 = new TextEncoder();
+    }
+  });
 
   // src/report.ts
-  var REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
-  var REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
-  var PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
-  var SIGNATURE_ALGORITHM = "ed25519";
-  var REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
-  var REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
-  var PROFILE_REGISTRY = [
-    { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
-    { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
-    {
-      name: "collateral.repo",
-      leaf: "repoleg",
-      requiredAggregates: ["collateral/*", "exposure/*"],
-      coverage: { covering: "collateral", covered: "exposure" }
-    },
-    {
-      name: "fund.nav",
-      leaf: "shareholder",
-      requiredAggregates: ["units/*", "entitlement/*"]
-    },
-    {
-      name: "settlement.dvp",
-      leaf: "settledtrade",
-      requiredAggregates: ["delivered/*", "paid/*"],
-      requiredLeafMaps: ["delivered", "paid"]
-    },
-    {
-      name: "eligibility.holder",
-      leaf: "attestedholder",
-      requiredAggregates: ["attested/*"],
-      requiredLeafMaps: ["attested"],
-      unanimousMaps: ["attested"]
-    }
-  ];
   function lookupProfile(name) {
     return PROFILE_REGISTRY.find((p) => p.name === name);
   }
-  var KNOWN_MANIFEST_FIELDS = [
-    "root_sums",
-    "mark_prices",
-    "disclosures.bad_debt",
-    "disclosures.excluded_house_accounts",
-    "disclosures.excluded_house_totals",
-    "customer_balances",
-    "customer_identities"
-  ];
-  var KNOWN_FIELDS = KNOWN_MANIFEST_FIELDS;
-  var REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
-  var encoder3 = new TextEncoder();
   function concat2(parts) {
     const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
     let off = 0;
@@ -592,8 +520,109 @@
     }
     return { ok: true };
   }
+  var REPORT_FORMAT_VERSION, REPORT_FORMAT_VERSION_V2, PROOF_FORMAT_VERSION, SIGNATURE_ALGORITHM, REPORT_DIGEST_DOMAIN, REPORT_DIGEST_DOMAIN_V2, PROFILE_REGISTRY, KNOWN_MANIFEST_FIELDS, KNOWN_FIELDS, REPORT_RESIDENT_FIELDS, encoder3;
+  var init_report = __esm({
+    "src/report.ts"() {
+      "use strict";
+      init_verify();
+      REPORT_FORMAT_VERSION = "canton-solvency-report-v1";
+      REPORT_FORMAT_VERSION_V2 = "canton-solvency-report-v2";
+      PROOF_FORMAT_VERSION = "canton-solvency-proof-v1";
+      SIGNATURE_ALGORITHM = "ed25519";
+      REPORT_DIGEST_DOMAIN = "rocky-solvency-report-v1";
+      REPORT_DIGEST_DOMAIN_V2 = "rocky-solvency-report-v2";
+      PROFILE_REGISTRY = [
+        { name: "solvency.liabilities", leaf: "customer", requiredAggregates: ["root_sums"] },
+        { name: "solvency.group", leaf: "entity", requiredAggregates: ["root_sums"] },
+        {
+          name: "collateral.repo",
+          leaf: "repoleg",
+          requiredAggregates: ["collateral/*", "exposure/*"],
+          coverage: { covering: "collateral", covered: "exposure" }
+        },
+        {
+          name: "fund.nav",
+          leaf: "shareholder",
+          requiredAggregates: ["units/*", "entitlement/*"]
+        },
+        {
+          name: "settlement.dvp",
+          leaf: "settledtrade",
+          requiredAggregates: ["delivered/*", "paid/*"],
+          requiredLeafMaps: ["delivered", "paid"]
+        },
+        {
+          name: "eligibility.holder",
+          leaf: "attestedholder",
+          requiredAggregates: ["attested/*"],
+          requiredLeafMaps: ["attested"],
+          unanimousMaps: ["attested"]
+        }
+      ];
+      KNOWN_MANIFEST_FIELDS = [
+        "root_sums",
+        "mark_prices",
+        "disclosures.bad_debt",
+        "disclosures.excluded_house_accounts",
+        "disclosures.excluded_house_totals",
+        "customer_balances",
+        "customer_identities"
+      ];
+      KNOWN_FIELDS = KNOWN_MANIFEST_FIELDS;
+      REPORT_RESIDENT_FIELDS = KNOWN_FIELDS.slice(0, 5);
+      encoder3 = new TextEncoder();
+    }
+  });
+
+  // src/anchor.ts
+  var ANCHOR_DIGEST_DOMAIN = "rocky-solvency-anchor-v1";
+  var encoder = new TextEncoder();
+  function u64le(n) {
+    const out = new Uint8Array(8);
+    new DataView(out.buffer).setBigUint64(0, BigInt(n), true);
+    return out;
+  }
+  function lp(s) {
+    const bytes = encoder.encode(s);
+    const out = new Uint8Array(8 + bytes.length);
+    out.set(u64le(bytes.length));
+    out.set(bytes, 8);
+    return out;
+  }
+  function concat(parts) {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+    let off = 0;
+    for (const p of parts) {
+      out.set(p, off);
+      off += p.length;
+    }
+    return out;
+  }
+  async function anchorDigestHex(anchor) {
+    const parts = [
+      encoder.encode(ANCHOR_DIGEST_DOMAIN),
+      lp(anchor.format_version),
+      lp(anchor.report_digest),
+      lp(anchor.root_hash),
+      lp(anchor.snapshot_time),
+      lp(anchor.ledger_offset),
+      lp(anchor.publisher),
+      lp(anchor.publisher_key)
+    ];
+    parts.push(
+      anchor.prev_anchor === void 0 ? new Uint8Array([0]) : concat([new Uint8Array([1]), lp(anchor.prev_anchor)])
+    );
+    const digest = await crypto.subtle.digest("SHA-256", concat(parts));
+    return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  // src/offline.ts
+  init_verify();
+  init_report();
 
   // src/group.ts
+  init_verify();
+  init_report();
   var GROUP_MEMBERSHIP_FORMAT_VERSION = "canton-solvency-group-membership-v1";
   var ENTITY_DOMAIN = "rocky-solvency-entity-v1";
   var encoder4 = new TextEncoder();
@@ -868,6 +897,8 @@
   }
 
   // src/console.ts
+  init_report();
+  init_verify();
   function display(amount) {
     try {
       return formatAmount18dp(parseAmount18dp(amount));

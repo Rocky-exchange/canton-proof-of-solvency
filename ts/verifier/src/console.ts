@@ -247,3 +247,96 @@ export async function buildConsole(input: ConsoleInput): Promise<ConsoleModel> {
 
 /** Re-exported so the page can render provenance without importing two modules. */
 export type { Fact };
+
+/**
+ * The signed provenance graph (SPEC §17), for display.
+ *
+ * Distinct from `flowOf`, which derives a shape from the report itself and is
+ * therefore a picture of what the format guarantees, not of where the numbers
+ * came from. This renders a document the publisher signed.
+ *
+ * The graph is verified here before any of it is rendered, and nothing is
+ * returned when it fails. The console has made the opposite mistake before:
+ * anchor histories were displayed as linked while verification would have
+ * rejected them, because the display path reimplemented the rules instead of
+ * calling them. Display calls the verifier.
+ */
+export type ProvenanceSourceRow = {
+  name: string;
+  kind: string;
+  onLedger: boolean;
+  basis?: string;
+};
+
+export type ProvenanceFieldRow = {
+  field: string;
+  method: string;
+  sources: ProvenanceSourceRow[];
+};
+
+export type ProvenanceView =
+  | { ok: true; fields: ProvenanceFieldRow[]; undeclared: string[]; checkedLevels: boolean }
+  | { ok: false; problem: string };
+
+export async function provenanceView(
+  signedReport: SignedReport,
+  signedGraph: any,
+  trustedKeyHex: string,
+  statement?: { levels?: Record<string, any> }
+): Promise<ProvenanceView> {
+  const { verifyProvenance, checkAgainstAssurance, onLedger } = await import("./provenance");
+  const { KNOWN_FIELDS } = await import("./assurance");
+
+  const structural = await verifyProvenance(signedReport, signedGraph, trustedKeyHex);
+  if (!structural.ok) {
+    return { ok: false, problem: describeProvenanceFailure(structural.failure) };
+  }
+  if (statement) {
+    const consistent = checkAgainstAssurance(signedGraph.provenance, statement.levels ?? {});
+    if (!consistent.ok) {
+      return { ok: false, problem: describeProvenanceFailure(consistent.failure) };
+    }
+  }
+
+  const graph = signedGraph.provenance;
+  const byId = new Map<string, any>(graph.sources.map((s: any) => [s.id, s]));
+  const fields: ProvenanceFieldRow[] = graph.derivations.map((d: any) => ({
+    field: d.field,
+    method: d.method,
+    sources: d.sources.map((id: string) => {
+      const source = byId.get(id);
+      return {
+        name: source.name,
+        kind: source.kind,
+        onLedger: onLedger(source.kind),
+        basis: source.basis,
+      };
+    }),
+  }));
+
+  // A partial graph is allowed (§17.1). Saying nothing about the fields it
+  // omits would read as "everything is accounted for".
+  const undeclared = KNOWN_FIELDS.filter(
+    (f) => !graph.derivations.some((d: any) => d.field === f)
+  );
+  return { ok: true, fields, undeclared, checkedLevels: statement !== undefined };
+}
+
+function describeProvenanceFailure(failure: any): string {
+  switch (failure?.kind) {
+    case "digest_mismatch":
+      return "this provenance graph describes a different report";
+    case "unknown_signer":
+      return "the graph is not signed by the trusted key";
+    case "bad_signature":
+      return "the graph's signature does not verify";
+    case "unsupported_version":
+      return `unsupported ${failure.field}: ${failure.found}`;
+    case "provenance_inconsistent":
+      return failure.field
+        ? `${failure.field}: ${failure.detail}`
+        : String(failure.detail);
+    default:
+      return `the graph could not be read: ${failure?.detail ?? "unknown"}`;
+  }
+}
