@@ -600,6 +600,139 @@
       ]
     },
     {
+      "description": "root_sums declared recomputed, with the proof that recomputes it",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "proof.json",
+        "assurance.json"
+      ],
+      "id": "assurance-verified-with-proof",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "root_sums declared recomputed when nothing was recomputed",
+      "expect": "reject",
+      "failure": "over_claimed",
+      "files": [
+        "report.json",
+        "assurance.json"
+      ],
+      "id": "assurance-verified-without-proof",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "mark_prices declared recomputed, though nothing in the tree commits to it",
+      "expect": "reject",
+      "failure": "over_claimed",
+      "files": [
+        "report.json",
+        "proof.json",
+        "assurance.json"
+      ],
+      "id": "assurance-uncommitted-field-declared-verified",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "root_sums declared third-party attested, with an attestation from a trusted key",
+      "expect": "accept",
+      "failure": null,
+      "files": [
+        "report.json",
+        "attestations.json",
+        "attestors.json",
+        "assurance.json"
+      ],
+      "id": "assurance-attested-by-trusted-custodian",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "an attestation that verifies, from a key the verifier was never given",
+      "expect": "reject",
+      "failure": "over_claimed",
+      "files": [
+        "report.json",
+        "attestations.json",
+        "assurance.json"
+      ],
+      "id": "assurance-attested-by-untrusted-key",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "a key trusted as a custodian used to establish issuer attestation",
+      "expect": "reject",
+      "failure": "over_claimed",
+      "files": [
+        "report.json",
+        "attestations.json",
+        "attestors.json",
+        "assurance.json"
+      ],
+      "id": "assurance-attestor-role-mismatch",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "a statement naming a different report",
+      "expect": "reject",
+      "failure": "digest_mismatch",
+      "files": [
+        "report.json",
+        "proof.json",
+        "assurance.json"
+      ],
+      "id": "assurance-statement-for-another-report",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "assurance-v1"
+      ]
+    },
+    {
+      "description": "a level declared for a field the format does not define",
+      "expect": "reject",
+      "failure": "unknown_field",
+      "files": [
+        "report.json",
+        "proof.json",
+        "assurance.json"
+      ],
+      "id": "assurance-unknown-field",
+      "kind": "assurance",
+      "requires": [
+        "report-v1",
+        "proof-v1",
+        "assurance-v1"
+      ]
+    },
+    {
       "description": "an index naming a path rather than a file",
       "expect": "reject",
       "failure": "unsafe_name",

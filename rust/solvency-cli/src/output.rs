@@ -64,6 +64,17 @@ pub fn render_coverage_text(outcome: &canton_solvency_report::coverage::Coverage
             " — NOT COVERED"
         }
     ));
+    // The arithmetic above is exact and says less than it appears to. The
+    // liabilities side is recomputed from committed leaves; the custody side
+    // is a figure the publisher signed, which §11 admits in `custody_basis`
+    // and the output never did. Whatever this command was given establishes
+    // claimed-only and no more — anything stronger needs evidence this verb
+    // does not take.
+    out.push_str(
+        "custody figures: claimed-only — signed by the publisher, and nothing here\n\
+         establishes that the assets exist. Use `assurance` with an attestation or\n\
+         an anchor to establish more (SPEC §16).\n",
+    );
     out
 }
 
@@ -426,5 +437,97 @@ mod tests {
         let json = render_json(&summary(vec![ok_outcome("a.json")]));
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["ok"], true);
+    }
+}
+
+/// §16 in text. The established line is printed whether or not the
+/// declarations held: a reader told a declaration failed needs to see what the
+/// evidence did support, and a reader told it passed needs to see how much of
+/// the report was declared about at all.
+pub fn render_assurance_text(outcome: &crate::assurance::AssuranceOutcome) -> String {
+    use crate::assurance::strongest;
+    let mut out = String::new();
+    for (field, levels) in &outcome.established {
+        let best = strongest(levels)
+            .map(|l| l.to_string())
+            .unwrap_or_else(|| "nothing".to_string());
+        let declared = outcome
+            .accepted
+            .get(field)
+            .map(|l| format!(" (declared {l})"))
+            .unwrap_or_default();
+        out.push_str(&format!("  {field:<38} {best}{declared}\n"));
+    }
+    match &outcome.failure {
+        Some(reason) => out.push_str(&format!("OVER-CLAIMED: {reason}\n")),
+        None if outcome.accepted.is_empty() => out.push_str(
+            "no levels declared — every figure above rests on what is shown, \
+             and nothing more\n",
+        ),
+        None => out.push_str("every declared level is supported by the evidence supplied\n"),
+    }
+    out
+}
+
+pub fn render_assurance_json(outcome: &crate::assurance::AssuranceOutcome) -> String {
+    let established: serde_json::Map<String, serde_json::Value> = outcome
+        .established
+        .iter()
+        .map(|(field, levels)| {
+            (
+                field.clone(),
+                serde_json::Value::Array(
+                    levels
+                        .iter()
+                        .map(|l| serde_json::Value::String(l.to_string()))
+                        .collect(),
+                ),
+            )
+        })
+        .collect();
+    let accepted: serde_json::Map<String, serde_json::Value> = outcome
+        .accepted
+        .iter()
+        .map(|(f, l)| (f.clone(), serde_json::Value::String(l.to_string())))
+        .collect();
+    serde_json::to_string_pretty(&serde_json::json!({
+        "ok": outcome.ok(),
+        "established": established,
+        "accepted": accepted,
+        "failure": outcome.failure,
+    }))
+    .unwrap_or_else(|e| format!("{{\"error\":{:?}}}", e.to_string()))
+}
+
+#[cfg(test)]
+mod coverage_wording_tests {
+    use super::*;
+    use canton_solvency_report::coverage::{AssetCoverage, CoverageOutcome};
+
+    fn covered() -> CoverageOutcome {
+        CoverageOutcome {
+            assets: vec![AssetCoverage {
+                asset: "USDA".to_string(),
+                held: 2,
+                owed: 1,
+            }],
+        }
+    }
+
+    /// "1 of 1 assets covered" is a true sentence about arithmetic and reads
+    /// as a statement about reserves. The custody side of a coverage check is
+    /// a signed assertion — §11 says as much in `custody_basis` — and nothing
+    /// in the output said so.
+    #[test]
+    fn a_covered_result_says_what_the_custody_figures_rest_on() {
+        let text = render_coverage_text(&covered());
+        assert!(
+            text.contains("claimed-only"),
+            "coverage output must name the assurance level of the custody side: {text}"
+        );
+        assert!(
+            text.contains("assurance"),
+            "and point at the verb that can establish more: {text}"
+        );
     }
 }

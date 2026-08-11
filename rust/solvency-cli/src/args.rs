@@ -19,6 +19,10 @@ USAGE:
   canton-solvency-verify coverage --custody <path> --liabilities <path>
                                 --statement <path> --key <hex64>
                                 [--custody-key <hex64>] [--json]
+  canton-solvency-verify assurance --report <path> --assurance <path> --key <hex64>
+                                [--proof <path>] [--anchor <path>]
+                                [--attestations <path>] [--attestor <hex64>:<role>]
+                                [--json]
   canton-solvency-verify recompute --leaves <path> --report <path> [--json]
   canton-solvency-verify verify-pack --pack-dir <dir> --key <hex64> [--json]
   canton-solvency-verify anchors --chain <dir-or-file> [--json]
@@ -27,7 +31,13 @@ USAGE:
   canton-solvency-verify --help | --version
 
 The trusted key is required. A report checked against the key embedded in
-itself proves only internal consistency, never who published it.
+itself proves only internal consistency, never who published it. The same
+applies to attestors: --attestor names a key you decided to believe before
+opening the document, and a role (issuer or third-party) it is believed for.
+
+`assurance` checks a publisher's declared evidence levels against what the
+evidence you supplied actually establishes (SPEC §16). Withholding the proof
+is not an error — it lowers what can be established, which is the point.
 
 EXIT CODES:
   0  everything verified, or no disclosure was reduced
@@ -95,6 +105,18 @@ pub enum Command {
         custody_key: String,
         json: bool,
     },
+    /// Declared assurance levels against what the evidence establishes (§16).
+    Assurance {
+        report: PathBuf,
+        assurance: PathBuf,
+        proof: Option<PathBuf>,
+        anchor: Option<PathBuf>,
+        attestations: Option<PathBuf>,
+        /// Attestor key hex to the role it is trusted for.
+        attestors: BTreeMap<String, String>,
+        trusted_key: String,
+        json: bool,
+    },
     /// What changed in the disclosure manifest between two reports (§8.5).
     ManifestDiff {
         previous: PathBuf,
@@ -121,6 +143,27 @@ fn validate_key(key: &str) -> Result<()> {
     }
 }
 
+/// `--attestor <hex64>:<role>`, comma-separated for more than one.
+///
+/// Trust is by key *and* by role: a key given as a custodian must not be able
+/// to establish issuer attestation, so the role is not optional and is never
+/// inferred from the attestation itself.
+fn parse_attestors(raw: Option<&String>) -> Result<BTreeMap<String, String>> {
+    let mut out = BTreeMap::new();
+    let Some(raw) = raw else { return Ok(out) };
+    for entry in raw.split(',') {
+        let (hex, role) = entry
+            .split_once(':')
+            .ok_or_else(|| anyhow::anyhow!("--attestor wants <hex64>:<role>, got {entry:?}"))?;
+        validate_key(hex)?;
+        if role != "issuer" && role != "third-party" {
+            bail!("--attestor role must be issuer or third-party, got {role:?}");
+        }
+        out.insert(hex.to_string(), role.to_string());
+    }
+    Ok(out)
+}
+
 pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
     let mut args = argv.into_iter().peekable();
     let Some(first) = args.next() else {
@@ -137,7 +180,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
         "--help" | "-h" | "help" => return Ok(Command::Help),
         "--version" | "-V" => return Ok(Command::Version),
         "verify" | "verify-group" | "verify-chain" | "coverage" | "anchors" | "manifest-diff"
-        | "recompute" | "digest" | "verify-pack" => {}
+        | "recompute" | "digest" | "verify-pack" | "assurance" => {}
         other => bail!("unknown command {other:?}\n\n{USAGE}"),
     }
 
@@ -151,7 +194,8 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             "--report" | "--proof" | "--proof-dir" | "--key" | "--group-report"
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
             | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
-            | "--leaves" | "--pack-dir" => {
+            | "--leaves" | "--pack-dir" | "--assurance" | "--anchor" | "--attestations"
+            | "--attestor" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -207,6 +251,16 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
                 json,
             })
         }
+        "assurance" => Ok(Command::Assurance {
+            report: required_path("--report")?,
+            assurance: required_path("--assurance")?,
+            proof: path("--proof"),
+            anchor: path("--anchor"),
+            attestations: path("--attestations"),
+            attestors: parse_attestors(flags.get("--attestor"))?,
+            trusted_key: key()?,
+            json,
+        }),
         "recompute" => Ok(Command::Recompute {
             leaves: required_path("--leaves")?,
             report: required_path("--report")?,

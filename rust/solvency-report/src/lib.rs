@@ -71,6 +71,7 @@
 //! [`SPEC.md`]: https://github.com/Rocky-exchange/canton-proof-of-solvency/blob/main/SPEC.md
 
 pub mod anchor;
+pub mod assurance;
 pub mod compat;
 pub mod corpus_gen;
 pub mod coverage;

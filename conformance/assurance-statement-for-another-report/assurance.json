@@ -1,0 +1,7 @@
+{
+  "format_version": "canton-solvency-assurance-v1",
+  "levels": {
+    "root_sums": "cryptographically-verified"
+  },
+  "report_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+}

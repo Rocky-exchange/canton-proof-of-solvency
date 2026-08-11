@@ -1,11 +1,13 @@
 <div align="center">
 
-# Canton Proof-of-Solvency
+# Canton Assurance Layer
 
-**Publish it. Prove it. Verify it yourself.**
+**Proof without exposure.**
 
-Privacy-preserving proof-of-solvency infrastructure for exchanges and
-custodial applications on the [Canton Network](https://www.canton.network/).
+Verifiable disclosure infrastructure for institutional markets on the
+[Canton Network](https://www.canton.network/).
+
+*One private truth. Many verifiable views.*
 
 [![CI](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml/badge.svg)](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -21,26 +23,65 @@ English | [简体中文](README.zh-CN.md)
 
 ## 📖 Overview
 
-Canton's privacy model is its greatest strength for institutions — and its
-hardest problem for public trust: **there is no public ledger on which anyone
-can recompute a venue's books.** Exchanges, custodians, and asset platforms on
-Canton have no standard way to prove *custody assets ≥ user liabilities*
-without disclosing private data.
+Canton gave institutional markets privacy, and took away the public evidence
+that public chains produce as a side effect. Transactions settle correctly,
+and customers, counterparties, auditors and regulators still need to know:
+**do the assets exist? is the collateral sufficient? did both settlement legs
+complete? has this report been rewritten since it was published?**
 
-This project closes that gap. A venue publishes a daily cryptographic
-commitment to all user balances; every user verifies — entirely in their own
-browser — that their balance is included in the published totals. Raw data
-never leaves the venue's participant node. The public sees commitments,
-proofs, and totals: the same trust shape as Canton itself.
+Institutions do not need to make everything public. They need **controlled
+verifiability** — the ability to prove a specific claim to a specific audience
+without exposing the book behind it.
 
-Proof of solvency is the **first disclosure profile** built on that machinery,
-not the whole of it. The same commitment, proof, and verification core answers
-the more general question every institution arriving on Canton has to solve:
-*how do you prove a specific statement about private ledger data, to a specific
-audience, without publishing the data?* Reserve coverage, repo
-collateralization, fund NAV backing, atomic settlement assurance, and holder
-eligibility are all that same shape — see
-[Disclosure Profiles](#-disclosure-profiles).
+> Canton makes institutional markets private and composable.
+> We make their most important claims verifiable.
+
+This project turns private Canton ledger state into portable, selectively
+disclosed, independently verifiable institutional evidence: asset backing,
+collateral coverage, solvency, settlement integrity and compliance
+attestations, verified without revealing the underlying accounts.
+
+Proof of solvency is the **first disclosure profile** on that machinery, not
+the whole of it — see [Disclosure Profiles](#-disclosure-profiles). Reserve
+coverage, repo collateralization, fund NAV backing, atomic settlement
+assurance and holder eligibility are the same shape.
+
+### Not everything verified is verified the same way
+
+The hardest honesty problem here is not forgery. It is that a cryptographic
+proof and a signed assertion look identical once both are called "verified".
+
+A liabilities total recomputed from committed leaves and a custody total the
+publisher merely signed both pass verification, because both satisfy what
+verification asks. The first is arithmetic over a set customers police
+themselves — each can see their own entry and will object if it is short. The
+second is arithmetic over a list the publisher wrote. **A custody report over
+invented positions recomputes perfectly.**
+
+So every figure carries an **assurance level**, and the verifier establishes
+independently what it can actually substantiate ([SPEC](SPEC.md) §16):
+
+| Level | What stands behind the figure |
+|---|---|
+| `cryptographically-verified` | The verifier recomputed it from the commitments. Means the total equals the sum of the committed leaves — **not** that the assets exist. |
+| `ledger-derived` | Pinned to named Canton state at a named offset by an on-ledger anchor. |
+| `third-party-attested` | A custodian, auditor or oracle signed for it. |
+| `issuer-attested` | The issuer signed for it — self-attestation, and deliberately ranked below the line above. |
+| `claimed-only` | The publisher signed for it and nothing else stands behind it. |
+| `not-disclosed` | Withheld under the disclosure manifest. Not a weaker claim — no claim. |
+
+A declaration the verifier cannot substantiate is a **verification failure**
+naming the field. A taxonomy a publisher could assert into being would record
+the over-claim rather than prevent it.
+
+### Naming
+
+The product is the Canton Assurance Layer. The repository, the crate names
+(`canton-solvency-*`) and the wire identifiers (`canton-solvency-report-v1`
+and friends) keep the names they were published under. Renaming a wire
+identifier would invalidate every document already signed under it, and the
+entire value of this format is that evidence issued last quarter still
+verifies today.
 
 ### In plain terms
 
@@ -738,7 +779,7 @@ Turns one implementation into something the network can rely on.
 
 **Deliverables**
 
-- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §25.3. 45 cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings, anchor chains and evidence packs, each with an expected outcome and a declared feature set. All three implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces. All three run **every** case: the Python verifier written from SPEC.md alone covers the whole format and agrees with both reference implementations on all of them, which is the strongest evidence available that the document is sufficient to implement from.
+- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §25.3. 53 cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings, anchor chains, evidence packs and assurance levels, each with an expected outcome and a declared feature set. All three implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces. All three run **every** case: the Python verifier written from SPEC.md alone covers the whole format and agrees with both reference implementations on all of them, which is the strongest evidence available that the document is sufficient to implement from.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,

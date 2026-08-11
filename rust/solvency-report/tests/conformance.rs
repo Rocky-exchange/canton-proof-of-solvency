@@ -48,6 +48,8 @@ fn expected_text(failure: &str) -> &'static str {
         "pack_unlisted" => "does not name it",
         "unsafe_name" => "not a plain file name",
         "shortfall" => "shortfall",
+        "over_claimed" => "but the evidence supplied supports",
+        "unknown_field" => "has no way to substantiate",
         other => panic!("no expected text for declared failure {other:?}"),
     }
 }

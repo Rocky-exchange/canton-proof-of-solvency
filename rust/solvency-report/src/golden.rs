@@ -158,6 +158,81 @@ pub fn fixture_v2() -> (SignedReport, ProofDocument) {
     (published.signed_report, proof)
 }
 
+/// A v2 report that genuinely withholds a field: no mark prices, and a
+/// manifest saying so.
+///
+/// The ordinary v2 fixture declares every resident field published, which
+/// means the withheld branch of assurance establishment is never reached by
+/// it — a gap that survived mutation testing until this existed.
+pub fn withheld_fixture() -> (SignedReport, ProofDocument) {
+    use crate::manifest::{Disclosure, Manifest};
+    let manifest = Manifest {
+        audience: "public".to_string(),
+        fields: [
+            ("root_sums", Disclosure::Published),
+            ("mark_prices", Disclosure::Withheld),
+            ("disclosures.bad_debt", Disclosure::Published),
+            ("disclosures.excluded_house_accounts", Disclosure::Published),
+            ("disclosures.excluded_house_totals", Disclosure::Published),
+            ("customer_balances", Disclosure::Committed),
+            ("customer_identities", Disclosure::Withheld),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect(),
+    };
+    let published = publish(
+        &leaves(),
+        &ReportMetadata {
+            manifest: Some(manifest),
+            mark_prices: Default::default(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+    let proof = published.proofs[1].clone();
+    (published.signed_report, proof)
+}
+
+/// The §16 assurance fixture.
+///
+/// Returns the ordinary v1 report and proof, a custodian's attestation over
+/// `root_sums`, and the custodian's public key. The attestation is signed by
+/// a key that is *not* the publisher's, because an attestation from the
+/// publisher is what `claimed-only` already means.
+pub fn assurance_fixture() -> (
+    SignedReport,
+    ProofDocument,
+    crate::assurance::SignedAttestation,
+    String,
+) {
+    use crate::assurance::{
+        attestation_digest, Attestation, AttestorRole, SignedAttestation,
+        ATTESTATION_FORMAT_VERSION,
+    };
+    let (report, proof) = fixture();
+    let custodian = ReportSigner::from_seed(&[55u8; 32]);
+    let attestation = Attestation {
+        format_version: ATTESTATION_FORMAT_VERSION.to_string(),
+        report_digest: crate::digest::report_digest_hex(&report.report),
+        field: "root_sums".to_string(),
+        role: AttestorRole::ThirdParty,
+        attestor: "custodian::example".to_string(),
+        basis: "reconciled against sub-custody statements for the period".to_string(),
+    };
+    let signed = SignedAttestation {
+        signature: crate::document::SignatureBlock {
+            algorithm: crate::document::SIGNATURE_ALGORITHM.to_string(),
+            public_key: custodian.public_key_hex(),
+            value: custodian.sign_digest(&attestation_digest(&attestation)),
+        },
+        attestation,
+    };
+    let key = custodian.public_key_hex();
+    (report, proof, signed, key)
+}
+
 /// The SPEC §3.1 repo fixture: three legs under leaf v2, each collateralised
 /// above its exposure.
 pub fn repo_fixture() -> (SignedReport, crate::document::ProofDocumentV2) {

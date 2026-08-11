@@ -44,6 +44,19 @@ REPO = Path(__file__).resolve().parent.parent
 # --------------------------------------------------------------------------
 FINDINGS: list[tuple[str, str]] = [
     (
+        "FIXED — SPEC §16.4: \"every field the report carries\" was ambiguous",
+        "Step 5 established claimed-only for 'every field the report carries'. "
+        "A report with no manifest and an empty mark_prices map carries the "
+        "field but no data under it, so the phrase admitted two readings: "
+        "claimed-only, or nothing at all — and under the second reading, a "
+        "publisher declaring claimed-only on an empty map would be refused for "
+        "over-claiming. Found while transcribing §16 here, before writing any "
+        "code: the reference implementation had taken the first reading and the "
+        "text supported either. §16.4 now says claimed-only applies to every "
+        "field not established as not-disclosed, and that only the manifest "
+        "withholds.",
+    ),
+    (
         "FIXED — SPEC §12: the anchor digest formula omitted publisher_key",
         "The key-distribution change added publisher_key to the anchor and to "
         "its digest in both implementations and in the schema, and updated §8.4's "
@@ -369,6 +382,8 @@ UNKNOWN_SIGNER = "unknown_signer"
 BAD_SIGNATURE = "bad_signature"
 ROOT_HASH_MISMATCH = "root_hash_mismatch"
 ROOT_SUMS_MISMATCH = "root_sums_mismatch"
+OVER_CLAIMED = "over_claimed"
+UNKNOWN_FIELD = "unknown_field"
 
 
 def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
@@ -983,6 +998,169 @@ def check_golden_vectors(log) -> list[str]:
     return failures
 
 
+
+# --- §16: assurance levels ---------------------------------------------------
+
+ASSURANCE_FORMAT_VERSION = "canton-solvency-assurance-v1"
+ATTESTATION_FORMAT_VERSION = "canton-solvency-attestation-v1"
+
+# §16.2: the §8.5 report-resident vocabulary, and no other paths.
+ASSURANCE_FIELDS = (
+    "root_sums",
+    "mark_prices",
+    "disclosures.bad_debt",
+    "disclosures.excluded_house_accounts",
+    "disclosures.excluded_house_totals",
+)
+
+# §16.1 orders these for display only, and the specification is explicit that
+# they are not a total order. The one ordering it does fix is issuer below
+# third-party: the issuer is the party whose solvency is in question.
+STRENGTH = {
+    "not-disclosed": 0,
+    "claimed-only": 1,
+    "issuer-attested": 2,
+    "third-party-attested": 3,
+    "ledger-derived": 4,
+    "cryptographically-verified": 5,
+}
+
+
+def attestation_digest(attestation: dict) -> bytes:
+    """§16.3. A domain distinct from §8.2's, with the field inside the
+    preimage so an attestor who signed for one field has not signed for
+    another."""
+    return hashlib.sha256(
+        b"rocky-solvency-attestation-v1"
+        + lp(attestation["format_version"])
+        + lp(attestation["report_digest"])
+        + lp(attestation["field"])
+        + lp(attestation["role"])
+        + lp(attestation["attestor"])
+        + lp(attestation["basis"])
+    ).digest()
+
+
+def establish(
+    signed: dict,
+    evidence: dict,
+    trusted_key_hex: str,
+    attestors: dict[str, str],
+) -> dict[str, set[str]]:
+    """§16.4 step 5: what the evidence supports, per field."""
+    report = signed["report"]
+    digest = report_digest(report).hex()
+    manifest = report.get("manifest") or {}
+    fields = manifest.get("fields") or {}
+    out: dict[str, set[str]] = {}
+
+    for field in ASSURANCE_FIELDS:
+        levels: set[str] = set()
+
+        # Only the manifest withholds, and only over a field the body does not
+        # carry data for.
+        if fields.get(field) == "withheld" and not carries_data(report, field):
+            out[field] = {"not-disclosed"}
+            continue
+
+        levels.add("claimed-only")
+
+        # Only root_sums is committed in the tree. mark_prices and the
+        # disclosures enter the report digest, so they are signed, but nothing
+        # recomputes them.
+        if field == "root_sums" and evidence.get("proof") is not None:
+            try:
+                verify_proof(signed, evidence["proof"], trusted_key_hex)
+                levels.add("cryptographically-verified")
+            except (Rejected, Exception):
+                # A proof that does not verify establishes nothing. It is not
+                # itself the failure: the failure, if any, is the declaration
+                # that outran it.
+                pass
+
+        anchor = evidence.get("anchor")
+        if anchor is not None and (
+            anchor.get("format_version") == "canton-solvency-anchor-v1"
+            and anchor.get("report_digest") == digest
+            and anchor.get("root_hash") == report["root_hash"]
+            and anchor.get("snapshot_time") == report["snapshot_time"]
+            and anchor.get("ledger_offset") == report["ledger_offset"]
+            and anchor.get("publisher") == report["publisher"]
+        ):
+            levels.add("ledger-derived")
+
+        for signed_attestation in evidence.get("attestations") or []:
+            attestation = signed_attestation.get("attestation") or {}
+            if (
+                attestation.get("format_version") != ATTESTATION_FORMAT_VERSION
+                or attestation.get("field") != field
+                or attestation.get("report_digest") != digest
+            ):
+                continue
+            signature = signed_attestation.get("signature") or {}
+            # Trust is by key and by role, decided before the document was
+            # opened: a key trusted as a custodian must not establish issuer
+            # attestation.
+            if attestors.get(signature.get("public_key")) != attestation.get("role"):
+                continue
+            if signature.get("algorithm") != "ed25519":
+                continue
+            if ed25519_verify(
+                bytes.fromhex(signature["public_key"]),
+                attestation_digest(attestation),
+                bytes.fromhex(signature["value"]),
+            ):
+                levels.add(
+                    "issuer-attested"
+                    if attestation["role"] == "issuer"
+                    else "third-party-attested"
+                )
+
+        out[field] = levels
+    return out
+
+
+def verify_assurance(
+    signed: dict,
+    statement: dict,
+    evidence: dict,
+    trusted_key_hex: str,
+    attestors: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """§16.4, in the order the specification gives."""
+    attestors = attestors or {}
+
+    if statement.get("format_version") != ASSURANCE_FORMAT_VERSION:
+        raise Rejected(f"assurance format {statement.get('format_version')}")
+
+    report = signed["report"]
+    digest = report_digest(report).hex()
+    if statement.get("report_digest") != digest:
+        raise Rejected(DIGEST_MISMATCH)
+
+    # A statement about a report nobody vouched for must not be graded.
+    if signed["signature"]["public_key"] != trusted_key_hex:
+        raise Rejected(UNKNOWN_SIGNER)
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex),
+        report_digest(report),
+        bytes.fromhex(signed["signature"]["value"]),
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    levels = statement.get("levels") or {}
+    for field in levels:
+        if field not in ASSURANCE_FIELDS:
+            raise Rejected(UNKNOWN_FIELD)
+
+    established = establish(signed, evidence, trusted_key_hex, attestors)
+    for field, declared in levels.items():
+        supported = established.get(field, set())
+        if declared not in supported:
+            raise Rejected(OVER_CLAIMED)
+    return dict(levels)
+
+
 # What this verifier implements, as §14.3 `requires` names. Everything else is
 # skipped by declaration rather than by accident -- the distinction matters:
 # before the corpus carried `requires`, this file *passed*
@@ -999,6 +1177,7 @@ SUPPORTED = {
     "proof-v2",
     "group-v1",
     "coverage-v1",
+    "assurance-v1",
 }
 
 
@@ -1044,6 +1223,25 @@ def run_case(directory: Path, kind: str, key: str) -> None:
         )
     elif kind == "anchors":
         verify_chain(json.loads((directory / "history.json").read_text()))
+    elif kind == "assurance":
+        def optional(name: str):
+            path = directory / name
+            return json.loads(path.read_text()) if path.exists() else None
+
+        verify_assurance(
+            json.loads((directory / "report.json").read_text()),
+            json.loads((directory / "assurance.json").read_text()),
+            {
+                "proof": optional("proof.json"),
+                "anchor": optional("anchor.json"),
+                "attestations": optional("attestations.json") or [],
+            },
+            key,
+            # §16.4: which attestor key is trusted for which role arrives out
+            # of band. In a corpus case that is a file the case carries, not
+            # one of the documents under test.
+            optional("attestors.json") or {},
+        )
     elif kind == "pack":
         members = {
             f.name: f.read_bytes()

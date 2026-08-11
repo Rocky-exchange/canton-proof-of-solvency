@@ -31,6 +31,7 @@
 
 pub mod anchors;
 pub mod args;
+pub mod assurance;
 pub mod coverage;
 pub mod diff;
 pub mod output;
