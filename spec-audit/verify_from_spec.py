@@ -350,6 +350,9 @@ def sums_equal(left: dict[str, int], right: dict[str, int]) -> bool:
 
 # §14.3 failure names, as the manifest declares them.
 PROFILE = "profile"
+SHORTFALL = "shortfall"
+ENTITY_ROOT_MISMATCH = "entity_root_mismatch"
+ENTITY_SUMS_MISMATCH = "entity_sums_mismatch"
 DIGEST_MISMATCH = "digest_mismatch"
 UNKNOWN_SIGNER = "unknown_signer"
 BAD_SIGNATURE = "bad_signature"
@@ -596,6 +599,134 @@ def verify_proof_v2(signed: dict, proof: dict, trusted_key_hex: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# §11 Coverage
+# --------------------------------------------------------------------------
+def verify_coverage(
+    custody: dict,
+    liabilities: dict,
+    statement: dict,
+    custody_key_hex: str,
+    liabilities_key_hex: str,
+) -> None:
+    """§11.2's five steps, in order.
+
+    Step 4 is the one worth naming: both signatures verify against
+    caller-supplied trusted keys, which may differ, since a custodian and a
+    venue are often different institutions. The TypeScript implementation
+    omitted this step entirely and no case noticed — the specification was
+    right and the code was not.
+    """
+    if statement["format_version"] != "canton-solvency-coverage-v1":
+        raise Rejected(f"statement format {statement['format_version']}")
+    if custody["report"]["profile"] != "coverage.custody":
+        raise Rejected(PROFILE)
+    if liabilities["report"]["profile"] != "solvency.liabilities":
+        raise Rejected(PROFILE)
+
+    for signed, expected in (
+        (custody, statement["custody_report_digest"]),
+        (liabilities, statement["liabilities_report_digest"]),
+    ):
+        if report_digest(signed["report"]).hex() != expected:
+            raise Rejected(DIGEST_MISMATCH)
+
+    for signed, key in ((custody, custody_key_hex), (liabilities, liabilities_key_hex)):
+        if signed["signature"]["public_key"].lower() != key.lower():
+            raise Rejected(UNKNOWN_SIGNER)
+        if not ed25519_verify(
+            bytes.fromhex(key),
+            report_digest(signed["report"]),
+            bytes.fromhex(signed["signature"]["value"]),
+        ):
+            raise Rejected(BAD_SIGNATURE)
+
+    # Driven by what is owed: an asset owed and held nowhere is a shortfall,
+    # not an absent row.
+    held = parse_map(custody["report"]["root_sums"])
+    for asset, owed in parse_map(liabilities["report"]["root_sums"]).items():
+        if held.get(f"held/{asset}", 0) < owed:
+            raise Rejected(SHORTFALL)
+
+
+# --------------------------------------------------------------------------
+# §13 Hierarchical commitments
+# --------------------------------------------------------------------------
+ENTITY_DOMAIN = b"rocky-solvency-entity-v1"
+
+
+def entity_leaf_hash(entity_id: str, root_hash_hex: str, root_sums: dict[str, int]) -> bytes:
+    """§13.1, transcribed from the formula.
+
+    `entity_root_hash` enters as 32 raw bytes, not as the hex text the rest of
+    §8 transports — the formula says so explicitly, and it is the one place in
+    the format where a hash is hashed rather than its rendering.
+    """
+    return hashlib.sha256(
+        ENTITY_DOMAIN
+        + lp(entity_id)
+        + bytes.fromhex(root_hash_hex)
+        + lpmap(root_sums)
+    ).digest()
+
+
+def verify_membership(group_signed: dict, membership: dict, trusted_key_hex: str) -> None:
+    """§13.3: §9.1 with the §13.1 leaf in place of a customer leaf."""
+    report = group_signed["report"]
+    signature = group_signed["signature"]
+
+    if membership["format_version"] != "canton-solvency-group-membership-v1":
+        raise Rejected(f"membership format {membership['format_version']}")
+    # §13.2: a group report states a different thing and must not be mistaken
+    # for a customer-level one.
+    if report["profile"] != "solvency.group":
+        raise Rejected(PROFILE)
+    check_profile(report)
+
+    digest = report_digest(report)
+    if digest.hex() != membership["group_report_digest"]:
+        raise Rejected(DIGEST_MISMATCH)
+    if signature["public_key"].lower() != trusted_key_hex.lower():
+        raise Rejected(UNKNOWN_SIGNER)
+    if not ed25519_verify(
+        bytes.fromhex(trusted_key_hex), digest, bytes.fromhex(signature["value"])
+    ):
+        raise Rejected(BAD_SIGNATURE)
+
+    entity = membership["entity"]
+    sums = parse_map(entity["root_sums"])
+    node = (entity_leaf_hash(entity["entity_id"], entity["root_hash"], sums), sums)
+    for step in membership["steps"]:
+        sibling = (bytes.fromhex(step["sibling_hash"]), parse_map(step["sibling_sums"]))
+        left, right = (sibling, node) if step["sibling_on_left"] else (node, sibling)
+        total = add_sums(left[1], right[1])
+        node = (node_hash(left[0], right[0], total), total)
+
+    if node[0].hex() != report["root_hash"]:
+        raise Rejected(ROOT_HASH_MISMATCH)
+    if not sums_equal(node[1], parse_map(report["root_sums"])):
+        raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+def verify_group_chain(
+    group_signed: dict,
+    membership: dict,
+    entity_signed: dict,
+    proof: dict,
+    trusted_key_hex: str,
+) -> None:
+    """§13.4: all three hold, and step 3 is not optional."""
+    verify_proof(entity_signed, proof, trusted_key_hex)
+    verify_membership(group_signed, membership, trusted_key_hex)
+
+    entity = membership["entity"]
+    entity_report = entity_signed["report"]
+    if entity["root_hash"] != entity_report["root_hash"]:
+        raise Rejected(ENTITY_ROOT_MISMATCH)
+    if not sums_equal(parse_map(entity["root_sums"]), parse_map(entity_report["root_sums"])):
+        raise Rejected(ENTITY_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
 # §12 Anchor chains
 # --------------------------------------------------------------------------
 ANCHOR_DOMAIN = b"rocky-solvency-anchor-v1"
@@ -767,7 +898,7 @@ def check_golden_vectors(log) -> list[str]:
 # before the corpus carried `requires`, this file *passed*
 # `report-v2-manifest-lies` by rejecting a format version it had never
 # implemented, so a case meant to test the manifest tested nothing.
-SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1", "leaf-v2", "proof-v2"}
+SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1", "leaf-v2", "proof-v2", "group-v1", "coverage-v1"}
 
 
 def run_case(directory: Path, kind: str, key: str) -> None:
@@ -785,6 +916,28 @@ def run_case(directory: Path, kind: str, key: str) -> None:
     elif kind == "proof-v2":
         verify_proof_v2(
             json.loads((directory / "report.json").read_text()),
+            json.loads((directory / "proof.json").read_text()),
+            key,
+        )
+    elif kind == "coverage":
+        verify_coverage(
+            json.loads((directory / "custody.json").read_text()),
+            json.loads((directory / "liabilities.json").read_text()),
+            json.loads((directory / "statement.json").read_text()),
+            key,
+            key,
+        )
+    elif kind == "membership":
+        verify_membership(
+            json.loads((directory / "group-report.json").read_text()),
+            json.loads((directory / "membership.json").read_text()),
+            key,
+        )
+    elif kind == "chain":
+        verify_group_chain(
+            json.loads((directory / "group-report.json").read_text()),
+            json.loads((directory / "membership.json").read_text()),
+            json.loads((directory / "entity-report.json").read_text()),
             json.loads((directory / "proof.json").read_text()),
             key,
         )

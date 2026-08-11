@@ -27,9 +27,20 @@ the same bytes.
 
 ## What it found
 
-Later additions — §12 anchor chains, §9.2 v2 proofs, §14 profile rules — took
-it from three features to six and from seventeen corpus cases to thirty-one,
-and found two more defects on the way:
+Later additions took it from three features to eight and from seventeen corpus
+cases to forty of forty-five. §9.2, §11, §12, §13 and §14 are all transcribed
+from the text.
+
+Two of those five turned up defects; three transcribed cleanly on the first
+attempt, which is the more useful number to report. §13's entity leaf, its
+membership verification and the §13.4 chain all worked as written. So did
+§11's five verification steps — and step 4 there says plainly that both
+signatures verify against caller-supplied trusted keys, which the TypeScript
+implementation had been omitting. The specification was right and the code was
+not, which is the opposite of the §12 finding and worth saying, because an
+audit that only ever blames the document is not auditing.
+
+The two that did not:
 
 **SPEC §12's anchor digest formula was missing `publisher_key`.** The
 key-distribution change added the field to the anchor, to its digest in both
