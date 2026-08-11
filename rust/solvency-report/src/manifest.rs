@@ -53,6 +53,27 @@ pub const REPORT_RESIDENT_FIELDS: &[&str] = &[
     "disclosures.excluded_house_totals",
 ];
 
+/// Whether the report actually publishes data for a resident field.
+///
+/// One definition, used by both the §8.5 consistency check and §16's
+/// establishment of `not-disclosed`. Two copies of this rule would be two
+/// chances for a field to count as withheld in one place and published in the
+/// other, which is precisely the disagreement an assurance level exists to
+/// rule out.
+///
+/// A path outside [`REPORT_RESIDENT_FIELDS`] returns `false`: nothing in the
+/// body carries it, so the body publishes nothing for it.
+pub fn carries_data(report: &crate::document::Report, path: &str) -> bool {
+    match path {
+        "root_sums" => !report.root_sums.is_empty(),
+        "mark_prices" => !report.mark_prices.is_empty(),
+        "disclosures.bad_debt" => !report.disclosures.bad_debt.is_empty(),
+        "disclosures.excluded_house_accounts" => report.disclosures.excluded_house_accounts > 0,
+        "disclosures.excluded_house_totals" => !report.disclosures.excluded_house_totals.is_empty(),
+        _ => false,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {

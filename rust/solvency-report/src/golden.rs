@@ -158,6 +158,43 @@ pub fn fixture_v2() -> (SignedReport, ProofDocument) {
     (published.signed_report, proof)
 }
 
+/// A v2 report that genuinely withholds a field: no mark prices, and a
+/// manifest saying so.
+///
+/// The ordinary v2 fixture declares every resident field published, which
+/// means the withheld branch of assurance establishment is never reached by
+/// it — a gap that survived mutation testing until this existed.
+pub fn withheld_fixture() -> (SignedReport, ProofDocument) {
+    use crate::manifest::{Disclosure, Manifest};
+    let manifest = Manifest {
+        audience: "public".to_string(),
+        fields: [
+            ("root_sums", Disclosure::Published),
+            ("mark_prices", Disclosure::Withheld),
+            ("disclosures.bad_debt", Disclosure::Published),
+            ("disclosures.excluded_house_accounts", Disclosure::Published),
+            ("disclosures.excluded_house_totals", Disclosure::Published),
+            ("customer_balances", Disclosure::Committed),
+            ("customer_identities", Disclosure::Withheld),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect(),
+    };
+    let published = publish(
+        &leaves(),
+        &ReportMetadata {
+            manifest: Some(manifest),
+            mark_prices: Default::default(),
+            ..metadata()
+        },
+        &signer(),
+    )
+    .unwrap();
+    let proof = published.proofs[1].clone();
+    (published.signed_report, proof)
+}
+
 /// The SPEC §3.1 repo fixture: three legs under leaf v2, each collateralised
 /// above its exposure.
 pub fn repo_fixture() -> (SignedReport, crate::document::ProofDocumentV2) {

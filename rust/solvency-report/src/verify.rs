@@ -48,6 +48,14 @@ pub enum VerificationFailure {
         path: String,
         detail: String,
     },
+    /// An assurance statement declares evidence the verifier could not
+    /// substantiate (SPEC §16.4) — the report claims to rest on more than it
+    /// does.
+    OverClaimed {
+        field: String,
+        declared: crate::assurance::AssuranceLevel,
+        established: Vec<crate::assurance::AssuranceLevel>,
+    },
     Malformed(String),
 }
 
@@ -81,6 +89,25 @@ impl std::fmt::Display for VerificationFailure {
                 write!(
                     f,
                     "manifest disagrees with the report about {path}: {detail}"
+                )
+            }
+            Self::OverClaimed {
+                field,
+                declared,
+                established,
+            } => {
+                let supported = if established.is_empty() {
+                    "nothing".to_string()
+                } else {
+                    established
+                        .iter()
+                        .map(|l| l.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
+                write!(
+                    f,
+                    "{field} is declared {declared}, but the evidence supplied supports {supported}"
                 )
             }
             Self::Malformed(what) => write!(f, "malformed document: {what}"),
@@ -303,16 +330,7 @@ fn check_manifest_consistency(
             continue; // e.g. customer_balances: attested through the commitment
         }
 
-        let carries_data = match path.as_str() {
-            "root_sums" => !report.root_sums.is_empty(),
-            "mark_prices" => !report.mark_prices.is_empty(),
-            "disclosures.bad_debt" => !report.disclosures.bad_debt.is_empty(),
-            "disclosures.excluded_house_accounts" => report.disclosures.excluded_house_accounts > 0,
-            "disclosures.excluded_house_totals" => {
-                !report.disclosures.excluded_house_totals.is_empty()
-            }
-            _ => unreachable!("checked against REPORT_RESIDENT_FIELDS above"),
-        };
+        let carries_data = crate::manifest::carries_data(report, path);
 
         match state {
             Disclosure::Published if !carries_data => {

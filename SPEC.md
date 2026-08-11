@@ -1017,3 +1017,163 @@ Nor does a pack say a delivery is *sufficient*. A publisher may sign an index
 over a genuinely partial set. What the pack removes is the ability to reduce a
 delivery after the fact without leaving a record: the omission has to be
 declared and signed rather than simply performed.
+
+## 16. Assurance levels
+
+Every preceding section answers one question: does this document check out.
+That question has more than one answer, and until this section they were all
+spelled the same way.
+
+A liabilities total recomputed from committed leaves and a custody total the
+publisher merely signed both pass §9.1. Both are, against what §9.1 asks. But
+the first is checkable arithmetic over a set that customers police themselves —
+each can see their own leaf and will say so if it is short — and the second is
+an assertion about assets held somewhere else, arithmetic over a list the
+publisher wrote. A format that returns "verified" for both has told the reader
+something false about the second, in the strongest word it has.
+
+The gap is not cryptographic and cannot be closed cryptographically. §9.1
+establishes that a published total equals the sum of the leaves committed to.
+Whether those leaves describe anything real is outside what any commitment
+scheme can reach. A custody report over invented positions recomputes
+perfectly.
+
+So a report may carry a statement declaring, per field, what kind of evidence
+stands behind it, and a verifier establishes independently what it can
+actually substantiate. A declaration the verifier cannot substantiate is a
+verification failure. This is the whole mechanism: a taxonomy the publisher
+could assert into being would record the over-claim rather than prevent it.
+
+### 16.1 The levels
+
+| Level | Meaning |
+| --- | --- |
+| `not-disclosed` | Withheld under the §8.5 manifest. Not a weaker claim — no claim. |
+| `claimed-only` | The publisher signed for it; nothing else stands behind it. |
+| `issuer-attested` | The party that issued the asset signed for it. |
+| `third-party-attested` | A custodian, auditor or oracle signed for it — someone other than the publisher and other than the issuer. |
+| `ledger-derived` | Evidenced by an anchor (§12) pinning this report to named ledger state at a named offset. |
+| `cryptographically-verified` | The verifier recomputed it from the commitments (§9.1). |
+
+`cryptographically-verified` MUST be read as the narrow claim it is: the
+published figure equals the sum of the committed leaves. It does not establish
+that those leaves describe assets that exist. Implementations MUST NOT present
+it to a reader as though it did.
+
+These are not a total order, and this specification does not define one.
+Whether a custodian's signature outranks a derivation from ledger state
+depends on the asset: for a tokenised position the ledger *is* the asset; for
+a treasury bill it is a pointer to a claim someone else honours. Any single
+ranking would be wrong for one of them.
+
+Where an implementation orders them for display, `issuer-attested` MUST sort
+below `third-party-attested`. The issuer is the party whose solvency is in
+question, and self-attestation is the weaker of the two.
+
+### 16.2 The assurance statement
+
+```
+assurance = { format_version, report_digest, levels }
+levels    = { <field path>: <level> }
+```
+
+`format_version` is `canton-solvency-assurance-v1`. `report_digest` is the
+§8.2 digest of the report the statement describes; a statement naming a
+different report MUST be refused, or a statement earned by a well-attested
+report could be presented beside a later one that has none.
+
+Field paths are the §8.5 manifest's report-resident vocabulary — `root_sums`,
+`mark_prices`, `disclosures.bad_debt`, `disclosures.excluded_house_accounts`,
+`disclosures.excluded_house_totals` — and no others. A verifier MUST refuse a
+statement naming a path outside it. A level for a field nobody checks is
+decoration.
+
+A field may be omitted, which asserts nothing about it. Omission is honest;
+`claimed-only` is also honest. Neither is a failure.
+
+### 16.3 Attestations
+
+```
+attestation.json = { attestation, signature }
+attestation      = { format_version, report_digest, field, role, attestor, basis }
+```
+
+`format_version` is `canton-solvency-attestation-v1`. `role` is `issuer` or
+`third-party`. `attestor` names the signing party for display only — trust
+comes from the key. `basis` records how the attestor established the fact;
+it is signed but proven by nothing here, the same honest limitation
+`custody_basis` carries in §11.
+
+Attestation digest:
+
+```
+sha256( "rocky-solvency-attestation-v1"
+      ‖ lp(format_version) ‖ lp(report_digest) ‖ lp(field)
+      ‖ lp(role) ‖ lp(attestor) ‖ lp(basis) )
+```
+
+`lp` is as in §8.1. The domain string differs from §8.2's so an attestation
+signature can never be replayed as a report signature, and `field` is inside
+the preimage so an attestor who signed for one field has not signed for
+another.
+
+The signature is detached, over this digest, in the §8.3 block.
+
+### 16.4 Establishing and checking
+
+A verifier is given the signed report, a trusted publisher key, and whatever
+evidence accompanies the delivery: an inclusion proof, an anchor,
+attestations. It is also given, out of band, a map from **attestor key** to
+the role that key is trusted for. An attestation carrying its own key
+establishes nothing — the question is never whether a document is signed but
+whether it is signed by someone the reader decided to believe before opening
+it. This is §8.4 applied to attestors.
+
+In order:
+
+1. `format_version` is `canton-solvency-assurance-v1`.
+2. `report_digest` equals the §8.2 digest of the report supplied.
+3. The report's signature verifies under the caller-supplied trusted
+   publisher key (§9.1 steps 2–3). A statement about a report nobody vouched
+   for MUST NOT be graded.
+4. Every declared field path is in the §16.2 vocabulary.
+5. For each field, the verifier computes the **set** of levels it can
+   substantiate:
+   - `not-disclosed` iff the manifest marks the field withheld and the report
+     carries no data for it (§8.5).
+   - `claimed-only` for every field the report carries. Always available once
+     step 3 passed, and never worth more than it says.
+   - `cryptographically-verified` iff the field is `root_sums` and an
+     inclusion proof was supplied that verifies against this report under
+     §9.1. No other field is committed in the tree; `mark_prices` and the
+     `disclosures.*` fields enter the report digest and are therefore signed,
+     but nothing recomputes them.
+   - `ledger-derived` iff an anchor was supplied whose `format_version`,
+     `report_digest`, `root_hash`, `snapshot_time`, `ledger_offset` and
+     `publisher` all agree with this report. Partial agreement is not
+     evidence: the digest already covers the report, so a disagreement
+     elsewhere means one of the two documents was edited afterwards.
+   - `issuer-attested` / `third-party-attested` iff an attestation for that
+     exact field, bound to this report digest, verifies under a key the
+     caller trusts **for that role**. A key trusted as a custodian MUST NOT
+     establish `issuer-attested`.
+6. Each declared level MUST be a member of that field's established set. A
+   declaration outside it is a verification failure naming the field, the
+   level declared, and the levels that were established.
+
+A failure MUST name the field. "The report is invalid" leaves a reader unable
+to tell a forged document from a publisher who claimed one level too many on
+one line.
+
+### 16.5 What this does not do
+
+It does not make an attested figure true. A custodian can sign for reserves
+that are lent out, and this format will report `third-party-attested`
+faithfully. What it removes is the ability to present that figure in the same
+words as one the reader could have recomputed.
+
+Nor does it oblige anyone to publish a statement. A report without one is
+exactly as valid as it was before this section existed, and a reader is
+entitled to treat every figure in it as `claimed-only` — which is what the
+report was always saying, and what the format previously had no way to write
+down.
