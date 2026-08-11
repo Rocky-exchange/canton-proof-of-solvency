@@ -44,6 +44,17 @@ REPO = Path(__file__).resolve().parent.parent
 # --------------------------------------------------------------------------
 FINDINGS: list[tuple[str, str]] = [
     (
+        "FIXED — SPEC §12: the anchor digest formula omitted publisher_key",
+        "The key-distribution change added publisher_key to the anchor and to "
+        "its digest in both implementations and in the schema, and updated §8.4's "
+        "prose about it, but left §12's formula and JSON example untouched. An "
+        "implementer following §12 would hash six fields where the reference "
+        "hashes seven, and reject every valid chain while the schema rejected "
+        "their documents for missing a field the spec never mentioned. Found by "
+        "implementing §12 here from the text: anchors-intact failed. Both the "
+        "formula and the example now carry the field.",
+    ),
+    (
         "FIXED — SPEC §2: assets sort bytewise over UTF-8, and JS does not",
         "The specification said 'bytewise (ASCII) order', which reads as a "
         "non-issue until an asset name is not ASCII. JavaScript's default "
@@ -394,6 +405,58 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# §12 Anchor chains
+# --------------------------------------------------------------------------
+ANCHOR_DOMAIN = b"rocky-solvency-anchor-v1"
+
+
+def anchor_digest(anchor: dict) -> str:
+    """§12, transcribed from the formula in the specification text.
+
+    §12's formula omitted publisher_key when this was written, and so did the
+    JSON example beside it, while both implementations and the schema included
+    it. Following the text literally produced a verifier that rejected every
+    valid chain — `anchors-intact` failed. The spec is corrected; this is the
+    transcription of the corrected text.
+    """
+    out = (
+        ANCHOR_DOMAIN
+        + lp(anchor["format_version"])
+        + lp(anchor["report_digest"])
+        + lp(anchor["root_hash"])
+        + lp(anchor["snapshot_time"])
+        + lp(anchor["ledger_offset"])
+        + lp(anchor["publisher"])
+        + lp(anchor["publisher_key"])
+    )
+    # §12: a presence byte, not an empty string, so a genesis anchor and one
+    # naming an empty predecessor cannot hash alike.
+    prev = anchor.get("prev_anchor")
+    out += b"\x00" if prev is None else b"\x01" + lp(prev)
+    return hashlib.sha256(out).hexdigest()
+
+
+def verify_chain(history: list[dict]) -> None:
+    """§12.1, in order, failing on the first rule that does not hold."""
+    for index, anchor in enumerate(history):
+        if anchor["format_version"] != "canton-solvency-anchor-v1":
+            raise Rejected("unsupported_version")
+        if index == 0:
+            if anchor.get("prev_anchor") is not None:
+                raise Rejected("not_genesis")
+            continue
+        previous = history[index - 1]
+        if anchor.get("prev_anchor") != anchor_digest(previous):
+            raise Rejected("broken")
+        if anchor["publisher"] != previous["publisher"]:
+            raise Rejected("publisher_changed")
+        if anchor["snapshot_time"] <= previous["snapshot_time"]:
+            raise Rejected("went_backwards")
+        if anchor["ledger_offset"] < previous["ledger_offset"]:
+            raise Rejected("went_backwards")
+
+
+# --------------------------------------------------------------------------
 # §15 Evidence packs
 # --------------------------------------------------------------------------
 PACK_DOMAIN = b"rocky-solvency-pack-v1"
@@ -513,7 +576,7 @@ def check_golden_vectors(log) -> list[str]:
 # before the corpus carried `requires`, this file *passed*
 # `report-v2-manifest-lies` by rejecting a format version it had never
 # implemented, so a case meant to test the manifest tested nothing.
-SUPPORTED = {"report-v1", "proof-v1", "pack-v1"}
+SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1"}
 
 
 def run_case(directory: Path, kind: str, key: str) -> None:
@@ -528,6 +591,8 @@ def run_case(directory: Path, kind: str, key: str) -> None:
             json.loads((directory / "proof.json").read_text()),
             key,
         )
+    elif kind == "anchors":
+        verify_chain(json.loads((directory / "history.json").read_text()))
     elif kind == "pack":
         members = {
             f.name: f.read_bytes()

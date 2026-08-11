@@ -3,6 +3,7 @@
   "implementation": "spec-audit/verify_from_spec.py",
   "version": "1.1",
   "supports": [
+    "anchor-v1",
     "pack-v1",
     "proof-v1",
     "report-v1"
@@ -157,32 +158,32 @@
     {
       "id": "anchors-intact",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "anchors-suffix",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-publisher-changed",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-restated-instant",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-rewound-offset",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "anchors-broken-link",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "chain-valid",

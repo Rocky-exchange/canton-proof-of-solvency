@@ -561,6 +561,7 @@ does.
   "snapshot_time": "2026-01-01T00:00:00Z",
   "ledger_offset": "000000000000000042",
   "publisher": "golden::publisher",
+  "publisher_key": "<hex32>",
   "prev_anchor": "<hex32>"
 }
 ```
@@ -569,6 +570,7 @@ does.
 anchor_digest = SHA-256( "rocky-solvency-anchor-v1"
                        ‖ lp(format_version) ‖ lp(report_digest) ‖ lp(root_hash)
                        ‖ lp(snapshot_time)  ‖ lp(ledger_offset)  ‖ lp(publisher)
+                       ‖ lp(publisher_key)
                        ‖ ( 0x00 | 0x01 ‖ lp(prev_anchor) ) )
 ```
 
