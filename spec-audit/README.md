@@ -27,12 +27,18 @@ the same bytes.
 
 ## What it found
 
-Later additions took it from three features to eight and from seventeen corpus
-cases to forty of forty-five. §9.2, §11, §12, §13 and §14 are all transcribed
-from the text.
+It now runs **all forty-five corpus cases, skipping none**, and agrees with
+both reference implementations on every one. §3.1, §8.5, §9.2, §11, §12, §13
+and §14 are all transcribed from the specification text — the whole format, in
+one dependency-free file.
 
-Two of those five turned up defects; three transcribed cleanly on the first
-attempt, which is the more useful number to report. §13's entity leaf, its
+That is the claim this directory was built to test, and it is now a checked
+one rather than an aspiration: someone holding SPEC.md and nothing else
+arrives at the same answers on every case the corpus contains, including the
+ones only added because a rule was found untested.
+
+Two of the seven sections turned up defects; five transcribed cleanly on the
+first attempt, which is the more useful number to report. §13's entity leaf, its
 membership verification and the §13.4 chain all worked as written. So did
 §11's five verification steps — and step 4 there says plainly that both
 signatures verify against caller-supplied trusted keys, which the TypeScript

@@ -313,11 +313,12 @@ def lpmap(m: dict[str, int]) -> bytes:
 REPORT_DOMAIN = b"rocky-solvency-report-v1"
 
 
-def report_digest(report: dict) -> bytes:
-    """§8.2. Note lp(root_hash) is over the hex *string* — see FINDINGS."""
+def _report_preimage(domain: bytes, report: dict) -> bytes:
+    """The §8.2 field sequence, shared so §8.5 can say "every §8.2 field,
+    identical order and encoding" and mean it literally."""
     disclosures = report.get("disclosures") or {}
-    return hashlib.sha256(
-        REPORT_DOMAIN
+    return (
+        domain
         + lp(report["format_version"])
         + lp(report["profile"])
         + lp(report["publisher"])
@@ -330,7 +331,15 @@ def report_digest(report: dict) -> bytes:
         + lpmap(parse_map(disclosures.get("bad_debt")))
         + u64le(disclosures.get("excluded_house_accounts", 0))
         + lpmap(parse_map(disclosures.get("excluded_house_totals")))
-    ).digest()
+    )
+
+
+def report_digest(report: dict) -> bytes:
+    """§8.2 for a v1 report, §8.5 for a v2 one — the version selects the
+    domain string, so a v2 signature cannot be replayed as a v1 one."""
+    if report["format_version"] == "canton-solvency-report-v2":
+        return report_digest_v2(report)
+    return hashlib.sha256(_report_preimage(REPORT_DOMAIN, report)).digest()
 
 
 # --------------------------------------------------------------------------
@@ -351,6 +360,8 @@ def sums_equal(left: dict[str, int], right: dict[str, int]) -> bool:
 # §14.3 failure names, as the manifest declares them.
 PROFILE = "profile"
 SHORTFALL = "shortfall"
+MANIFEST_PRESENCE = "manifest_presence"
+MANIFEST_INCONSISTENT = "manifest_inconsistent"
 ENTITY_ROOT_MISMATCH = "entity_root_mismatch"
 ENTITY_SUMS_MISMATCH = "entity_sums_mismatch"
 DIGEST_MISMATCH = "digest_mismatch"
@@ -366,8 +377,12 @@ def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
     signature = signed["signature"]
 
     # 1. recognised versions
-    if report["format_version"] != "canton-solvency-report-v1":
+    if report["format_version"] not in (
+        "canton-solvency-report-v1",
+        "canton-solvency-report-v2",
+    ):
         raise Rejected(f"report format {report['format_version']}")
+    check_manifest(report)
     if proof["format_version"] != "canton-solvency-proof-v1":
         raise Rejected(f"proof format {proof['format_version']}")
     if signature["algorithm"] != "ed25519":
@@ -596,6 +611,81 @@ def verify_proof_v2(signed: dict, proof: dict, trusted_key_hex: str) -> None:
         raise Rejected(ROOT_HASH_MISMATCH)
     if not sums_equal(node[1], parse_map(report["root_sums"])):
         raise Rejected(ROOT_SUMS_MISMATCH)
+
+
+# --------------------------------------------------------------------------
+# §8.5 Disclosure manifest (format v2)
+# --------------------------------------------------------------------------
+REPORT_DOMAIN_V2 = b"rocky-solvency-report-v2"
+
+# §8.5: an unrecognised key is an error rather than something to ignore, so a
+# producer cannot bury a field the verifier has no opinion about.
+MANIFEST_FIELDS = [
+    "root_sums",
+    "mark_prices",
+    "disclosures.bad_debt",
+    "disclosures.excluded_house_accounts",
+    "disclosures.excluded_house_totals",
+    "customer_balances",
+    "customer_identities",
+]
+# Which of those live in the report body, and so can be checked for
+# consistency. The rest are attested through the commitment.
+BODY_FIELDS = MANIFEST_FIELDS[:5]
+
+
+def report_digest_v2(report: dict) -> bytes:
+    """§8.5: every §8.2 field in the same order and encoding, then the manifest.
+
+    Its own domain string, so the same fields cannot digest identically under
+    both versions and a v2 signature cannot be replayed as a v1 one.
+    """
+    manifest = report["manifest"]
+    fields = manifest["fields"]
+    out = _report_preimage(REPORT_DOMAIN_V2, report) + lp(manifest["audience"])
+    out += u64le(len(fields))
+    for path in sorted(fields, key=lambda p: p.encode()):
+        out += lp(path) + lp(fields[path])
+    return hashlib.sha256(out).digest()
+
+
+def carries_data(report: dict, path: str) -> bool:
+    """Whether the report body actually carries the field."""
+    disclosures = report.get("disclosures") or {}
+    if path == "root_sums":
+        return bool(report.get("root_sums"))
+    if path == "mark_prices":
+        return bool(report.get("mark_prices"))
+    if path == "disclosures.bad_debt":
+        return bool(disclosures.get("bad_debt"))
+    if path == "disclosures.excluded_house_accounts":
+        return int(disclosures.get("excluded_house_accounts", 0)) > 0
+    if path == "disclosures.excluded_house_totals":
+        return bool(disclosures.get("excluded_house_totals"))
+    return False
+
+
+def check_manifest(report: dict) -> None:
+    """§8.5's version and consistency rules."""
+    version = report["format_version"]
+    manifest = report.get("manifest")
+    if version == "canton-solvency-report-v1" and manifest is not None:
+        raise Rejected(MANIFEST_PRESENCE)
+    if version == "canton-solvency-report-v2" and manifest is None:
+        raise Rejected(MANIFEST_PRESENCE)
+    if manifest is None:
+        return
+
+    for path, state in manifest["fields"].items():
+        if path not in MANIFEST_FIELDS:
+            raise Rejected(MANIFEST_INCONSISTENT)
+        if path not in BODY_FIELDS:
+            continue
+        has = carries_data(report, path)
+        if state == "published" and not has:
+            raise Rejected(MANIFEST_INCONSISTENT)
+        if state in ("committed", "withheld") and has:
+            raise Rejected(MANIFEST_INCONSISTENT)
 
 
 # --------------------------------------------------------------------------
@@ -898,7 +988,18 @@ def check_golden_vectors(log) -> list[str]:
 # before the corpus carried `requires`, this file *passed*
 # `report-v2-manifest-lies` by rejecting a format version it had never
 # implemented, so a case meant to test the manifest tested nothing.
-SUPPORTED = {"report-v1", "proof-v1", "pack-v1", "anchor-v1", "leaf-v2", "proof-v2", "group-v1", "coverage-v1"}
+SUPPORTED = {
+    "report-v1",
+    "report-v2",
+    "manifest",
+    "proof-v1",
+    "pack-v1",
+    "anchor-v1",
+    "leaf-v2",
+    "proof-v2",
+    "group-v1",
+    "coverage-v1",
+}
 
 
 def run_case(directory: Path, kind: str, key: str) -> None:

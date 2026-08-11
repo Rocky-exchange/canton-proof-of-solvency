@@ -7,10 +7,12 @@
     "coverage-v1",
     "group-v1",
     "leaf-v2",
+    "manifest",
     "pack-v1",
     "proof-v1",
     "proof-v2",
-    "report-v1"
+    "report-v1",
+    "report-v2"
   ],
   "corpus_digest": "8f4124abe4535e4505b448e996267d3faaf7fe10bb8d13bc1187558033bdb612",
   "results": [
@@ -42,12 +44,12 @@
     {
       "id": "report-v2-valid",
       "expected": "accept",
-      "outcome": "skip"
+      "outcome": "accept"
     },
     {
       "id": "report-v2-manifest-lies",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "repo-valid",
@@ -97,17 +99,17 @@
     {
       "id": "report-v2-published-but-absent",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "report-v1-carrying-a-manifest",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "report-v2-without-a-manifest",
       "expected": "reject",
-      "outcome": "skip"
+      "outcome": "reject"
     },
     {
       "id": "dvp-valid",
