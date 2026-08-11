@@ -256,7 +256,14 @@ fn every_verification_entry_point_is_panic_free_on_structurally_wrong_input() {
     blanked.custody_report_digest = String::new();
     blanked.liabilities_report_digest = String::new();
     survives("coverage: both binding digests blanked", || {
-        let _ = coverage::verify_coverage(&custody, &liabilities, &blanked, &key, &key);
+        let _ = coverage::verify_coverage(
+            &custody,
+            &liabilities,
+            &blanked,
+            &key,
+            &key,
+            coverage::SAME_RUN,
+        );
     });
 
     survives("anchors: empty history", || {

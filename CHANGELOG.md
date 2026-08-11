@@ -20,6 +20,18 @@ as a format version, never as a fix.
 - `canton-solvency-verify assurance`, and eight conformance cases. All three
   implementations run 53 of 53 over the same corpus digest.
 
+### Fixed
+
+- **Coverage paired reports from any two moments.** Custody as of August
+  against liabilities as of May passed every rule in §11 and reported "fully
+  covered". Binding the two by digest stops a report being *substituted*; it
+  does not touch a pairing the publisher deliberately signed, and assets at
+  their peak against liabilities at their trough is the oldest manipulation in
+  proof-of-reserves. `verify_coverage` now takes a tolerance — the caller's,
+  never the publisher's — and refuses anything beyond it.
+- Canton runtime logs were tracked in git, so any local `daml start` left the
+  working tree dirty and blocked branch switches.
+
 ### Changed
 
 - **`ledger-derived` now requires an anchor *and* a provenance graph.** An

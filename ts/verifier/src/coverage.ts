@@ -15,7 +15,7 @@
 
 import { anchorDigestHex, type Anchor } from "./anchor";
 import { reportDigestHex, verifyEd25519, type Report, type SignedReport } from "./report";
-import { keysOf, parseAmount18dp } from "./verify";
+import { instantSkew, keysOf, parseAmount18dp } from "./verify";
 
 export type CoverageStatement = {
   format_version: string;
@@ -31,11 +31,16 @@ export type CoverageFailure =
   | { kind: "unknown_signer" }
   | { kind: "bad_signature" }
   | { kind: "shortfall"; asset: string }
+  | { kind: "temporal_mismatch"; detail: string }
   | { kind: "malformed"; detail: string };
 
 export type CoverageResult = { ok: true } | { ok: false; failure: CoverageFailure };
 
 const fail = (failure: CoverageFailure): CoverageResult => ({ ok: false, failure });
+
+/** §18.4 tolerances, mirroring the Rust constants. */
+export const EXACT = 0;
+export const SAME_RUN = 300;
 
 async function checkSignature(
   signed: SignedReport,
@@ -62,7 +67,13 @@ export async function verifyCoverage(
   liabilities: SignedReport,
   statement: CoverageStatement,
   custodyTrustedKeyHex: string,
-  liabilitiesTrustedKeyHex: string
+  liabilitiesTrustedKeyHex: string,
+  /**
+   * §18.4. How far apart the two sides may be and still be one claim, in
+   * seconds. Supplied by the caller, never by the publisher — a publisher
+   * declaring its own tolerance would declare whatever pairing it wanted.
+   */
+  maxSkewSeconds: number = SAME_RUN
 ): Promise<CoverageResult> {
   try {
     if (statement.format_version !== "canton-solvency-coverage-v1") {
@@ -100,6 +111,29 @@ export async function verifyCoverage(
     ] as const) {
       const failure = await checkSignature(signed, key);
       if (failure) return fail(failure);
+    }
+
+    // Assets at their peak against liabilities at their trough. Binding the
+    // two by digest stops substitution and does not touch this: the publisher
+    // signed the statement that pairs them.
+    const skew = instantSkew(
+      custody.report.snapshot_time,
+      liabilities.report.snapshot_time
+    );
+    if (skew === undefined) {
+      return fail({
+        kind: "malformed",
+        detail: "a snapshot_time is not a §18.1 timestamp",
+      });
+    }
+    if (skew > maxSkewSeconds) {
+      return fail({
+        kind: "temporal_mismatch",
+        detail:
+          `custody is as of ${custody.report.snapshot_time} and liabilities as of ` +
+          `${liabilities.report.snapshot_time}, ${skew}s apart, beyond the ` +
+          `${maxSkewSeconds}s the caller allows`,
+      });
     }
 
     for (const asset of keysOf(liabilities.report.root_sums)) {

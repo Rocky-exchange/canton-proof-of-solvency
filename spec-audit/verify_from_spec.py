@@ -26,7 +26,9 @@ Usage:
 
 from __future__ import annotations
 
+import datetime
 import hashlib
+import re
 import hmac
 import json
 import sys
@@ -385,6 +387,7 @@ ROOT_SUMS_MISMATCH = "root_sums_mismatch"
 OVER_CLAIMED = "over_claimed"
 UNKNOWN_FIELD = "unknown_field"
 PROVENANCE_INCONSISTENT = "provenance_inconsistent"
+TEMPORAL_MISMATCH = "temporal_mismatch"
 
 
 def verify_proof(signed: dict, proof: dict, trusted_key_hex: str) -> None:
@@ -707,14 +710,55 @@ def check_manifest(report: dict) -> None:
 # --------------------------------------------------------------------------
 # §11 Coverage
 # --------------------------------------------------------------------------
+
+# --- §18.1: the timestamp profile --------------------------------------------
+
+INSTANT_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$")
+
+# §18.4 tolerances. The caller's, never the publisher's.
+EXACT = 0
+SAME_RUN = 300
+
+
+def parse_instant(text) -> int | None:
+    """§18.1: exactly YYYY-MM-DDTHH:MM:SS[.fff]Z, as epoch seconds.
+
+    Deliberately narrower than RFC 3339. Offsets, lower-case z and +00:00 all
+    denote the same instants and compare unequal as strings, so admitting them
+    would mean two spellings of one moment disagree.
+    """
+    if not isinstance(text, str):
+        return None
+    m = INSTANT_RE.match(text)
+    if not m:
+        return None
+    year, month, day, hour, minute, second = (int(m.group(i)) for i in range(1, 7))
+    if hour > 23 or minute > 59 or second > 59:
+        return None
+    try:
+        stamp = datetime.datetime(
+            year, month, day, hour, minute, second, tzinfo=datetime.timezone.utc
+        )
+    except ValueError:
+        return None
+    return int(stamp.timestamp())
+
+
+def instant_skew(a, b) -> int | None:
+    x, y = parse_instant(a), parse_instant(b)
+    return None if x is None or y is None else abs(x - y)
+
+
+
 def verify_coverage(
     custody: dict,
     liabilities: dict,
     statement: dict,
     custody_key_hex: str,
     liabilities_key_hex: str,
+    max_skew_seconds: int = SAME_RUN,
 ) -> None:
-    """§11.2's five steps, in order.
+    """§11.2's five steps, in order, plus §18.4's comparability check.
 
     Step 4 is the one worth naming: both signatures verify against
     caller-supplied trusted keys, which may differ, since a custodian and a
@@ -749,6 +793,17 @@ def verify_coverage(
     # Driven by what is owed: an asset owed and held nowhere is a shortfall,
     # not an absent row.
     held = parse_map(custody["report"]["root_sums"])
+    # Assets at their peak against liabilities at their trough. The digest
+    # binding stops substitution and does not touch this: the publisher signed
+    # the statement that pairs the two.
+    skew = instant_skew(
+        custody["report"]["snapshot_time"], liabilities["report"]["snapshot_time"]
+    )
+    if skew is None:
+        raise Rejected("a snapshot_time is not a §18.1 timestamp")
+    if skew > max_skew_seconds:
+        raise Rejected(TEMPORAL_MISMATCH)
+
     for asset, owed in parse_map(liabilities["report"]["root_sums"]).items():
         if held.get(f"held/{asset}", 0) < owed:
             raise Rejected(SHORTFALL)
@@ -997,6 +1052,7 @@ def check_golden_vectors(log) -> list[str]:
     except Rejected as e:
         failures.append(f"golden proof rejected: {e}")
     return failures
+
 
 
 

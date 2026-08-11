@@ -18,7 +18,7 @@ USAGE:
                                 --key <hex64> [--group-key <hex64>] [--json]
   canton-solvency-verify coverage --custody <path> --liabilities <path>
                                 --statement <path> --key <hex64>
-                                [--custody-key <hex64>] [--json]
+                                [--custody-key <hex64>] [--max-skew <seconds>] [--json]
   canton-solvency-verify assurance --report <path> --assurance <path> --key <hex64>
                                 [--proof <path>] [--anchor <path>]
                                 [--attestations <path>] [--attestor <hex64>:<role>]
@@ -36,6 +36,11 @@ The trusted key is required. A report checked against the key embedded in
 itself proves only internal consistency, never who published it. The same
 applies to attestors: --attestor names a key you decided to believe before
 opening the document, and a role (issuer or third-party) it is believed for.
+
+--max-skew is how far apart the two sides of a coverage claim may be and still
+be one claim (default 300s). Assets at their peak against liabilities at their
+trough is the oldest manipulation there is, and binding the two by digest does
+not touch it — the publisher signed the statement pairing them.
 
 `assurance` checks a publisher's declared evidence levels against what the
 evidence you supplied actually establishes (SPEC §16). Withholding the proof
@@ -105,6 +110,8 @@ pub enum Command {
         statement: PathBuf,
         trusted_key: String,
         custody_key: String,
+        /// §18.4. The caller's tolerance, never the publisher's.
+        max_skew_seconds: u64,
         json: bool,
     },
     /// Declared assurance levels against what the evidence establishes (§16).
@@ -208,7 +215,7 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
             | "--membership" | "--membership-dir" | "--group-key" | "--previous" | "--current"
             | "--custody" | "--liabilities" | "--statement" | "--custody-key" | "--chain"
             | "--leaves" | "--pack-dir" | "--assurance" | "--anchor" | "--attestations"
-            | "--attestor" | "--provenance" => {
+            | "--attestor" | "--provenance" | "--max-skew" => {
                 let value = args
                     .next()
                     .ok_or_else(|| anyhow::anyhow!("{flag} needs a value"))?;
@@ -261,6 +268,12 @@ pub fn parse<I: IntoIterator<Item = String>>(argv: I) -> Result<Command> {
                 statement: required_path("--statement")?,
                 trusted_key,
                 custody_key,
+                max_skew_seconds: match flags.get("--max-skew") {
+                    Some(raw) => raw.parse::<u64>().map_err(|_| {
+                        anyhow::anyhow!("--max-skew wants whole seconds, got {raw:?}")
+                    })?,
+                    None => canton_solvency_report::coverage::SAME_RUN,
+                },
                 json,
             })
         }
@@ -613,6 +626,7 @@ mod tests {
                 statement: PathBuf::from("s.json"),
                 trusted_key: KEY.to_string(),
                 custody_key: KEY.to_string(),
+                max_skew_seconds: canton_solvency_report::coverage::SAME_RUN,
                 json: false,
             }
         );

@@ -291,3 +291,34 @@ export async function verifyProof(
   }
   return nodesEqual(current, root);
 }
+
+/**
+ * The §18.1 timestamp profile: exactly `YYYY-MM-DDTHH:MM:SS[.fff…]Z`.
+ *
+ * Not `Date.parse`, which accepts far more than the profile (offsets, missing
+ * `Z`, two-digit years in some engines) and returns NaN for others without
+ * saying which. Two spellings of one instant must not compare unequal, and one
+ * spelling must not compare equal to a different instant.
+ */
+export function parseInstant(text: unknown): number | undefined {
+  if (typeof text !== "string") return undefined;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?Z$/.exec(text);
+  if (!m) return undefined;
+  const [y, mo, d, h, mi, s] = m.slice(1, 7).map(Number);
+  if (mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) return undefined;
+  const epoch = Date.UTC(y, mo - 1, d, h, mi, s) / 1000;
+  // Date.UTC rolls 2026-02-30 into March rather than refusing it, so the
+  // round-trip is what actually rejects an impossible day.
+  const back = new Date(epoch * 1000);
+  if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) {
+    return undefined;
+  }
+  return epoch;
+}
+
+/** Absolute difference in seconds, or undefined if either side is outside the profile. */
+export function instantSkew(a: unknown, b: unknown): number | undefined {
+  const x = parseInstant(a);
+  const y = parseInstant(b);
+  return x === undefined || y === undefined ? undefined : Math.abs(x - y);
+}

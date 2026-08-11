@@ -62,6 +62,11 @@ pub enum VerificationFailure {
         field: String,
         detail: String,
     },
+    /// Two documents presented as one claim are as of different moments
+    /// (SPEC §18.4).
+    TemporalMismatch {
+        detail: String,
+    },
     Malformed(String),
 }
 
@@ -123,6 +128,7 @@ impl std::fmt::Display for VerificationFailure {
                     write!(f, "provenance graph, {field}: {detail}")
                 }
             }
+            Self::TemporalMismatch { detail } => write!(f, "{detail}"),
             Self::Malformed(what) => write!(f, "malformed document: {what}"),
         }
     }

@@ -179,7 +179,17 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
             let liabilities: crate::document::SignedReport = load(&dir.join("liabilities.json"))?;
             let statement: crate::coverage::CoverageStatement = load(&dir.join("statement.json"))?;
             let outcome =
-                crate::coverage::verify_coverage(&custody, &liabilities, &statement, key, key)
+                // The corpus fixes the tolerance so a case cannot pass in one
+                // implementation and fail in another over a default nobody
+                // wrote down.
+                crate::coverage::verify_coverage(
+                    &custody,
+                    &liabilities,
+                    &statement,
+                    key,
+                    key,
+                    crate::coverage::SAME_RUN,
+                )
                     .map_err(|e| e.to_string())?;
             if outcome.fully_covered() {
                 Ok(())

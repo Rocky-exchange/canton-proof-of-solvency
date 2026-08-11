@@ -733,6 +733,24 @@
       ]
     },
     {
+      "description": "custody and liabilities three months apart, presented as one solvency claim",
+      "expect": "reject",
+      "failure": "temporal_mismatch",
+      "files": [
+        "custody.json",
+        "liabilities.json",
+        "statement.json"
+      ],
+      "id": "coverage-stale-pairing",
+      "kind": "coverage",
+      "requires": [
+        "report-v1",
+        "report-v2",
+        "coverage-v1",
+        "leaf-v2"
+      ]
+    },
+    {
       "description": "a signed graph naming participants, a template and a price vendor",
       "expect": "accept",
       "failure": null,

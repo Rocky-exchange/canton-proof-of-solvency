@@ -779,7 +779,7 @@ Turns one implementation into something the network can rely on.
 
 **Deliverables**
 
-- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §25.3. 60 cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings, anchor chains, evidence packs and assurance levels, each with an expected outcome and a declared feature set. All three implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces. All three run **every** case: the Python verifier written from SPEC.md alone covers the whole format and agrees with both reference implementations on all of them, which is the strongest evidence available that the document is sufficient to implement from.
+- ~~**Conformance suite**~~ — **delivered**, [`conformance/`](conformance) and [SPEC.md](SPEC.md) §25.3. 61 cases covering proofs, v2 reports and manifests, leaf-v2 profiles, group memberships, coverage pairings, anchor chains, evidence packs and assurance levels, each with an expected outcome and a declared feature set. All three implementations run it, so it pins the *decisions* the format requires rather than only the bytes it produces. All three run **every** case: the Python verifier written from SPEC.md alone covers the whole format and agrees with both reference implementations on all of them, which is the strongest evidence available that the document is sufficient to implement from.
 - **Two independent Canton integrations** — at least one producer other than
   Rocky publishing conforming reports, ideally on a different profile, with
   interop shown in both directions: their reports verify under this toolkit,

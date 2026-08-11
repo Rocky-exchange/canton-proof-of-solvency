@@ -7,3 +7,9 @@ target/package/
 
 # esbuild scratch for the compatibility-statement emitter
 ts/verifier/src/.corpus.bundle.mjs
+
+# Canton runtime logs. These were tracked, so any local `daml start` left the
+# working tree dirty and blocked branch switches, and every run rewrote files
+# nobody reads in review.
+daml/solvency-anchor/log/
+daml/**/.daml/

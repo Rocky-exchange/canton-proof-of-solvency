@@ -18,6 +18,7 @@ pub fn run_coverage(command: &Command) -> Result<CoverageOutcome> {
         statement,
         trusted_key,
         custody_key,
+        max_skew_seconds,
         ..
     } = command
     else {
@@ -34,6 +35,7 @@ pub fn run_coverage(command: &Command) -> Result<CoverageOutcome> {
         &statement_doc,
         custody_key,
         trusted_key,
+        *max_skew_seconds,
     )
     .map_err(|e| anyhow::anyhow!("{e}"))
 }
@@ -57,6 +59,7 @@ mod tests {
             statement: dir.join("statement.json"),
             trusted_key: KEY.to_string(),
             custody_key: KEY.to_string(),
+            max_skew_seconds: canton_solvency_report::coverage::SAME_RUN,
             json: false,
         }
     }
