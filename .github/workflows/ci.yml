@@ -26,8 +26,22 @@ jobs:
           distribution: temurin
           java-version: "17"
       - name: Install the Daml SDK
+        # Not `curl https://get.daml.com | sh -s <version>`. That installer
+        # resolves the download through two unauthenticated api.github.com
+        # calls and offers no way to pass a token, so on a rate-limited runner
+        # the asset URL comes back empty and it fails with "basename: missing
+        # operand" and "curl: (2) no URL specified" — which reads like a broken
+        # version pin rather than a rate limit. The release asset has a stable
+        # address; fetch it directly.
         run: |
-          curl -sSL https://get.daml.com | sh -s 2.10.4
+          set -euo pipefail
+          version=2.10.4
+          curl -sSL --fail --retry 3 --retry-delay 5 \
+            -o /tmp/daml-sdk.tar.gz \
+            "https://github.com/digital-asset/daml/releases/download/v${version}/daml-sdk-${version}-linux.tar.gz"
+          mkdir -p /tmp/daml-sdk
+          tar xzf /tmp/daml-sdk.tar.gz -C /tmp/daml-sdk --strip-components=1
+          /tmp/daml-sdk/install.sh
           echo "$HOME/.daml/bin" >> "$GITHUB_PATH"
       - run: scripts/check.sh daml
 

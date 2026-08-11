@@ -194,3 +194,30 @@ fn every_relative_link_in_the_documentation_resolves() {
         broken.join("\n  ")
     );
 }
+
+/// The Daml SDK version in CI must match the one the package declares.
+///
+/// They are pinned in two files, and a mismatch does not fail loudly: CI
+/// installs one SDK and `daml build` asks for another, which surfaces as a
+/// download error rather than as "these two numbers disagree".
+#[test]
+fn the_daml_sdk_version_is_pinned_consistently() {
+    let workflow = read(".github/workflows/ci.yml");
+    let project = read("daml/solvency-anchor/daml.yaml");
+
+    let from_workflow = workflow
+        .split("version=")
+        .nth(1)
+        .and_then(|rest| rest.split_whitespace().next())
+        .expect("ci.yml pins a Daml SDK version");
+    let from_project = project
+        .lines()
+        .find_map(|line| line.strip_prefix("sdk-version:"))
+        .map(str::trim)
+        .expect("daml.yaml declares an sdk-version");
+
+    assert_eq!(
+        from_workflow, from_project,
+        "ci.yml installs Daml {from_workflow} and daml.yaml asks for {from_project}"
+    );
+}
