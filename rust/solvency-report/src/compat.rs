@@ -21,6 +21,7 @@ pub const CORPUS_DIGEST_DOMAIN: &[u8] = b"rocky-solvency-corpus-v1";
 /// Everything this implementation verifies.
 pub const SUPPORTED: &[&str] = &[
     "anchor-v1",
+    "assurance-v1",
     "coverage-v1",
     "group-v1",
     "leaf-v2",
@@ -188,6 +189,38 @@ pub fn run_case(dir: &Path, kind: &str, key: &str) -> Result<(), String> {
         "anchors" => {
             let history: Vec<crate::anchor::Anchor> = load(&dir.join("history.json"))?;
             crate::anchor::verify_chain(&history).map_err(|e| e.to_string())
+        }
+        "assurance" => {
+            let report: crate::document::SignedReport = load(&dir.join("report.json"))?;
+            let statement: crate::assurance::AssuranceStatement =
+                load(&dir.join("assurance.json"))?;
+
+            // Every accompanying document is optional. Absent evidence is not
+            // an error — it lowers what can be established, which is the
+            // distinction the whole section exists to draw.
+            let proof: Option<crate::document::ProofDocument> = load(&dir.join("proof.json")).ok();
+            let anchor: Option<crate::anchor::Anchor> = load(&dir.join("anchor.json")).ok();
+            let attestations: Vec<crate::assurance::SignedAttestation> =
+                load(&dir.join("attestations.json")).unwrap_or_default();
+
+            // Which attestor keys are trusted for which role is supplied out
+            // of band (§16.4). In a corpus case, "out of band" is a file the
+            // case carries rather than one of the documents under test.
+            let attestors: std::collections::BTreeMap<String, crate::assurance::AttestorRole> =
+                load(&dir.join("attestors.json")).unwrap_or_default();
+
+            let trusted = crate::assurance::TrustedKeys {
+                publisher: key.to_string(),
+                attestors,
+            };
+            let evidence = crate::assurance::Evidence {
+                proof: proof.as_ref(),
+                anchor: anchor.as_ref(),
+                attestations: &attestations,
+            };
+            crate::assurance::verify_assurance(&report, &statement, &evidence, &trusted)
+                .map(|_| ())
+                .map_err(|e| e.to_string())
         }
         "pack" => {
             let signed: crate::pack::SignedPack = load(&dir.join("pack.json"))?;

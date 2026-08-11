@@ -1141,8 +1141,11 @@ In order:
    substantiate:
    - `not-disclosed` iff the manifest marks the field withheld and the report
      carries no data for it (§8.5).
-   - `claimed-only` for every field the report carries. Always available once
-     step 3 passed, and never worth more than it says.
+   - `claimed-only` for every field not established as `not-disclosed` above.
+     Always available once step 3 passed, and never worth more than it says.
+     A field the report carries as an empty map is still claimed — the claim
+     is that there is nothing under it — so it is `claimed-only` and not
+     `not-disclosed`. Only the manifest withholds.
    - `cryptographically-verified` iff the field is `root_sums` and an
      inclusion proof was supplied that verifies against this report under
      §9.1. No other field is committed in the tree; `mark_prices` and the

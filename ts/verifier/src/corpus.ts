@@ -29,6 +29,7 @@ export type Case = {
 /** Everything this implementation verifies. */
 export const SUPPORTED = [
   "anchor-v1",
+  "assurance-v1",
   "coverage-v1",
   "group-v1",
   "leaf-v2",
@@ -152,8 +153,38 @@ export async function failureKind(c: Case, KEY: string): Promise<string | undefi
   } else if (c.kind === "anchors") {
     const { verifyAnchorChain } = await import("./coverage");
     result = await verifyAnchorChain(f("history.json"));
+  } else if (c.kind === "assurance") {
+    const { verifyAssurance } = await import("./assurance");
+    result = await verifyAssurance(f("report.json"), f("assurance.json"), assuranceEvidence(c), {
+      publisher: KEY,
+      attestors: optional(c, "attestors.json") ?? {},
+    });
   } else return undefined;
   return result.ok ? undefined : result.failure.kind;
+}
+
+/**
+ * A case file that may legitimately be absent.
+ *
+ * §16 evidence is optional by design: withholding the proof is how
+ * `assurance-verified-without-proof` differs from the case above it. A runner
+ * that treated a missing file as a broken case would turn the one case that
+ * demonstrates the mechanism into an error.
+ */
+function optional(c: Case, name: string): any {
+  try {
+    return json(`conformance/${c.id}/${name}`);
+  } catch {
+    return undefined;
+  }
+}
+
+function assuranceEvidence(c: Case) {
+  return {
+    proof: optional(c, "proof.json"),
+    anchor: optional(c, "anchor.json"),
+    attestations: optional(c, "attestations.json") ?? [],
+  };
 }
 
 export async function runCase(c: Case, KEY: string): Promise<boolean> {
@@ -193,6 +224,17 @@ export async function runCase(c: Case, KEY: string): Promise<boolean> {
     case "anchors": {
       const { verifyAnchorChain } = await import("./coverage");
       return (await verifyAnchorChain(f("history.json"))).ok;
+    }
+    case "assurance": {
+      const { verifyAssurance } = await import("./assurance");
+      return (
+        await verifyAssurance(
+          f("report.json"),
+          f("assurance.json"),
+          assuranceEvidence(c),
+          { publisher: KEY, attestors: optional(c, "attestors.json") ?? {} }
+        )
+      ).ok;
     }
     case "pack": {
       // The delivery is whatever is in the directory, minus the index. Reading

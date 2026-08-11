@@ -1,0 +1,17 @@
+[
+  {
+    "attestation": {
+      "attestor": "custodian::example",
+      "basis": "reconciled against sub-custody statements for the period",
+      "field": "root_sums",
+      "format_version": "canton-solvency-attestation-v1",
+      "report_digest": "0800c1047c9724ea429b238b01366f2032d674425d3ed745ed3402b2f534df61",
+      "role": "third-party"
+    },
+    "signature": {
+      "algorithm": "ed25519",
+      "public_key": "2c848ad8664ee651e4896c13a84a89a2964aca5eb77a8b881e60ded5c81b4e9d",
+      "value": "63990e86722ee9649e241cb08e8aa22afb64d5fe8453e92d589996c4d0f7e1034275a48599b617177d56f3367e802b320dc0058d94cd0c32c025dc8305e41e0d"
+    }
+  }
+]

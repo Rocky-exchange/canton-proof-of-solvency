@@ -739,6 +739,179 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         ],
     )?;
 
+    // --- assurance levels (§16) ---
+    //
+    // The cases that matter here are the over-claims. An implementation that
+    // reads the statement and reports it back has implemented nothing: the
+    // question is always whether it refused a declaration the evidence did not
+    // support.
+    {
+        use crate::assurance::{AssuranceLevel, ASSURANCE_FORMAT_VERSION};
+        let (a_report, a_proof, attestation, custodian_key) = golden::assurance_fixture();
+        let a_report_j = serde_json::to_value(&a_report)?;
+        let a_proof_j = serde_json::to_value(&a_proof)?;
+        let attestations_j = serde_json::to_value(vec![&attestation])?;
+        let digest = crate::digest::report_digest_hex(&a_report.report);
+
+        let statement = |field: &str, level: AssuranceLevel| -> serde_json::Value {
+            json!({
+                "format_version": ASSURANCE_FORMAT_VERSION,
+                "report_digest": digest,
+                "levels": { field: level.as_str() },
+            })
+        };
+        let trusting_custodian = json!({ custodian_key.clone(): "third-party" });
+
+        add(
+            "assurance-verified-with-proof",
+            "assurance",
+            &["report-v1", "proof-v1", "assurance-v1"],
+            "root_sums declared recomputed, with the proof that recomputes it",
+            "accept",
+            None,
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("proof.json", a_proof_j.clone()),
+                (
+                    "assurance.json",
+                    statement("root_sums", AssuranceLevel::CryptographicallyVerified),
+                ),
+            ],
+        )?;
+
+        // The mechanism, in one case: identical documents, proof withheld.
+        add(
+            "assurance-verified-without-proof",
+            "assurance",
+            &["report-v1", "assurance-v1"],
+            "root_sums declared recomputed when nothing was recomputed",
+            "reject",
+            Some("over_claimed"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                (
+                    "assurance.json",
+                    statement("root_sums", AssuranceLevel::CryptographicallyVerified),
+                ),
+            ],
+        )?;
+
+        // Mark prices are signed and uncommitted. This is the level most
+        // likely to be claimed by mistake, because the report it sits in does
+        // contain recomputed figures.
+        add(
+            "assurance-uncommitted-field-declared-verified",
+            "assurance",
+            &["report-v1", "proof-v1", "assurance-v1"],
+            "mark_prices declared recomputed, though nothing in the tree commits to it",
+            "reject",
+            Some("over_claimed"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("proof.json", a_proof_j.clone()),
+                (
+                    "assurance.json",
+                    statement("mark_prices", AssuranceLevel::CryptographicallyVerified),
+                ),
+            ],
+        )?;
+
+        add(
+            "assurance-attested-by-trusted-custodian",
+            "assurance",
+            &["report-v1", "assurance-v1"],
+            "root_sums declared third-party attested, with an attestation from a trusted key",
+            "accept",
+            None,
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("attestations.json", attestations_j.clone()),
+                ("attestors.json", trusting_custodian.clone()),
+                (
+                    "assurance.json",
+                    statement("root_sums", AssuranceLevel::ThirdPartyAttested),
+                ),
+            ],
+        )?;
+
+        // Same attestation, same signature, no prior decision to believe the
+        // signer. §8.4 applied to attestors.
+        add(
+            "assurance-attested-by-untrusted-key",
+            "assurance",
+            &["report-v1", "assurance-v1"],
+            "an attestation that verifies, from a key the verifier was never given",
+            "reject",
+            Some("over_claimed"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("attestations.json", attestations_j.clone()),
+                (
+                    "assurance.json",
+                    statement("root_sums", AssuranceLevel::ThirdPartyAttested),
+                ),
+            ],
+        )?;
+
+        // A custodian key vouching as an issuer. The signature is good and the
+        // role is not the one it was trusted for.
+        add(
+            "assurance-attestor-role-mismatch",
+            "assurance",
+            &["report-v1", "assurance-v1"],
+            "a key trusted as a custodian used to establish issuer attestation",
+            "reject",
+            Some("over_claimed"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("attestations.json", attestations_j.clone()),
+                ("attestors.json", trusting_custodian.clone()),
+                (
+                    "assurance.json",
+                    statement("root_sums", AssuranceLevel::IssuerAttested),
+                ),
+            ],
+        )?;
+
+        add(
+            "assurance-statement-for-another-report",
+            "assurance",
+            &["report-v1", "proof-v1", "assurance-v1"],
+            "a statement naming a different report",
+            "reject",
+            Some("digest_mismatch"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("proof.json", a_proof_j.clone()),
+                (
+                    "assurance.json",
+                    tweak(
+                        &statement("root_sums", AssuranceLevel::CryptographicallyVerified),
+                        &digest,
+                        &"0".repeat(64),
+                    ),
+                ),
+            ],
+        )?;
+
+        add(
+            "assurance-unknown-field",
+            "assurance",
+            &["report-v1", "proof-v1", "assurance-v1"],
+            "a level declared for a field the format does not define",
+            "reject",
+            Some("unknown_field"),
+            vec![
+                ("report.json", a_report_j.clone()),
+                ("proof.json", a_proof_j.clone()),
+                (
+                    "assurance.json",
+                    statement("solvency_vibes", AssuranceLevel::ClaimedOnly),
+                ),
+            ],
+        )?;
+    }
+
     // §15.1 requires a member name to be a plain file name. An index naming a
     // path is a delivery instruction rather than an integrity claim, and
     // nothing exercised the rule.

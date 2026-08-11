@@ -4,6 +4,7 @@
   "version": "0.1.1",
   "supports": [
     "anchor-v1",
+    "assurance-v1",
     "coverage-v1",
     "group-v1",
     "leaf-v2",
@@ -14,7 +15,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "8f4124abe4535e4505b448e996267d3faaf7fe10bb8d13bc1187558033bdb612",
+  "corpus_digest": "93ac7c0193617959e7c141c7fea1fccb66ad02affe79399d9edf3e0b07a07c25",
   "results": [
     {
       "id": "proof-valid",
@@ -210,6 +211,46 @@
       "id": "proof-astral-assets",
       "expected": "accept",
       "outcome": "accept"
+    },
+    {
+      "id": "assurance-verified-with-proof",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "assurance-verified-without-proof",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-uncommitted-field-declared-verified",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-attested-by-trusted-custodian",
+      "expected": "accept",
+      "outcome": "accept"
+    },
+    {
+      "id": "assurance-attested-by-untrusted-key",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-attestor-role-mismatch",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-statement-for-another-report",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "assurance-unknown-field",
+      "expected": "reject",
+      "outcome": "reject"
     },
     {
       "id": "pack-unsafe-name",
