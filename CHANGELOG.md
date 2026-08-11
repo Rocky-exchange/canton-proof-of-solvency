@@ -4,6 +4,31 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
+## Unreleased
+
+### Added
+
+- **Assurance levels (SPEC §16).** A figure recomputed from committed leaves
+  and a figure the publisher merely signed both passed verification and were
+  reported in the same word. They are now distinguished, and the distinction
+  is enforced rather than declared: a report states what each figure rests on,
+  the verifier establishes independently what it can substantiate, and a
+  declaration outside that set is a verification failure naming the field.
+  `cryptographically-verified` is defined narrowly — the published total
+  equals the sum of the committed leaves — and the specification says in as
+  many words that it does not establish that the assets exist.
+- `canton-solvency-verify assurance`, and eight conformance cases. All three
+  implementations run 53 of 53 over the same corpus digest.
+
+### Changed
+
+- `coverage` output names the custody side as `claimed-only`. The arithmetic
+  was always exact and always said less than it appeared to.
+- Repositioned as the Canton Assurance Layer — verifiable disclosure
+  infrastructure — in both READMEs. Crate names and wire identifiers are
+  deliberately unchanged: renaming `canton-solvency-report-v1` would
+  invalidate every document already signed under it.
+
 ## 0.1.1 — 2026-08-11
 
 Testing and documentation, plus four defects those tests found. No wire
