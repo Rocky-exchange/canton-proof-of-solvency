@@ -4,7 +4,7 @@ Formats are versioned by the domain strings baked into their hashes. A change
 that breaks a golden vector ships under new domain strings and is listed here
 as a format version, never as a fix.
 
-## Unreleased
+## 0.2.1 — 2026-08-11
 
 ### Fixed
 

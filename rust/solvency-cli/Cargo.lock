@@ -31,7 +31,7 @@ dependencies = [
 
 [[package]]
 name = "canton-solvency-merkle"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "hex",
@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "canton-solvency-report"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "canton-solvency-merkle",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "canton-solvency-verify"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "canton-solvency-merkle",

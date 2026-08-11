@@ -1,6 +1,6 @@
 [package]
 name = "canton-solvency-verify"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
@@ -14,8 +14,8 @@ categories = ["command-line-utilities", "cryptography"]
 # Deliberately few dependencies: this is a tool whose users may need to read
 # its dependency tree before trusting it. Arguments are parsed by hand.
 [dependencies]
-canton-solvency-merkle = { path = "../solvency-merkle", version = "0.2.0" }
-canton-solvency-report = { path = "../solvency-report", version = "0.2.0" }
+canton-solvency-merkle = { path = "../solvency-merkle", version = "0.2.1" }
+canton-solvency-report = { path = "../solvency-report", version = "0.2.1" }
 anyhow = "1"
 hex = "0.4"
 serde = { version = "1", features = ["derive"] }
