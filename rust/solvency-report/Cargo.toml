@@ -1,6 +1,6 @@
 [package]
 name = "canton-solvency-report"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.75"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ readme = "../../README.md"
 categories = ["cryptography", "finance"]
 
 [dependencies]
-canton-solvency-merkle = { path = "../solvency-merkle", version = "0.1.1" }
+canton-solvency-merkle = { path = "../solvency-merkle", version = "0.2.0" }
 anyhow = "1"
 ed25519-dalek = "2"
 hex = "0.4"

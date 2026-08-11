@@ -8,28 +8,54 @@ vectors is a new format version, not a refactor.**
 
 ## Status
 
-**v1.1 — frozen against the conformance corpus** ([`conformance/`](conformance),
-§14.3). Every normative section below is implemented by both reference
+**v1.2 — frozen against the conformance corpus** ([`conformance/`](conformance),
+§14.3). Every normative section below is implemented by all three
 implementations and exercised by at least one corpus case; a change to any of
 them requires a new domain string and a new corpus case, not an edit here.
 
 Normative: §1–§6 (commitment core), §8 (report envelope), §9 (proof
 documents), §11 (coverage), §12 (anchoring), §13 (hierarchy), §14 (profiles
-and conformance), §15 (evidence packs). §7 is informative. §10 records golden
+and conformance), §15 (evidence packs), §16 (assurance levels), §17 (evidence
+provenance), §18 (temporal cut points). §7 is informative. §10 records golden
 vectors, which are data rather than rules.
 
-**What v1.1 changed from v1.** No wire bytes. Every §6 and §10 vector still
-verifies unchanged. v1.1 adds §11–§15 as normative text and sharpens four
-under-specified points that two implementations had resolved identically by
-coincidence rather than by rule: bytewise ordering over UTF-8 and its
-disagreement with a UTF-16 sort (§2), serialization of explicit zeros (§2),
-`lp(root_hash)` covering the hex string (§8.2), and the origin of the fold's
-running sums (§5). Those were found by implementing this document from its
-text alone — see [`spec-audit/`](spec-audit), which also found the
-TypeScript verifier ordering keys wrongly. Any implementation that agreed with
-the reference before still agrees; one that had guessed differently on §2
-would have diverged only for non-ASCII asset names, which the
-`proof-astral-assets` case now catches.
+**What v1.2 changed from v1.1.** No wire bytes: every §6 and §10 vector still
+verifies unchanged, and every document valid under v1.1 is valid under v1.2.
+Three sections are new, and one existing rule was tightened.
+
+§16 separates what had been one answer. A total recomputed from committed
+leaves and a total the publisher merely signed both satisfy §9.1, because both
+satisfy what §9.1 asks — and reporting them in the same word tells a reader
+something false about the second. A report may now declare, per field, what
+kind of evidence stands behind it, and a verifier establishes independently
+what it can substantiate; a declaration outside that is a failure.
+`cryptographically-verified` is defined narrowly, and §16.1 says in as many
+words that it does not establish that the assets exist.
+
+§17 adds a signed graph of where a figure came from — participants,
+synchronizers, parties, templates, off-ledger systems — checked against §16
+rather than rendered and left to the reader.
+
+§18 pins the timestamp format tightly enough to subtract, and requires two
+documents presented as one claim to be as of the same moment within a
+tolerance the *reader* supplies.
+
+The tightened rule is §16.4's `ledger-derived`, which now requires an anchor
+**and** a §17 derivation. Writing §17 exposed that an anchor alone establishes
+only that a report was pinned to ledger state at an offset, and says nothing
+about whether the figure was derived from it — a venue whose totals arrive
+from a custody API, anchored on schedule, satisfied the earlier rule
+completely. Nothing published under v1.1 is invalidated: no corpus case
+claimed the level, because none existed.
+
+**What v1.1 changed from v1.** No wire bytes. v1.1 added §11–§15 as normative
+text and sharpened four under-specified points that two implementations had
+resolved identically by coincidence rather than by rule: bytewise ordering
+over UTF-8 and its disagreement with a UTF-16 sort (§2), serialization of
+explicit zeros (§2), `lp(root_hash)` covering the hex string (§8.2), and the
+origin of the fold's running sums (§5). Those were found by implementing this
+document from its text alone — see [`spec-audit/`](spec-audit), which also
+found the TypeScript verifier ordering keys wrongly.
 
 ## 1. Amounts
 

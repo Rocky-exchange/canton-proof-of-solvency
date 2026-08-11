@@ -12,7 +12,7 @@ Verifiable disclosure infrastructure for institutional markets on the
 [![CI](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml/badge.svg)](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg)](rust/solvency-merkle/Cargo.toml)
-[![Spec](https://img.shields.io/badge/wire_format-v1-informational.svg)](SPEC.md)
+[![Spec](https://img.shields.io/badge/spec-v1.2-informational.svg)](SPEC.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 English | [简体中文](README.zh-CN.md)
@@ -802,8 +802,9 @@ Turns one implementation into something the network can rely on.
   us your reports and we'll check" from a promise into a procedure, and means a
   later change to our verifier that broke a third party's documents fails *our*
   build rather than theirs.
-- ~~**Public specification v1.1**~~ — **delivered**, [SPEC.md](SPEC.md). §11
-  coverage, §12 anchoring, §14 profiles and §15 evidence packs are normative,
+- ~~**Public specification v1.2**~~ — **delivered**, [SPEC.md](SPEC.md). §11
+  coverage, §12 anchoring, §14 profiles, §15 evidence packs, §16 assurance
+  levels, §17 evidence provenance and §18 temporal cut points are normative,
   and the document is frozen against the conformance corpus: every normative
   section is exercised by at least one case, and changing one requires a new
   domain string and a new case. No wire bytes moved — every §6 and §10 vector
@@ -839,7 +840,7 @@ Turns one implementation into something the network can rely on.
 - **CIP proposal** — the wire format submitted to the Canton Improvement
   Proposal process, with the conformance suite as its normative tests.
 
-**Status.** The conformance suite, specification v1.1, the implementability
+**Status.** The conformance suite, specification v1.2, the implementability
 audit and the CIP draft are delivered. The two remaining deliverables each
 need a party outside this project — a second implementer and a security
 reviewer — so what is shipped is everything that does not: the corpus, the

@@ -11,7 +11,7 @@
 [![CI](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml/badge.svg)](https://github.com/Rocky-exchange/canton-proof-of-solvency/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange.svg)](rust/solvency-merkle/Cargo.toml)
-[![Spec](https://img.shields.io/badge/wire_format-v1-informational.svg)](SPEC.md)
+[![Spec](https://img.shields.io/badge/spec-v1.2-informational.svg)](SPEC.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 [English](README.md) | 简体中文
@@ -655,7 +655,8 @@ CLI 从磁盘扫描并逐份解析、验证 5,000 个证明文件,约耗时 1.1 
 - **两个独立的 Canton 接入方** —— 至少有一个 Rocky 之外的生产方发布符合规范
   的报告(最好采用另一个 profile),并双向验证互通:对方的报告能被本工具验证,
   本项目的报告也能被对方验证。
-- ~~**公开规范 v1.1**~~ —— **已交付**,见 [SPEC.md](SPEC.md)。§11 覆盖率、
+- ~~**公开规范 v1.2**~~ —— **已交付**,见 [SPEC.md](SPEC.md)。§16 保证级别、
+  §17 证据来源、§18 时间切点、§11 覆盖率、
   §12 锚定、§14 profile 与 §15 证据包均为规范性内容,并已针对一致性语料冻结:
   每个规范性小节都至少被一个用例覆盖,改动其中任何一节都需要新的 domain 字符串
   和新的用例。线上字节没有任何变动 —— §6 与 §10 的每一条向量依旧验证通过。
