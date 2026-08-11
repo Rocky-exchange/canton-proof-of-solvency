@@ -68,12 +68,26 @@ impl CoverageOutcome {
 /// Both reports must already verify in their own right; this checks that the
 /// statement names *these* two reports and that the assets cover the
 /// liabilities asset by asset.
+/// How far apart two sides of a coverage claim may be and still be one claim
+/// (SPEC §18.4).
+///
+/// Supplied by the caller, never by the publisher. A publisher declaring its
+/// own tolerance would declare whatever pairing it wanted to make, which is
+/// the same reason §8.4 puts the trusted key in the reader's hands.
+///
+/// `EXACT` is the strictest reading and rarely achievable: a custody snapshot
+/// and a liabilities snapshot taken by different systems land seconds apart.
+/// `SAME_RUN` is what a venue producing both in one job should manage.
+pub const EXACT: u64 = 0;
+pub const SAME_RUN: u64 = 300;
+
 pub fn verify_coverage(
     custody: &SignedReport,
     liabilities: &SignedReport,
     statement: &CoverageStatement,
     custody_trusted_key: &str,
     liabilities_trusted_key: &str,
+    max_skew_seconds: u64,
 ) -> Result<CoverageOutcome, VerificationFailure> {
     use VerificationFailure as F;
 
@@ -99,6 +113,31 @@ pub fn verify_coverage(
 
     check_signature(custody, custody_trusted_key)?;
     check_signature(liabilities, liabilities_trusted_key)?;
+
+    // Assets at their peak against liabilities at their trough is the oldest
+    // manipulation in proof-of-reserves, and the digest binding does not touch
+    // it: binding stops a report being substituted, and the publisher signs
+    // the statement that pairs these two, so "documents nobody agreed to
+    // compare" does not cover a pairing they very much agreed to.
+    let skew = crate::instant::skew(
+        &custody.report.snapshot_time,
+        &liabilities.report.snapshot_time,
+    )
+    .ok_or_else(|| {
+        F::Malformed(format!(
+            "a snapshot_time is not a §18.1 timestamp: {:?} and {:?}",
+            custody.report.snapshot_time, liabilities.report.snapshot_time
+        ))
+    })?;
+    if skew > max_skew_seconds {
+        return Err(F::TemporalMismatch {
+            detail: format!(
+                "custody is as of {} and liabilities as of {}, {skew}s apart, \
+                 beyond the {max_skew_seconds}s the caller allows",
+                custody.report.snapshot_time, liabilities.report.snapshot_time
+            ),
+        });
+    }
 
     // Driven by what is owed: an asset held but not owed is not a coverage
     // question, while an asset owed and not held is the worst case and must
@@ -159,8 +198,20 @@ mod tests {
         ReportSigner::from_seed(&[11u8; 32])
     }
 
-    fn key() -> String {
+    pub fn key() -> String {
         signer().public_key_hex()
+    }
+
+    fn meta_at(profile: &str, snapshot_time: &str, ledger_offset: &str) -> ReportMetadata {
+        ReportMetadata {
+            profile: profile.to_string(),
+            publisher: "venue::one".to_string(),
+            snapshot_time: snapshot_time.to_string(),
+            ledger_offset: ledger_offset.to_string(),
+            mark_prices: BTreeMap::new(),
+            disclosures: Default::default(),
+            manifest: None,
+        }
     }
 
     fn meta(profile: &str) -> ReportMetadata {
@@ -195,6 +246,53 @@ mod tests {
             .signed_report
     }
 
+    /// A custody report as of a stated moment, for the temporal tests.
+    pub fn custody_report_at(positions: &[(&str, u128)], at: &str, offset: &str) -> SignedReport {
+        let leaves: Vec<LeafInputV2> = positions
+            .iter()
+            .enumerate()
+            .map(|(i, (asset, amount))| LeafInputV2 {
+                salt: [i as u8; 32],
+                subject_id: format!("position-{i}"),
+                maps: [(
+                    "held".to_string(),
+                    [(asset.to_string(), *amount)].into_iter().collect(),
+                )]
+                .into_iter()
+                .collect(),
+            })
+            .collect();
+        publish_v2(&leaves, &meta_at("coverage.custody", at, offset), &signer())
+            .unwrap()
+            .signed_report
+    }
+
+    pub fn liabilities_report_at(
+        balances: &[(&str, u128)],
+        at: &str,
+        offset: &str,
+    ) -> SignedReport {
+        let leaves: Vec<crate::produce::LeafInput> = balances
+            .iter()
+            .enumerate()
+            .map(|(i, (asset, amount))| {
+                let user_id = format!("user-{i}");
+                crate::produce::LeafInput {
+                    salt: leaf_salt(b"m", &user_id),
+                    balances: [(asset.to_string(), *amount)].into_iter().collect(),
+                    user_id,
+                }
+            })
+            .collect();
+        publish(
+            &leaves,
+            &meta_at("solvency.liabilities", at, offset),
+            &signer(),
+        )
+        .unwrap()
+        .signed_report
+    }
+
     fn liabilities_report(balances: &[(&str, u128)]) -> SignedReport {
         let leaves: Vec<crate::produce::LeafInput> = balances
             .iter()
@@ -227,7 +325,7 @@ mod tests {
         liabilities: &SignedReport,
         statement: &CoverageStatement,
     ) -> Result<CoverageOutcome, VerificationFailure> {
-        verify_coverage(custody, liabilities, statement, &key(), &key())
+        verify_coverage(custody, liabilities, statement, &key(), &key(), SAME_RUN)
     }
 
     #[test]
@@ -337,9 +435,15 @@ mod tests {
         let custody = custody_report(&[("USDA", 150)]);
         let liabilities = liabilities_report(&[("USDA", 100)]);
         let statement = statement_for(&custody, &liabilities);
-        assert!(
-            verify_coverage(&custody, &liabilities, &statement, &"ab".repeat(32), &key()).is_err()
-        );
+        assert!(verify_coverage(
+            &custody,
+            &liabilities,
+            &statement,
+            &"ab".repeat(32),
+            &key(),
+            SAME_RUN
+        )
+        .is_err());
     }
 
     #[test]
@@ -350,5 +454,42 @@ mod tests {
         let back: CoverageStatement =
             serde_json::from_str(&serde_json::to_string(&statement).unwrap()).unwrap();
         assert_eq!(back, statement);
+    }
+}
+
+#[cfg(test)]
+mod temporal_tests {
+    use super::tests::*;
+    use super::*;
+
+    /// The classic proof-of-reserves manipulation: assets at their peak,
+    /// liabilities at their trough. The digest binding stops a report being
+    /// *substituted*; it says nothing about the two being as of the same
+    /// moment, and a publisher signs the statement pairing them, so
+    /// "documents nobody agreed to compare" does not cover it.
+    #[test]
+    fn a_coverage_pairing_across_different_moments_is_refused() {
+        let custody = custody_report_at(
+            &[("USDA", 1_000_000_000_000_000_000)],
+            "2026-08-09T00:00:00Z",
+            "000000000000000007",
+        );
+        let liabilities = liabilities_report_at(
+            &[("USDA", 1_000_000_000_000_000_000)],
+            "2026-05-01T00:00:00Z",
+            "000000000000000001",
+        );
+        let statement = CoverageStatement {
+            format_version: COVERAGE_FORMAT_VERSION.to_string(),
+            custody_report_digest: crate::digest::report_digest_hex(&custody.report),
+            liabilities_report_digest: crate::digest::report_digest_hex(&liabilities.report),
+            custody_basis: "sub-custody statements".to_string(),
+        };
+        let failure = verify_coverage(&custody, &liabilities, &statement, &key(), &key(), SAME_RUN)
+            .expect_err("three months apart is not one solvency claim");
+        assert!(
+            format!("{failure}").contains("as of"),
+            "the failure should say the two sides are as of different moments: {failure}"
+        );
     }
 }

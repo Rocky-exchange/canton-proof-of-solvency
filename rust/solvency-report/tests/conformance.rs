@@ -51,6 +51,7 @@ fn expected_text(failure: &str) -> &'static str {
         "over_claimed" => "but the evidence supplied supports",
         "unknown_field" => "has no way to substantiate",
         "provenance_inconsistent" => "provenance graph",
+        "temporal_mismatch" => "apart, beyond",
         other => panic!("no expected text for declared failure {other:?}"),
     }
 }

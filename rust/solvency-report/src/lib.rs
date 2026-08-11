@@ -79,6 +79,7 @@ pub mod digest;
 pub mod document;
 pub mod golden;
 pub mod group;
+pub mod instant;
 pub mod manifest;
 pub mod pack;
 pub mod produce;

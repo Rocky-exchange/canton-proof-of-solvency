@@ -1,0 +1,6 @@
+{
+  "custody_basis": "sub-custody statements for the period",
+  "custody_report_digest": "e79d1144a9070000d4950ec9a6c250447b26db6c09eb56258de76b07dd3ed561",
+  "format_version": "canton-solvency-coverage-v1",
+  "liabilities_report_digest": "14c184c31a73ff105d315959b1605de3b561df0fe5c716a9d2bcb347c060f4fe"
+}

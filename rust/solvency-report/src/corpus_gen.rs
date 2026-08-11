@@ -912,6 +912,27 @@ pub fn emit(out: &Path) -> anyhow::Result<usize> {
         )?;
     }
 
+    // --- temporal comparability (§18.4) ---
+    {
+        let (stale_custody, stale_liabilities, stale_statement) = golden::stale_pairing_fixture();
+        add(
+            "coverage-stale-pairing",
+            "coverage",
+            &["report-v1", "report-v2", "coverage-v1", "leaf-v2"],
+            "custody and liabilities three months apart, presented as one solvency claim",
+            "reject",
+            Some("temporal_mismatch"),
+            vec![
+                ("custody.json", serde_json::to_value(&stale_custody)?),
+                (
+                    "liabilities.json",
+                    serde_json::to_value(&stale_liabilities)?,
+                ),
+                ("statement.json", serde_json::to_value(&stale_statement)?),
+            ],
+        )?;
+    }
+
     // --- evidence provenance (§17) ---
     //
     // The pair that carries the section: one graph in which `root_sums` may

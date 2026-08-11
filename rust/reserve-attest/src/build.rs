@@ -190,8 +190,15 @@ mod tests {
         };
 
         let key = signer().public_key_hex();
-        let outcome =
-            verify_coverage(&custody_report, &liabilities, &statement, &key, &key).unwrap();
+        let outcome = verify_coverage(
+            &custody_report,
+            &liabilities,
+            &statement,
+            &key,
+            &key,
+            canton_solvency_report::coverage::SAME_RUN,
+        )
+        .unwrap();
         assert!(outcome.fully_covered(), "{:?}", outcome.assets);
     }
 

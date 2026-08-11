@@ -16,7 +16,7 @@
     "report-v1",
     "report-v2"
   ],
-  "corpus_digest": "46b143c4aadbd1d431aa444326ab46a4c1b1b38b9268e9d22da637cb55a4abbd",
+  "corpus_digest": "b4984ce2abc02d1e9ca829ca95e3f8b26ff39ddc9327d2253ad6de20d070ec44",
   "results": [
     {
       "id": "proof-valid",
@@ -250,6 +250,11 @@
     },
     {
       "id": "assurance-unknown-field",
+      "expected": "reject",
+      "outcome": "reject"
+    },
+    {
+      "id": "coverage-stale-pairing",
       "expected": "reject",
       "outcome": "reject"
     },

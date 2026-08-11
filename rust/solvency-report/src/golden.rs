@@ -233,6 +233,62 @@ pub fn assurance_fixture() -> (
     (report, proof, signed, key)
 }
 
+/// §18.4: a coverage pairing whose two sides are three months apart.
+///
+/// Every other rule in §11 passes. Assets at their peak against liabilities at
+/// their trough is the oldest manipulation in proof-of-reserves, and the
+/// digest binding does not touch it — the publisher signed the statement that
+/// pairs them.
+pub fn stale_pairing_fixture() -> (
+    SignedReport,
+    SignedReport,
+    crate::coverage::CoverageStatement,
+) {
+    use crate::produce::{publish_v2, LeafInputV2};
+    let custody_meta = ReportMetadata {
+        profile: "coverage.custody".to_string(),
+        snapshot_time: "2026-08-09T00:00:00Z".to_string(),
+        ledger_offset: "000000000000000900".to_string(),
+        ..metadata()
+    };
+    let liabilities_meta = ReportMetadata {
+        profile: "solvency.liabilities".to_string(),
+        snapshot_time: "2026-05-01T00:00:00Z".to_string(),
+        ledger_offset: "000000000000000100".to_string(),
+        ..metadata()
+    };
+    let held: Vec<LeafInputV2> = vec![LeafInputV2 {
+        salt: [9u8; 32],
+        subject_id: "position-0".to_string(),
+        maps: [(
+            "held".to_string(),
+            [("USDA".to_string(), 500_000_000_000_000_000_000u128)]
+                .into_iter()
+                .collect(),
+        )]
+        .into_iter()
+        .collect(),
+    }];
+    let custody = publish_v2(&held, &custody_meta, &signer())
+        .unwrap()
+        .signed_report;
+    let owed = vec![LeafInput {
+        salt: leaf_salt(MASTER_SALT, "user-0"),
+        user_id: "user-0".to_string(),
+        balances: amounts(&[("USDA", 1_000_000_000_000_000_000)]),
+    }];
+    let liabilities = publish(&owed, &liabilities_meta, &signer())
+        .unwrap()
+        .signed_report;
+    let statement = crate::coverage::CoverageStatement {
+        format_version: crate::coverage::COVERAGE_FORMAT_VERSION.to_string(),
+        custody_report_digest: crate::digest::report_digest_hex(&custody.report),
+        liabilities_report_digest: crate::digest::report_digest_hex(&liabilities.report),
+        custody_basis: "sub-custody statements for the period".to_string(),
+    };
+    (custody, liabilities, statement)
+}
+
 /// The §17 provenance fixture.
 ///
 /// `root_sums` from a participant and a template, `mark_prices` from a price
@@ -1061,9 +1117,15 @@ mod tests {
             serde_json::from_str(COVERAGE_STATEMENT_JSON).unwrap();
         let liabilities: SignedReport = serde_json::from_str(REPORT_JSON).unwrap();
         let key = signer().public_key_hex();
-        let outcome =
-            crate::coverage::verify_coverage(&custody, &liabilities, &statement, &key, &key)
-                .unwrap();
+        let outcome = crate::coverage::verify_coverage(
+            &custody,
+            &liabilities,
+            &statement,
+            &key,
+            &key,
+            crate::coverage::SAME_RUN,
+        )
+        .unwrap();
         assert!(outcome.fully_covered(), "{:?}", outcome.assets);
     }
 

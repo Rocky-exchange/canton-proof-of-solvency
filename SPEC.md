@@ -1309,3 +1309,109 @@ a `party` exists, that a `template` is the one that holds the assets, that a
 custody API returns the figure quoted — none of that is checkable from the
 document. Where it matters, it is an attestation (§16.3) about the field, and
 the graph is what says which source the attestation is about.
+
+## 18. Temporal cut points
+
+Every report says it is as of a `snapshot_time` and a `ledger_offset`. Both
+are single values, and Canton has no single value to give.
+
+There is no "as of block height N" here. Each participant advances its own
+offset; each synchronizer has its own record time; an application reading
+several of them sees several presents. A report carrying one offset is
+carrying *one participant's* view, presented in a field named as though it
+described the state of the world. For a venue running one participant that is
+a distinction without a difference. For anything larger it is the difference
+between a claim that can be checked and one that cannot.
+
+Two questions follow, and this section answers them in that order: what
+exactly does a timestamp mean, and when may two documents be treated as
+describing the same moment.
+
+### 18.1 The timestamp profile
+
+§8.2 says `snapshot_time` is "RFC 3339 UTC, `Z` suffix". That was enough while
+timestamps were only compared for equality or displayed. Subtracting them
+needs the format pinned tighter, because RFC 3339 is much wider than what is
+wanted: `+00:00`, lower-case `z`, and unbounded fractional digits all denote
+instants this format also spells another way, and two spellings of one moment
+that compare unequal as strings are a bug waiting for a reader who compares
+strings.
+
+So for the purposes of this specification a timestamp is **exactly**:
+
+```
+YYYY-MM-DDTHH:MM:SS[.fff…]Z
+```
+
+Four-digit year, two-digit everything else, `T` and `Z` upper case, an
+optional fractional part of one or more digits. Hours 00–23, minutes and
+seconds 00–59, and a day that exists in that month of that year. A leap second
+(`:60`) is valid RFC 3339 and MUST be refused here: it has no unambiguous
+answer for the arithmetic below, and Canton does not emit one.
+
+Producers MUST emit this form. Verifiers MUST refuse anything else rather than
+coerce it, and MUST NOT use a permissive host date parser — JavaScript's
+`Date.parse` accepts most of what this section excludes and returns `NaN` for
+the rest without saying which happened.
+
+Fractional seconds are accepted and ignored. They are below the resolution
+anything here compares at, and refusing them would reject timestamps a
+participant legitimately produces.
+
+### 18.2 Skew, and what a single timestamp hides
+
+Where a figure is assembled from several views — several participants, several
+synchronizers — the **skew** of that assembly is the span between its earliest
+and latest view. A cut spanning two seconds and a cut spanning four hours are
+very different claims, and a report carrying one `snapshot_time` states
+neither.
+
+This specification does not yet define a document for declaring per-view
+offsets and record times. What it does define is the rule that stops the
+absence of one from being invisible where it matters most, which is §18.4.
+
+### 18.3 Ordering within a publisher
+
+§12.1 already requires `snapshot_time` to increase and `ledger_offset` not to
+decrease along an anchor chain. Those comparisons are over §18.1 timestamps,
+and a verifier MUST refuse a chain in which any `snapshot_time` is outside the
+profile rather than fall back to string ordering — string ordering agrees with
+instant ordering inside the profile and stops agreeing the moment anything
+outside it appears.
+
+### 18.4 Comparability
+
+Two reports presented as one claim MUST be as of the same moment, within a
+tolerance **the reader supplies**.
+
+The tolerance is not the publisher's to declare, for the same reason the
+trusted key is not (§8.4): a publisher choosing its own tolerance chooses
+whichever pairing it wants to present. It is a parameter of verification, like
+the key, and an implementation MUST require it from the caller rather than
+defaulting silently to something permissive.
+
+This applies to §11 coverage, and a verifier MUST refuse a coverage statement
+whose two reports are further apart than the caller allows. Binding the two
+reports by digest does not address this: binding stops a report being
+*substituted*, and here the publisher has signed a statement deliberately
+pairing custody as of one moment with liabilities as of another. Assets at
+their peak against liabilities at their trough is the oldest manipulation in
+proof-of-reserves, and every rule in §11 passes while it happens.
+
+The reference implementations expose two named tolerances — `EXACT` (0s) and
+`SAME_RUN` (300s) — and the conformance corpus fixes `SAME_RUN`, so a case
+cannot pass in one implementation and fail in another over a default nobody
+wrote down.
+
+### 18.5 What this does not do
+
+It does not establish that a stated `snapshot_time` is when the data was
+actually read. A publisher can stamp any moment it likes, and every rule here
+still holds. An anchor (§12) is what ties a report to a point in the
+publisher's event history that someone else observed; the timestamp is a
+claim, and §16 grades it as one.
+
+Nor does the tolerance make two nearby moments identical. Balances move
+between them. What the rule removes is the ability to present two arbitrarily
+distant snapshots as a single solvency claim without a reader having to notice
+the dates themselves.
